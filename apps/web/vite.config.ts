@@ -10,6 +10,9 @@ export default defineConfig({
     },
   },
   server: {
+    // Vite rejects unknown Host headers. Raw IPs always pass; Tailscale MagicDNS
+    // names (machine.tailnet.ts.net) need to be allowed explicitly.
+    allowedHosts: [".ts.net"],
     fs: {
       allow: [new URL("../..", import.meta.url).pathname],
     },

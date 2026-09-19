@@ -14,6 +14,14 @@ uv sync --project apps/tracer-python
 description = "Run the server and web development servers"
 run = "pnpm run dev"
 
+[tasks."dev:server"]
+description = "Run only the API server (loopback :3001, restarts on change)"
+run = "pnpm --filter @codewalk/server run dev"
+
+[tasks."dev:web"]
+description = "Run only the web dev server (localhost:5173); extra arguments go to Vite"
+run = "pnpm --filter @codewalk/web run dev"
+
 [tasks.format]
 description = "Check formatting"
 run = """
