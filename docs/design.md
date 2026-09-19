@@ -280,6 +280,19 @@ only; it runs inside the jail's minimal rootfs). Dev: **ruff** (lint + format),
 **ty** (type check), **pytest**, `jsonschema` for validating traces against the
 spec.
 
+## Testing
+
+Follow the `writing-tests` skill. Project-specific designations it refers to:
+
+- **Golden contract:** tracer output only (`spec/fixtures/`, source → trace).
+  No goldens or snapshots anywhere else.
+- **Core end-to-end journeys** (the complete list):
+  1. Run a program → click a call site → the callee window opens.
+  2. Click a loop → iteration stack opens → switch iteration.
+  3. Click an output line → the path to its site opens.
+  4. A run that raises → the path to the exception origin opens automatically.
+  5. A syntax error is shown and no trace tree appears.
+
 ## Milestones
 
 - **M0 — Spec.** Trace format, fixtures. *(this document + `spec/`)*
