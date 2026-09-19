@@ -38,10 +38,10 @@ Done when all of these give the right answers for the `fact` fixture.
 
 ## 2. Tracer runtime (`_cw`)
 
-- [ ] Node stack; `block` context manager, `stmt`, `_b`/`_e`.
-- [ ] Stack repair via the `parent` table; never pops a block.
-- [ ] Lazy emission of expr nodes; `exit.exc` on blocks.
-- [ ] stdout/stderr hook → `out` events; event limit → `end: truncated`;
+- [x] Node stack; `block`/`iteration` context managers, `stmt`, `_b`/`_e`.
+- [x] Stack repair via the `parent` table; never pops a block.
+- [x] Lazy emission of expr nodes; `exit.exc` on blocks.
+- [x] stdout/stderr hook → `out` events; event limit → `end: truncated`;
       writer to a dedicated fd.
 
 Done when the hand-instrumented sample in design.md produces the fixture's events.
@@ -54,6 +54,11 @@ Done when the hand-instrumented sample in design.md produces the fixture's event
       generators and `async` bodies untouched.
 - [ ] `python -m codewalk run main.py`: instrument, run, `end` status incl.
       `exception` (filtered traceback) and `syntax_error`.
+- [ ] Decide the flush policy: the sink only flushes at `end`, so a program that
+      hangs with few events (`time.sleep`, blocked read) and is killed loses its
+      whole trace. Either the CLI enforces its own wall-clock limit
+      (`signal.setitimer` → `finish("timeout")`) with the server's kill as a
+      backstop, or the sink flushes per event.
 - [ ] Goldens in `spec/fixtures/`, one construct each: caught exception, uncaught
       exception, `while`, `break`/`continue`, call inside a comprehension,
       callback from native code (`sorted(key=…)`), implicit call (`__lt__`), `input()`.
