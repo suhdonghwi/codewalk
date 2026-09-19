@@ -1,0 +1,24 @@
+{"codewalk":1,"sources":[{"file":"implicit_call.py","text":"class Item:\n    def __lt__(self, other):\n        print(\"lt\")\n        return True\n\n\nprint(Item() < Item())\n"}],"locs":[{"role":"block","kind":"module","file":0,"start":0,"end":105,"parent":null},{"role":"stmt","kind":"class","file":0,"start":0,"end":11,"parent":0},{"role":"stmt","kind":"def","file":0,"start":16,"end":40,"parent":0},{"role":"block","kind":"function","file":0,"start":16,"end":80,"parent":2,"name":"__lt__"},{"role":"stmt","kind":"expr","file":0,"start":49,"end":60,"parent":3},{"role":"expr","kind":"call","file":0,"start":49,"end":60,"parent":4},{"role":"stmt","kind":"return","file":0,"start":69,"end":80,"parent":3},{"role":"stmt","kind":"expr","file":0,"start":83,"end":105,"parent":0},{"role":"expr","kind":"call","file":0,"start":83,"end":105,"parent":7},{"role":"expr","kind":"compare","file":0,"start":89,"end":104,"parent":8},{"role":"expr","kind":"call","file":0,"start":89,"end":95,"parent":9},{"role":"expr","kind":"call","file":0,"start":98,"end":104,"parent":9}]}
+{"op":"enter","loc":0}
+{"op":"enter","loc":1}
+{"op":"exit"}
+{"op":"enter","loc":2}
+{"op":"exit"}
+{"op":"enter","loc":7}
+{"op":"enter","loc":8}
+{"op":"enter","loc":9}
+{"op":"enter","loc":3}
+{"op":"enter","loc":4}
+{"op":"enter","loc":5}
+{"op":"out","stream":"stdout","text":"lt\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":6}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"out","stream":"stdout","text":"True\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"end","status":"ok"}

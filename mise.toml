@@ -54,6 +54,20 @@ pnpm run test
 uv run --project apps/tracer-python pytest apps/tracer-python
 """
 
+[tasks.goldens]
+description = "Regenerate Python tracer golden traces"
+run = """
+for source in spec/fixtures/*.py; do
+  trace="${source%.py}.trace.jsonl"
+  input="${source%.py}.stdin"
+  if [ -f "$input" ]; then
+    uv run --project apps/tracer-python python -m codewalk run "$source" < "$input" > "$trace"
+  else
+    uv run --project apps/tracer-python python -m codewalk run "$source" > "$trace"
+  fi
+done
+"""
+
 [tasks.check]
 description = "Run every repository check"
 depends = ["format", "lint", "typecheck", "knip", "test", "schema:check"]

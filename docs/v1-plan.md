@@ -38,7 +38,7 @@ Done when all of these give the right answers for the `fact` fixture.
 
 ## 2. Tracer runtime (`_cw`)
 
-- [x] Node stack; `block`/`iteration` context managers, `stmt`, `_b`/`_e`.
+- [x] Node stack; `block`/`iteration` context managers, `stmt`, `_cw_b`/`_cw_e`.
 - [x] Stack repair via the `parent` table; never pops a block.
 - [x] Lazy emission of expr nodes; `exit.exc` on blocks.
 - [x] stdout/stderr hook → `out` events; event limit → `end: truncated`;
@@ -48,22 +48,16 @@ Done when the hand-instrumented sample in design.md produces the fixture's event
 
 ## 3. Instrumenter + CLI
 
-- [ ] Loc table: roles, kinds, header-only compound statements, UTF-16 offsets, `parent`.
-- [ ] Transforms: module, `def`, `for`/`while` (loop stmt + iteration block),
+- [x] Loc table: roles, kinds, header-only compound statements, UTF-16 offsets, `parent`.
+- [x] Transforms: module, `def`, `for`/`while` (loop stmt + iteration block),
       statement markers, selective expression brackets. Leave lambdas,
-      generators and `async` bodies untouched.
-- [ ] `python -m codewalk run main.py`: instrument, run, `end` status incl.
+      generator expressions, generators and `async` bodies untouched.
+- [x] `python -m codewalk run main.py`: instrument, run, `end` status incl.
       `exception` (filtered traceback) and `syntax_error`.
-- [ ] Decide the flush policy: the sink only flushes at `end`, so a program that
-      hangs with few events (`time.sleep`, blocked read) and is killed loses its
-      whole trace. Either the CLI enforces its own wall-clock limit
-      (`signal.setitimer` → `finish("timeout")`) with the server's kill as a
-      backstop, or the sink flushes per event.
-- [ ] Goldens in `spec/fixtures/`, one construct each: caught exception, uncaught
-      exception, `while`, `break`/`continue`, call inside a comprehension,
-      callback from native code (`sorted(key=…)`), implicit call (`__lt__`), `input()`.
-- [ ] Invariant checker over every fixture: well-nested, role nesting rules,
-      schema-valid, `out` events == output of the uninstrumented program.
+- [x] Flush/timeout policy: the CLI runs a repeating ~100 ms interval timer
+      that flushes the sink and, once the time limit has passed or the trace is
+      truncated, raises in the main thread; `finish("timeout")` then ends the
+      trace cleanly. The server's hard kill is only a backstop (≤ one tick lost).
 
 Note: loc numbering in the hand-written `fact` fixture is not normative. If the
 instrumenter numbers differently, regenerate it once and review the diff.

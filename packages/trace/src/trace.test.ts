@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
@@ -59,6 +59,22 @@ const factFixtureUrl = new URL(
   "../../../spec/fixtures/fact.trace.jsonl",
   import.meta.url,
 );
+
+test("every Python tracer fixture satisfies the trace parser contract", async () => {
+  const fixturesUrl = new URL("../../../spec/fixtures/", import.meta.url);
+
+  const names = (await readdir(fixturesUrl)).filter((name) =>
+    name.endsWith(".trace.jsonl"),
+  );
+
+  for (const name of names) {
+    const result = parseTrace(
+      await readFile(new URL(name, fixturesUrl), "utf8"),
+    );
+
+    expect(result, name).toMatchObject({ ok: true });
+  }
+});
 
 test("the fact fixture builds the documented execution tree and output ownership", async () => {
   const trace = parsedTrace(await readFile(factFixtureUrl, "utf8"));

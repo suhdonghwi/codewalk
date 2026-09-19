@@ -83,19 +83,21 @@ explicit blocks for functions and iterations (reliable structure).
 ```python
 def fact(n):
     with _cw.block(2):                                  # function activation
-        _cw.stmt(3); _e(_b(4), print("fact", n))
+        _cw.stmt(3); _cw_e(_cw_b(4), print("fact", n))
         _cw.stmt(5)
-        if _e(_b(6), n <= 1):
+        if _cw_e(_cw_b(6), n <= 1):
             _cw.stmt(7); return 1
-        _cw.stmt(8); return _e(_b(9), n * _e(_b(10), fact(_e(_b(11), n - 1))))
+        _cw.stmt(8); return _cw_e(_cw_b(9), n * _cw_e(_cw_b(10), fact(_cw_e(_cw_b(11), n - 1))))
 
 _cw.stmt(12)                                            # loop statement stays open …
-for i in _e(_b(13), range(2)):
+for i in _cw_e(_cw_b(13), range(2)):
     with _cw.iteration(14):                             # … and contains the iterations
-        _cw.stmt(15); _e(_b(16), print(_e(_b(17), fact(_e(_b(18), i + 1)))))
+        _cw.stmt(15); _cw_e(_cw_b(16), print(_cw_e(_cw_b(17), fact(_cw_e(_cw_b(18), i + 1)))))
 ```
 
-- **Expressions: in-place brackets.** `_e(_b(id), <expr>)` — argument order
+- **Injected names.** `_cw` (the runtime), `_cw_b`, `_cw_e` — prefixed so that a
+  learner's own `_e = 1e-9` cannot break the run.
+- **Expressions: in-place brackets.** `_cw_e(_cw_b(id), <expr>)` — argument order
   guarantees begin → evaluate → end, and the expression is still evaluated in
   the user's own frame. No wrapper frame, so zero-arg `super()`, `locals()`,
   frame inspection, recursion depth and tracebacks are unaffected.
@@ -111,13 +113,13 @@ for i in _e(_b(13), range(2)):
   `try/finally`; adds no frame). Exit is
   guaranteed on `return`, `break`, `continue` and exceptions, and sees the
   propagating exception for `exit.exc`.
-- **Stack repair.** The runtime keeps a stack of open nodes. `_e` never runs when
+- **Stack repair.** The runtime keeps a stack of open nodes. `_cw_e` never runs when
   an expression raises, so the stack can go stale. Every loc has a static
-  `parent`; on `stmt(id)`, `_b(id)` and iteration-block entry the runtime pops
+  `parent`; on `stmt(id)`, `_cw_b(id)` and iteration-block entry the runtime pops
   until the top is that parent. Function-block entry does no repair (its dynamic
   parent is whatever is open). Block exit pops down to the block. Repair never
   pops a block — if it would have to, something is wrong and it stops.
-- **Lazy emission.** `_b` pushes a _pending_ node and writes nothing. The first
+- **Lazy emission.** `_cw_b` pushes a _pending_ node and writes nothing. The first
   thing that happens inside it (output, block entry) writes the pending chain's
   `enter` events first. A pending node that closes untouched is dropped. So the
   trace contains only meaningful expr nodes, however much is bracketed; the
@@ -134,15 +136,15 @@ for i in _e(_b(13), range(2)):
 
 Python construct mapping:
 
-| Construct                     | v1 treatment                                                                                                                                                                                                            |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `def` (incl. nested, methods) | `def` header is a stmt in the defining block; body is a `function` block.                                                                                                                                               |
-| `for` / `while`               | Header is a `loop` stmt that stays open; each pass through the body is an `iteration` block. A `for` iterable and a `while` condition belong to the loop stmt (parent window), not to the iteration.                    |
-| `if`/`with`/`try`/`class`     | Header-only stmt; body statements are siblings in the enclosing block.                                                                                                                                                  |
-| Comprehensions                | No iteration blocks; expressions inside are bracketed, so calls inside still expand (same loc entered N times → one merged stack).                                                                                      |
-| Lambdas, generators, `async`  | Body left uninstrumented: a lambda body's static parent is not on the stack when it runs, and generator/coroutine activations do not nest. They run normally, output is attributed to the calling site, not expandable. |
-| Builtins / library calls      | Opaque: a call expr with output and no blocks (`print(...)` is exactly this).                                                                                                                                           |
-| Threads                       | Unsupported; single stack assumed.                                                                                                                                                                                      |
+| Construct                                                        | v1 treatment                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `def` (incl. nested, methods)                                    | `def` header is a stmt in the defining block; body is a `function` block.                                                                                                                                                                                                                    |
+| `for` / `while`                                                  | Header is a `loop` stmt that stays open; each pass through the body is an `iteration` block. A `for` iterable and a `while` condition belong to the loop stmt (parent window), not to the iteration.                                                                                         |
+| `if`/`with`/`try`/`class`                                        | Header-only stmt; body statements are siblings in the enclosing block.                                                                                                                                                                                                                       |
+| Comprehensions                                                   | No iteration blocks; expressions inside are bracketed, so calls inside still expand (same loc entered N times → one merged stack).                                                                                                                                                           |
+| Lambdas, generator expressions, generator functions, `async def` | Body left uninstrumented: these run later or re-entrantly, when their static parent is no longer on the stack (repair would unwind the consumer's open nodes), and generator/coroutine activations do not nest. They run normally, output is attributed to the calling site, not expandable. |
+| Builtins / library calls                                         | Opaque: a call expr with output and no blocks (`print(...)` is exactly this).                                                                                                                                                                                                                |
+| Threads                                                          | Unsupported; single stack assumed.                                                                                                                                                                                                                                                           |
 
 Expected slowdown is roughly 5–20×; time limits account for it. Instrumentation
 preserves line numbers (`ast.copy_location`) and `_cw` frames are filtered out of
@@ -311,8 +313,9 @@ Follow the `writing-tests` skill. Project-specific designations it refers to:
 ## Deferred
 
 - Values: call arguments in window titles first, then expression values
-  (`_e` already sees them), then variable/heap state.
-- Instrumenting lambdas, generators, `async`; iteration blocks for comprehensions.
+  (`_cw_e` already sees them), then variable/heap state.
+- Instrumenting lambdas, generator expressions, generators, `async`; iteration
+  blocks for comprehensions.
 - Convenience views over repetition (iteration tables, scrubbers, abbreviation).
 - Skeleton-first recording with on-demand deterministic re-execution for large
   runs; compact event encoding.

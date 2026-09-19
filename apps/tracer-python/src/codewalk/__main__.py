@@ -1,4 +1,48 @@
-import sys
+"""Command-line entry point for the Python tracer."""
 
-print("codewalk tracer: not implemented", file=sys.stderr)
-raise SystemExit(1)
+import argparse
+from pathlib import Path
+
+from codewalk.run import run
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="python -m codewalk")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    run_parser = subparsers.add_parser("run")
+    run_parser.add_argument("path", type=Path)
+    run_parser.add_argument("--trace-fd", type=_nonnegative_int, default=1)
+    run_parser.add_argument("--time-limit", type=_positive_float)
+    run_parser.add_argument("--max-events", type=_nonnegative_int, default=200_000)
+    args = parser.parse_args()
+
+    if not args.path.is_file():
+        run_parser.error(f"file does not exist: {args.path}")
+
+    try:
+        run(
+            args.path,
+            trace_fd=args.trace_fd,
+            time_limit=args.time_limit,
+            max_events=args.max_events,
+        )
+    except OSError as error:
+        run_parser.error(str(error))
+
+
+def _nonnegative_int(value: str) -> int:
+    number = int(value)
+    if number < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return number
+
+
+def _positive_float(value: str) -> float:
+    number = float(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be positive")
+    return number
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,29 @@
+{"codewalk":1,"sources":[{"file":"comprehension_call.py","text":"def double(number):\n    return number * 2\n\n\nprint([double(i) for i in range(3)])\n"}],"locs":[{"role":"block","kind":"module","file":0,"start":0,"end":80,"parent":null},{"role":"stmt","kind":"def","file":0,"start":0,"end":19,"parent":0},{"role":"block","kind":"function","file":0,"start":0,"end":41,"parent":1,"name":"double"},{"role":"stmt","kind":"return","file":0,"start":24,"end":41,"parent":2},{"role":"expr","kind":"binop","file":0,"start":31,"end":41,"parent":3},{"role":"stmt","kind":"expr","file":0,"start":44,"end":80,"parent":0},{"role":"expr","kind":"call","file":0,"start":44,"end":80,"parent":5},{"role":"expr","kind":"call","file":0,"start":51,"end":60,"parent":6},{"role":"expr","kind":"call","file":0,"start":70,"end":78,"parent":6}]}
+{"op":"enter","loc":0}
+{"op":"enter","loc":1}
+{"op":"exit"}
+{"op":"enter","loc":5}
+{"op":"enter","loc":6}
+{"op":"enter","loc":7}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":7}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":7}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"out","stream":"stdout","text":"[0, 2, 4]\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"end","status":"ok"}

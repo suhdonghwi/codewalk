@@ -1,63 +1,63 @@
-{"codewalk": 1, "sources": [{"file": "main.py", "text": "def fact(n):\n    print(\"fact\", n)\n    if n <= 1:\n        return 1\n    return n * fact(n - 1)\n\nfor i in range(2):\n    print(fact(i + 1))\n"}], "locs": [{"role": "block", "kind": "module", "file": 0, "start": 0, "end": 135, "parent": null}, {"role": "stmt", "kind": "def", "file": 0, "start": 0, "end": 12, "parent": 0}, {"role": "block", "kind": "function", "name": "fact", "file": 0, "start": 0, "end": 92, "parent": 1}, {"role": "stmt", "kind": "expr", "file": 0, "start": 17, "end": 33, "parent": 2}, {"role": "expr", "kind": "call", "file": 0, "start": 17, "end": 33, "parent": 3}, {"role": "stmt", "kind": "if", "file": 0, "start": 38, "end": 48, "parent": 2}, {"role": "expr", "kind": "compare", "file": 0, "start": 41, "end": 47, "parent": 5}, {"role": "stmt", "kind": "return", "file": 0, "start": 57, "end": 65, "parent": 2}, {"role": "stmt", "kind": "return", "file": 0, "start": 70, "end": 92, "parent": 2}, {"role": "expr", "kind": "binop", "file": 0, "start": 77, "end": 92, "parent": 8}, {"role": "expr", "kind": "call", "file": 0, "start": 81, "end": 92, "parent": 9}, {"role": "expr", "kind": "binop", "file": 0, "start": 86, "end": 91, "parent": 10}, {"role": "stmt", "kind": "loop", "file": 0, "start": 94, "end": 112, "parent": 0}, {"role": "expr", "kind": "call", "file": 0, "start": 103, "end": 111, "parent": 12}, {"role": "block", "kind": "iteration", "file": 0, "start": 94, "end": 135, "parent": 12}, {"role": "stmt", "kind": "expr", "file": 0, "start": 117, "end": 135, "parent": 14}, {"role": "expr", "kind": "call", "file": 0, "start": 117, "end": 135, "parent": 15}, {"role": "expr", "kind": "call", "file": 0, "start": 123, "end": 134, "parent": 16}, {"role": "expr", "kind": "binop", "file": 0, "start": 128, "end": 133, "parent": 17}]}
-{"op": "enter", "loc": 0}
-{"op": "enter", "loc": 1}
-{"op": "exit"}
-{"op": "enter", "loc": 12}
-{"op": "enter", "loc": 14}
-{"op": "enter", "loc": 15}
-{"op": "enter", "loc": 16}
-{"op": "enter", "loc": 17}
-{"op": "enter", "loc": 2}
-{"op": "enter", "loc": 3}
-{"op": "enter", "loc": 4}
-{"op": "out", "stream": "stdout", "text": "fact 1\n"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "enter", "loc": 5}
-{"op": "exit"}
-{"op": "enter", "loc": 7}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "out", "stream": "stdout", "text": "1\n"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "enter", "loc": 14}
-{"op": "enter", "loc": 15}
-{"op": "enter", "loc": 16}
-{"op": "enter", "loc": 17}
-{"op": "enter", "loc": 2}
-{"op": "enter", "loc": 3}
-{"op": "enter", "loc": 4}
-{"op": "out", "stream": "stdout", "text": "fact 2\n"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "enter", "loc": 5}
-{"op": "exit"}
-{"op": "enter", "loc": 8}
-{"op": "enter", "loc": 9}
-{"op": "enter", "loc": 10}
-{"op": "enter", "loc": 2}
-{"op": "enter", "loc": 3}
-{"op": "enter", "loc": 4}
-{"op": "out", "stream": "stdout", "text": "fact 1\n"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "enter", "loc": 5}
-{"op": "exit"}
-{"op": "enter", "loc": 7}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "out", "stream": "stdout", "text": "2\n"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "exit"}
-{"op": "end", "status": "ok"}
+{"codewalk":1,"sources":[{"file":"fact.py","text":"def fact(n):\n    print(\"fact\", n)\n    if n <= 1:\n        return 1\n    return n * fact(n - 1)\n\nfor i in range(2):\n    print(fact(i + 1))\n"}],"locs":[{"role":"block","kind":"module","file":0,"start":0,"end":135,"parent":null},{"role":"stmt","kind":"def","file":0,"start":0,"end":12,"parent":0},{"role":"block","kind":"function","file":0,"start":0,"end":92,"parent":1,"name":"fact"},{"role":"stmt","kind":"expr","file":0,"start":17,"end":33,"parent":2},{"role":"expr","kind":"call","file":0,"start":17,"end":33,"parent":3},{"role":"stmt","kind":"if","file":0,"start":38,"end":48,"parent":2},{"role":"expr","kind":"compare","file":0,"start":41,"end":47,"parent":5},{"role":"stmt","kind":"return","file":0,"start":57,"end":65,"parent":2},{"role":"stmt","kind":"return","file":0,"start":70,"end":92,"parent":2},{"role":"expr","kind":"binop","file":0,"start":77,"end":92,"parent":8},{"role":"expr","kind":"call","file":0,"start":81,"end":92,"parent":9},{"role":"expr","kind":"binop","file":0,"start":86,"end":91,"parent":10},{"role":"stmt","kind":"loop","file":0,"start":94,"end":112,"parent":0},{"role":"expr","kind":"call","file":0,"start":103,"end":111,"parent":12},{"role":"block","kind":"iteration","file":0,"start":94,"end":135,"parent":12},{"role":"stmt","kind":"expr","file":0,"start":117,"end":135,"parent":14},{"role":"expr","kind":"call","file":0,"start":117,"end":135,"parent":15},{"role":"expr","kind":"call","file":0,"start":123,"end":134,"parent":16},{"role":"expr","kind":"binop","file":0,"start":128,"end":133,"parent":17}]}
+{"op":"enter","loc":0}
+{"op":"enter","loc":1}
+{"op":"exit"}
+{"op":"enter","loc":12}
+{"op":"enter","loc":14}
+{"op":"enter","loc":15}
+{"op":"enter","loc":16}
+{"op":"enter","loc":17}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"enter","loc":4}
+{"op":"out","stream":"stdout","text":"fact 1\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":5}
+{"op":"exit"}
+{"op":"enter","loc":7}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"out","stream":"stdout","text":"1\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":14}
+{"op":"enter","loc":15}
+{"op":"enter","loc":16}
+{"op":"enter","loc":17}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"enter","loc":4}
+{"op":"out","stream":"stdout","text":"fact 2\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":5}
+{"op":"exit"}
+{"op":"enter","loc":8}
+{"op":"enter","loc":9}
+{"op":"enter","loc":10}
+{"op":"enter","loc":2}
+{"op":"enter","loc":3}
+{"op":"enter","loc":4}
+{"op":"out","stream":"stdout","text":"fact 1\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":5}
+{"op":"exit"}
+{"op":"enter","loc":7}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"out","stream":"stdout","text":"2\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"end","status":"ok"}

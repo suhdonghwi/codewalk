@@ -58,7 +58,9 @@ class Runtime:
         self._out_stream: Stream | None = None
         self._out_text = ""
         self._truncated = False
-        self._finished = False
+        # False once the trace has ended (finished or truncated); a plain
+        # attribute because it is read several times per event.
+        self._active = True
 
     @property
     def truncated(self) -> bool:
@@ -135,11 +137,7 @@ class Runtime:
         event: dict[str, object] = {"op": "end", "status": status}
         event.update(fields)
         if self._emit(event):
-            self._finished = True
-
-    @property
-    def _active(self) -> bool:
-        return not self._truncated and not self._finished
+            self._active = False
 
     def _enter_block(self, loc: int, *, repair: bool) -> _Node | None:
         if not self._active:
@@ -211,6 +209,7 @@ class Runtime:
         if self._event_count >= self._max_events:
             self._sink.write({"op": "end", "status": "truncated"})
             self._truncated = True
+            self._active = False
             self._stack.clear()
             self._out_stream = None
             self._out_text = ""
