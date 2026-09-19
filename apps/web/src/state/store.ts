@@ -5,7 +5,7 @@ import type { RunOutcome } from "@/run/types.ts";
 
 import { readStoredState, writeStoredState } from "./persistence.ts";
 
-export type WindowId = "editor" | "stdin" | "output";
+export type WindowId = "editor" | "stdin" | "output" | "trace";
 
 interface WindowState {
   x: number;
@@ -38,8 +38,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
     editor: { x: 0, y: 0, z: 3 },
     stdin: { x: -336, y: 0, z: 2 },
     output: { x: -336, y: 177, z: 1 },
+    trace: { x: 576, y: 0, z: 4 },
   },
-  nextZ: 4,
+  nextZ: 5,
   source: initialInput.source,
   stdin: initialInput.stdin,
   outcome: null,

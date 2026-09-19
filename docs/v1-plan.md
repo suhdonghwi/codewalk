@@ -84,10 +84,11 @@ with the right `end.status`.
 
 ## 6. Trace window
 
-- [ ] Lezer highlight with the editor's `HighlightStyle` → flat span list split
+- [x] Lezer highlight with the editor's `HighlightStyle` → flat span list split
       at loc boundaries.
-- [ ] Lit / dimmed / inert statements; clickable sites; inline output at line
-      end; title bar (kind + name, has-output marker); collapsed state.
+- [x] Lit / dimmed / inert statements; clickable sites; inline output at line
+      end; title bar (name, 0-based index, output/exception dot).
+- [ ] Collapsed (title-bar-only) state — moves to step 7, where stacks need it.
 
 Done when the `fact` fixture's root window renders correctly with no server.
 

@@ -14,6 +14,9 @@
   --accent: #f5f5f5;
   --accent-foreground: #262626;
   --ring: #a3a3a3;
+  /* The app's one accent colour: open sites, and later the edges between
+     windows. Not shadcn's `--accent`, which is a neutral hover surface. */
+  --site-accent: #3b82f6;
   color: var(--foreground);
   background: var(--background);
   font-family:
@@ -89,6 +92,12 @@ textarea {
 
 .window-titlebar:active {
   cursor: grabbing;
+}
+
+.window-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .editor-window {
@@ -181,4 +190,147 @@ textarea {
 
 .output-error {
   color: #a14f4f;
+}
+
+.trace-window {
+  width: max-content;
+  max-width: 720px;
+}
+
+.trace-title-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.trace-title-output {
+  background: #a3a3a3;
+}
+
+.trace-title-exception {
+  background: #b65b5b;
+}
+
+.trace-body {
+  max-width: 718px;
+  overflow-x: auto;
+  color: #30343b;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.trace-code {
+  width: max-content;
+  min-width: 100%;
+  padding: 7px 0;
+}
+
+.trace-line {
+  min-width: max-content;
+}
+
+.trace-line-main {
+  display: flex;
+  align-items: baseline;
+  min-height: 1.5em;
+  width: max-content;
+  min-width: 100%;
+  padding-right: 16px;
+  white-space: pre;
+}
+
+.trace-gutter {
+  position: relative;
+  width: 38px;
+  padding: 0 7px 0 6px;
+  flex: none;
+  color: #a3a3a3;
+  text-align: right;
+  user-select: none;
+}
+
+.trace-gutter-exception::before {
+  position: absolute;
+  top: 0.58em;
+  left: 5px;
+  width: 4px;
+  height: 4px;
+  content: "";
+  background: #b65b5b;
+  border-radius: 50%;
+}
+
+.trace-line-code {
+  display: inline-block;
+  min-width: 1px;
+  color: #30343b;
+  font: inherit;
+}
+
+.trace-span {
+  min-height: 1.5em;
+}
+
+.trace-dimmed {
+  color: #a3a3a3 !important;
+  font-style: normal !important;
+  text-decoration: none !important;
+}
+
+.trace-inert {
+  opacity: 0.55;
+}
+
+.trace-site {
+  cursor: pointer;
+}
+
+.trace-site-hovered {
+  background-color: color-mix(
+    in srgb,
+    var(--site-accent) 16%,
+    transparent
+  ) !important;
+}
+
+.trace-site-open {
+  background-color: color-mix(
+    in srgb,
+    var(--site-accent) 24%,
+    transparent
+  ) !important;
+  box-shadow: inset 0 -1px var(--site-accent);
+}
+
+.trace-inline-output,
+.trace-exception {
+  margin-left: 2ch;
+}
+
+.trace-inline-output {
+  color: #858585;
+}
+
+.trace-output-toggle {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.trace-output-stderr,
+.trace-exception {
+  color: #a14f4f;
+}
+
+.trace-output-full {
+  width: calc(100% - 38px);
+  margin: 0 0 0 38px;
+  padding: 2px 0 3px 2ch;
+  color: #858585;
+  font: inherit;
+  white-space: pre-wrap;
 }

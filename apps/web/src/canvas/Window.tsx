@@ -6,6 +6,7 @@ import { useAppStore, type WindowId } from "@/state/store.ts";
 interface CanvasWindowProps {
   id: WindowId;
   title: string;
+  titleIndicator?: ReactNode;
   titleAction?: ReactNode;
   className: string;
   children: ReactNode;
@@ -22,6 +23,7 @@ interface WindowDrag {
 export function CanvasWindow({
   id,
   title,
+  titleIndicator,
   titleAction,
   className,
   children,
@@ -88,7 +90,10 @@ export function CanvasWindow({
         onPointerMove={continueDrag}
         onPointerUp={endDrag}
       >
-        <span>{title}</span>
+        <span className="window-title">
+          <span>{title}</span>
+          {titleIndicator}
+        </span>
         {titleAction}
       </div>
       {children}

@@ -2,6 +2,11 @@ import { parseTrace } from "@codewalk/trace";
 
 import type { RunOutcome, RunRequest, TraceRunner } from "./types.ts";
 
+const fixtureFiles = import.meta.glob<string>(
+  "../../../../spec/fixtures/*.trace.jsonl",
+  { query: "?raw", import: "default" },
+);
+
 function parsedOutcome(text: string): RunOutcome {
   const result = parseTrace(text);
 
@@ -38,10 +43,21 @@ export function createHttpRunner(): TraceRunner {
 export function createFixtureRunner(): TraceRunner {
   return {
     async run(_request: RunRequest): Promise<RunOutcome> {
-      const fixture =
-        await import("../../../../spec/fixtures/fact.trace.jsonl?raw");
+      const requested = new URLSearchParams(window.location.search).get(
+        "fixture",
+      );
 
-      return parsedOutcome(fixture.default);
+      const name = requested ?? "fact";
+
+      const load =
+        fixtureFiles[`../../../../spec/fixtures/${name}.trace.jsonl`] ??
+        fixtureFiles["../../../../spec/fixtures/fact.trace.jsonl"];
+
+      if (load === undefined) {
+        return { kind: "unreachable", message: "Fixture is unavailable" };
+      }
+
+      return parsedOutcome(await load());
     },
   };
 }
