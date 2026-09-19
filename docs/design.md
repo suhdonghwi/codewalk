@@ -91,7 +91,7 @@ def fact(n):
 
 _cw.stmt(12)                                            # loop statement stays open …
 for i in _e(_b(13), range(2)):
-    with _cw.block(14):                                 # … and contains the iterations
+    with _cw.iteration(14):                             # … and contains the iterations
         _cw.stmt(15); _e(_b(16), print(_e(_b(17), fact(_e(_b(18), i + 1)))))
 ```
 
@@ -106,8 +106,9 @@ for i in _e(_b(13), range(2)):
 - **Statements: a point marker.** `_cw.stmt(id)` before each statement. It needs
   no end marker: the next sibling's marker (or the block's exit) closes it.
   Compound statements are header-only; their body statements are siblings.
-- **Blocks: explicit and reliable.** `with _cw.block(id)` around function bodies
-  and loop bodies (equivalent to `try/finally`; adds no frame). Exit is
+- **Blocks: explicit and reliable.** `with _cw.block(id)` around module and
+  function bodies, `with _cw.iteration(id)` around loop bodies (equivalent to
+  `try/finally`; adds no frame). Exit is
   guaranteed on `return`, `break`, `continue` and exceptions, and sees the
   propagating exception for `exit.exc`.
 - **Stack repair.** The runtime keeps a stack of open nodes. `_e` never runs when

@@ -51,13 +51,7 @@ run = "node packages/trace/scripts/generate-schema.ts --check"
 description = "Run JavaScript, TypeScript, and Python tests"
 run = """
 pnpm run test
-python_test_status=0
-uv run --project apps/tracer-python pytest apps/tracer-python || python_test_status=$?
-# Remove the exit-code-5 tolerance when the first Python test lands.
-case "$python_test_status" in
-  0|5) ;;
-  *) exit "$python_test_status" ;;
-esac
+uv run --project apps/tracer-python pytest apps/tracer-python
 """
 
 [tasks.check]
