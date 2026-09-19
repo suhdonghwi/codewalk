@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { ViewTransform } from "@/canvas/view.ts";
 import type { RunOutcome } from "@/run/types.ts";
+import { initialPath, type Path } from "@/trace-tree/path.ts";
 
 import { readStoredState, writeStoredState } from "./persistence.ts";
 
@@ -21,6 +22,7 @@ interface AppState {
   stdin: string;
   outcome: RunOutcome | null;
   running: boolean;
+  path: Path;
   setView: (view: ViewTransform) => void;
   moveWindow: (id: WindowId, x: number, y: number) => void;
   bringToFront: (id: WindowId) => void;
@@ -28,6 +30,7 @@ interface AppState {
   setStdin: (stdin: string) => void;
   setRunning: (running: boolean) => void;
   setOutcome: (outcome: RunOutcome) => void;
+  setPath: (path: Path) => void;
 }
 
 const initialInput = readStoredState(window.localStorage);
@@ -45,6 +48,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
   stdin: initialInput.stdin,
   outcome: null,
   running: false,
+  path: [],
   setView: (view) => {
     set({ view });
   },
@@ -79,6 +83,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
     set({ running });
   },
   setOutcome: (outcome) => {
-    set({ outcome });
+    set({
+      outcome,
+      path: outcome.kind === "trace" ? initialPath(outcome.trace) : [],
+    });
+  },
+  setPath: (path) => {
+    set({ path });
   },
 }));

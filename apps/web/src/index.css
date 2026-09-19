@@ -64,13 +64,16 @@ textarea {
   transform-origin: 0 0;
 }
 
-.canvas-window {
+.canvas-window-position {
   position: absolute;
+}
+
+.window-chrome {
   overflow: hidden;
   background: #ffffff;
-  border: 1px solid #e5e5e5;
   border-radius: 6px;
   box-shadow:
+    inset 0 0 0 1px #e5e5e5,
     0 1px 2px rgb(0 0 0 / 4%),
     0 6px 18px rgb(0 0 0 / 5%);
 }
@@ -86,11 +89,17 @@ textarea {
   font-weight: 500;
   line-height: 1;
   user-select: none;
-  cursor: grab;
+  cursor: default;
   border-bottom: 1px solid #eeeeee;
 }
 
-.window-titlebar:active {
+.canvas-window-position .window-titlebar,
+.tree-root-window > .window-titlebar {
+  cursor: grab;
+}
+
+.canvas-window-position .window-titlebar:active,
+.tree-root-window > .window-titlebar:active {
   cursor: grabbing;
 }
 
@@ -195,6 +204,57 @@ textarea {
 .trace-window {
   width: max-content;
   max-width: 720px;
+}
+
+.trace-tree {
+  position: absolute;
+}
+
+.trace-tree-edges {
+  position: absolute;
+  z-index: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.trace-tree-edges path {
+  fill: none;
+  stroke: var(--site-accent);
+  stroke-width: 1.5px;
+  stroke-opacity: 0.6;
+  animation: tree-fade-in 120ms ease-out;
+}
+
+.tree-window {
+  position: absolute;
+  z-index: 1;
+  animation: tree-fade-in 120ms ease-out;
+}
+
+.tree-collapsed .trace-window {
+  width: 100%;
+}
+
+.tree-collapsed:not(.tree-omitted) .window-titlebar {
+  cursor: pointer;
+}
+
+.tree-collapsed:not(.tree-omitted) .window-titlebar:hover {
+  background: #fafafa;
+}
+
+.tree-omitted .window-titlebar {
+  justify-content: center;
+  padding: 0;
+  color: #a3a3a3;
+}
+
+@keyframes tree-fade-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .trace-title-dot {

@@ -1,0 +1,203 @@
+import type { HTMLAttributes } from "react";
+
+import { WindowChrome } from "@/canvas/Window.tsx";
+import { TraceWindow } from "@/trace-view/TraceWindow.tsx";
+
+import {
+  TITLE_BAR,
+  visualExpandedIndex,
+  type ColumnLayout,
+  type StackRow,
+} from "./layout.ts";
+import {
+  MeasuredTraceWindow,
+  type Measurement,
+} from "./MeasuredTraceWindow.tsx";
+
+import type { PathColumn } from "./path.ts";
+import type { LocId, NodeId, Trace } from "@codewalk/trace";
+
+const STACK_STEP = TITLE_BAR + 4;
+
+function rowTop(
+  rowIndex: number,
+  expandedRow: number,
+  layout: ColumnLayout,
+  expandedHeight: number,
+): number {
+  if (rowIndex <= expandedRow) return layout.stackTop + rowIndex * STACK_STEP;
+
+  return (
+    layout.expandedTop +
+    expandedHeight +
+    4 +
+    (rowIndex - expandedRow - 1) * STACK_STEP
+  );
+}
+
+interface TreeBlockRowProps {
+  trace: Trace;
+  block: NodeId | undefined;
+  expandedBlock: NodeId;
+  openSite: LocId | null;
+  column: number;
+  top: number;
+  visible: boolean;
+  layout: ColumnLayout | undefined;
+  measurement: Measurement | null;
+  onMeasure: (column: number, measurement: Measurement) => void;
+  onToggleSite: (column: number, site: LocId) => void;
+  onChoose: (column: number, block: NodeId) => void;
+  rootTitlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+}
+
+function TreeBlockRow({
+  trace,
+  block,
+  expandedBlock,
+  openSite,
+  column,
+  top,
+  visible,
+  layout,
+  measurement,
+  onMeasure,
+  onToggleSite,
+  onChoose,
+  rootTitlebarProps,
+}: TreeBlockRowProps) {
+  if (block === undefined) return null;
+  const expanded = block === expandedBlock;
+
+  return (
+    <div
+      className={`tree-window${expanded ? " tree-expanded" : " tree-collapsed"}`}
+      data-block={block}
+      data-expanded={expanded}
+      style={{
+        left: layout?.x ?? 0,
+        top,
+        visibility: visible ? "visible" : "hidden",
+        width: expanded ? undefined : (measurement?.width ?? undefined),
+      }}
+    >
+      {expanded ? (
+        <MeasuredTraceWindow
+          block={block}
+          className={column === 0 ? "tree-root-window" : ""}
+          column={column}
+          onMeasure={onMeasure}
+          onToggleSite={(site) => onToggleSite(column, site)}
+          openSite={openSite}
+          titlebarProps={column === 0 ? rootTitlebarProps : undefined}
+          trace={trace}
+        />
+      ) : (
+        <TraceWindow
+          block={block}
+          className="tree-collapsed-window"
+          expanded={false}
+          titlebarProps={{ onClick: () => onChoose(column, block) }}
+          trace={trace}
+        />
+      )}
+    </div>
+  );
+}
+
+function OmittedTreeRow({
+  top,
+  visible,
+  layout,
+  measurement,
+}: {
+  top: number;
+  visible: boolean;
+  layout: ColumnLayout | undefined;
+  measurement: Measurement | null;
+}) {
+  return (
+    <div
+      className="tree-window tree-collapsed tree-omitted"
+      style={{
+        left: layout?.x ?? 0,
+        top,
+        visibility: visible ? "visible" : "hidden",
+        width: measurement?.width,
+      }}
+    >
+      <WindowChrome className="trace-window" title="⋯" />
+    </div>
+  );
+}
+
+interface TreeRowsProps {
+  trace: Trace;
+  column: PathColumn;
+  columnIndex: number;
+  rows: StackRow[];
+  expandedBlock: NodeId;
+  layout: ColumnLayout | undefined;
+  measurement: Measurement | null;
+  onMeasure: (column: number, measurement: Measurement) => void;
+  onToggleSite: (column: number, site: LocId) => void;
+  onChoose: (column: number, block: NodeId) => void;
+  rootTitlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+}
+
+export function TreeRows({
+  trace,
+  column,
+  columnIndex,
+  rows,
+  expandedBlock,
+  layout,
+  measurement,
+  onMeasure,
+  onToggleSite,
+  onChoose,
+  rootTitlebarProps,
+}: TreeRowsProps) {
+  const expandedRow = visualExpandedIndex(rows, column.expandedIndex);
+  const visible = measurement !== null && layout !== undefined;
+
+  return rows.map((row, rowIndex) => {
+    const top =
+      visible && measurement !== null && layout !== undefined
+        ? rowTop(rowIndex, expandedRow, layout, measurement.height)
+        : 0;
+
+    if (row.kind === "omitted") {
+      return (
+        <OmittedTreeRow
+          key={`${columnIndex}:omitted:${row.side}`}
+          layout={layout}
+          measurement={measurement}
+          top={top}
+          visible={visible}
+        />
+      );
+    }
+
+    const block = column.blocks[row.index];
+
+    return (
+      <TreeBlockRow
+        block={block}
+        column={columnIndex}
+        expandedBlock={expandedBlock}
+        key={`${columnIndex}:block:${block}`}
+        layout={layout}
+        measurement={measurement}
+        onChoose={onChoose}
+        onMeasure={onMeasure}
+        onToggleSite={onToggleSite}
+        openSite={column.openSite}
+        rootTitlebarProps={rootTitlebarProps}
+        top={top}
+        trace={trace}
+        visible={visible}
+      />
+    );
+  });
+}

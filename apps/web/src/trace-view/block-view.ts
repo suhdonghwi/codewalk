@@ -34,7 +34,7 @@ export interface Line {
   exception: string | null;
 }
 
-interface BlockTitle {
+export interface BlockTitle {
   text: string;
   hasOutput: boolean;
   hasException: boolean;
@@ -127,6 +127,12 @@ function blockTitle(trace: Trace, block: NodeId, node: TraceNode, loc: Loc) {
     hasOutput: hasOutput(trace, block),
     hasException: node.exc !== null,
   };
+}
+
+export function buildBlockTitle(trace: Trace, block: NodeId): BlockTitle {
+  const { node, loc } = requireBlock(trace, block);
+
+  return blockTitle(trace, block, node, loc);
 }
 
 function countLineBreaks(text: string, end: number): number {

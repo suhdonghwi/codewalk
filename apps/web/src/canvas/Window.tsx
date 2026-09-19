@@ -1,7 +1,8 @@
-import type { PointerEvent, ReactNode } from "react";
-import { useRef } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 
 import { useAppStore, type WindowId } from "@/state/store.ts";
+
+import { useWindowDrag } from "./use-window-drag.ts";
 
 interface CanvasWindowProps {
   id: WindowId;
@@ -12,12 +13,37 @@ interface CanvasWindowProps {
   children: ReactNode;
 }
 
-interface WindowDrag {
-  pointerId: number;
-  clientX: number;
-  clientY: number;
-  windowX: number;
-  windowY: number;
+interface WindowChromeProps {
+  title: string;
+  titleIndicator?: ReactNode;
+  titleAction?: ReactNode;
+  className: string;
+  children?: ReactNode;
+  chromeRef?: Ref<HTMLElement> | undefined;
+  titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+}
+
+export function WindowChrome({
+  title,
+  titleIndicator,
+  titleAction,
+  className,
+  children,
+  chromeRef,
+  titlebarProps,
+}: WindowChromeProps) {
+  return (
+    <section className={`window-chrome ${className}`} ref={chromeRef}>
+      <div className="window-titlebar" {...titlebarProps}>
+        <span className="window-title">
+          <span>{title}</span>
+          {titleIndicator}
+        </span>
+        {titleAction}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export function CanvasWindow({
@@ -29,53 +55,11 @@ export function CanvasWindow({
   children,
 }: CanvasWindowProps) {
   const windowState = useAppStore((state) => state.windows[id]);
-  const drag = useRef<WindowDrag | null>(null);
-
-  function startDrag(event: PointerEvent<HTMLDivElement>): void {
-    if (event.button !== 0) return;
-
-    if (
-      event.target instanceof Element &&
-      event.target.closest("[data-window-control]") !== null
-    ) {
-      return;
-    }
-
-    drag.current = {
-      pointerId: event.pointerId,
-      clientX: event.clientX,
-      clientY: event.clientY,
-      windowX: windowState.x,
-      windowY: windowState.y,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  }
-
-  function continueDrag(event: PointerEvent<HTMLDivElement>): void {
-    const activeDrag = drag.current;
-
-    if (activeDrag === null || activeDrag.pointerId !== event.pointerId) return;
-
-    const scale = useAppStore.getState().view.scale;
-    useAppStore
-      .getState()
-      .moveWindow(
-        id,
-        activeDrag.windowX + (event.clientX - activeDrag.clientX) / scale,
-        activeDrag.windowY + (event.clientY - activeDrag.clientY) / scale,
-      );
-  }
-
-  function endDrag(event: PointerEvent<HTMLDivElement>): void {
-    if (drag.current?.pointerId !== event.pointerId) return;
-    drag.current = null;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  }
+  const titlebarProps = useWindowDrag(id);
 
   return (
-    <section
-      className={`canvas-window ${className}`}
+    <div
+      className="canvas-window-position"
       onPointerDown={() => useAppStore.getState().bringToFront(id)}
       style={{
         left: windowState.x,
@@ -83,20 +67,15 @@ export function CanvasWindow({
         zIndex: windowState.z,
       }}
     >
-      <div
-        className="window-titlebar"
-        onPointerCancel={endDrag}
-        onPointerDown={startDrag}
-        onPointerMove={continueDrag}
-        onPointerUp={endDrag}
+      <WindowChrome
+        className={className}
+        title={title}
+        titleAction={titleAction}
+        titleIndicator={titleIndicator}
+        titlebarProps={titlebarProps}
       >
-        <span className="window-title">
-          <span>{title}</span>
-          {titleIndicator}
-        </span>
-        {titleAction}
-      </div>
-      {children}
-    </section>
+        {children}
+      </WindowChrome>
+    </div>
   );
 }

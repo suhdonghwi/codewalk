@@ -88,17 +88,17 @@ with the right `end.status`.
       at loc boundaries.
 - [x] Lit / dimmed / inert statements; clickable sites; inline output at line
       end; title bar (name, 0-based index, output/exception dot).
-- [ ] Collapsed (title-bar-only) state — moves to step 7, where stacks need it.
+- [x] Collapsed (title-bar-only) state — done in step 7 with the sibling stacks.
 
 Done when the `fact` fixture's root window renders correctly with no server.
 
 ## 7. Trace tree
 
-- [ ] `path: NodeId[]` as the only view state; click site → truncate + append
+- [x] `path: NodeId[]` as the only view state; click site → truncate + append
       first child; click title bar → replace that column's entry.
-- [ ] Column layout as a pure function of (trace, path, window sizes): child
+- [x] Column layout as a pure function of (trace, path, window sizes): child
       stacks, vertical alignment to the site, edges site → stack.
-- [ ] The tree moves as one unit, dragged by its root.
+- [x] The tree moves as one unit, dragged by its root.
 
 Done when you can walk the fixture from the module down to the innermost `fact`.
 

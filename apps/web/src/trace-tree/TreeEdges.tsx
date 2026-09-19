@@ -1,0 +1,49 @@
+import { TITLE_BAR, type ColumnLayout } from "./layout.ts";
+
+import type { Measurement } from "./MeasuredTraceWindow.tsx";
+import type { NodeId } from "@codewalk/trace";
+
+interface TreeEdgesProps {
+  layouts: ColumnLayout[];
+  measurements: (Measurement | null)[];
+  path: NodeId[];
+}
+
+export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
+  return (
+    <svg aria-hidden className="trace-tree-edges">
+      {layouts.slice(1).map((layout, relativeIndex) => {
+        const column = relativeIndex + 1;
+        const parentLayout = layouts[column - 1];
+        const parentMeasurement = measurements[column - 1];
+        const child = path[column];
+
+        if (
+          parentLayout === undefined ||
+          parentMeasurement === null ||
+          parentMeasurement === undefined ||
+          parentMeasurement.anchorCenterY === null ||
+          child === undefined
+        ) {
+          return null;
+        }
+
+        const startX = parentLayout.x + parentMeasurement.width;
+
+        const startY =
+          parentLayout.expandedTop + parentMeasurement.anchorCenterY;
+
+        const endX = layout.x;
+        const endY = layout.expandedTop + TITLE_BAR / 2;
+        const controlX = (startX + endX) / 2;
+
+        return (
+          <path
+            d={`M ${startX} ${startY} C ${controlX} ${startY}, ${controlX} ${endY}, ${endX} ${endY}`}
+            key={`${column}:${child}`}
+          />
+        );
+      })}
+    </svg>
+  );
+}

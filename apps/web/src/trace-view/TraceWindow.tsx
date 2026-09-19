@@ -1,8 +1,9 @@
+import type { HTMLAttributes, Ref } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { CanvasWindow } from "@/canvas/Window.tsx";
+import { WindowChrome } from "@/canvas/Window.tsx";
 
-import { buildBlockView } from "./block-view.ts";
+import { buildBlockTitle, buildBlockView } from "./block-view.ts";
 import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
 import { TraceLine } from "./TraceLine.tsx";
 
@@ -11,8 +12,12 @@ import type { LocId, NodeId, Trace } from "@codewalk/trace";
 interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
-  openSite: LocId | null;
-  onToggleSite: (site: LocId) => void;
+  expanded: boolean;
+  openSite?: LocId | null;
+  onToggleSite?: (site: LocId) => void;
+  chromeRef?: Ref<HTMLElement> | undefined;
+  titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+  className?: string | undefined;
 }
 
 function blockSource(trace: Trace, block: NodeId): string {
@@ -25,12 +30,29 @@ function blockSource(trace: Trace, block: NodeId): string {
   return source.text;
 }
 
-function TraceWindow({
+function titleIndicator(hasException: boolean, hasOutput: boolean) {
+  const marker = hasException
+    ? "trace-title-dot trace-title-exception"
+    : hasOutput
+      ? "trace-title-dot trace-title-output"
+      : null;
+
+  return marker === null ? null : <span aria-hidden className={marker} />;
+}
+
+interface ExpandedBodyProps {
+  trace: Trace;
+  block: NodeId;
+  openSite: LocId | null;
+  onToggleSite: (site: LocId) => void;
+}
+
+function ExpandedBody({
   trace,
   block,
   openSite,
   onToggleSite,
-}: TraceWindowProps) {
+}: ExpandedBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
   const source = blockSource(trace, block);
   const tokens = useMemo(() => tokenizePython(source), [source]);
@@ -44,61 +66,60 @@ function TraceWindow({
     mountCodeHighlightStyle(document);
   }, []);
 
-  const marker = view.title.hasException
-    ? "trace-title-dot trace-title-exception"
-    : view.title.hasOutput
-      ? "trace-title-dot trace-title-output"
-      : null;
+  const anchorLine =
+    openSite === null
+      ? null
+      : (view.lines.find((line) =>
+          line.spans.some((span) => span.sites.includes(openSite)),
+        )?.number ?? null);
 
   return (
-    <CanvasWindow
-      className="trace-window"
-      id="trace"
-      title={view.title.text}
-      titleIndicator={
-        marker === null ? null : <span aria-hidden className={marker} />
-      }
-    >
-      <div className="trace-body">
-        <div className="trace-code">
-          {view.lines.map((line) => (
-            <TraceLine
-              hoveredSite={hoveredSite}
-              key={line.number}
-              line={line}
-              onHoverSite={setHoveredSite}
-              onToggleSite={onToggleSite}
-              openSite={openSite}
-            />
-          ))}
-        </div>
+    <div className="trace-body">
+      <div className="trace-code">
+        {view.lines.map((line) => (
+          <TraceLine
+            anchor={line.number === anchorLine}
+            hoveredSite={hoveredSite}
+            key={line.number}
+            line={line}
+            onHoverSite={setHoveredSite}
+            onToggleSite={onToggleSite}
+            openSite={openSite}
+          />
+        ))}
       </div>
-    </CanvasWindow>
+    </div>
   );
 }
 
-interface RootTraceWindowProps {
-  trace: Trace;
-  block: NodeId;
-}
-
-export function RootTraceWindow({ trace, block }: RootTraceWindowProps) {
-  const [openSite, setOpenSite] = useState<LocId | null>(null);
-
-  useEffect(() => {
-    setOpenSite(null);
-  }, [trace, block]);
-
-  function toggleSite(site: LocId): void {
-    setOpenSite((current) => (current === site ? null : site));
-  }
+export function TraceWindow({
+  trace,
+  block,
+  expanded,
+  openSite = null,
+  onToggleSite = () => undefined,
+  chromeRef,
+  titlebarProps,
+  className = "",
+}: TraceWindowProps) {
+  const title = useMemo(() => buildBlockTitle(trace, block), [trace, block]);
 
   return (
-    <TraceWindow
-      block={block}
-      onToggleSite={toggleSite}
-      openSite={openSite}
-      trace={trace}
-    />
+    <WindowChrome
+      chromeRef={chromeRef}
+      className={`trace-window ${className}`}
+      title={title.text}
+      titleIndicator={titleIndicator(title.hasException, title.hasOutput)}
+      titlebarProps={titlebarProps}
+    >
+      {expanded ? (
+        <ExpandedBody
+          block={block}
+          onToggleSite={onToggleSite}
+          openSite={openSite}
+          trace={trace}
+        />
+      ) : null}
+    </WindowChrome>
   );
 }
