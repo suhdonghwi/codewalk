@@ -74,10 +74,10 @@ with the right `end.status`.
 
 ## 5. Web shell
 
-- [ ] Vite + React 19 + Tailwind v4 + shadcn; Zustand store.
-- [ ] Canvas: pan/zoom via transient subscription → CSS transform; draggable
+- [x] Vite + React 19 + Tailwind v4 + shadcn (`button`, `tooltip`) + lucide icons; Zustand store.
+- [x] Canvas: pan/zoom via transient subscription → CSS transform; draggable
       top-level objects; `Window` chrome component.
-- [ ] Editor (CodeMirror 6), stdin and output windows at default positions;
+- [x] Editor (CodeMirror 6), stdin and output windows at default positions;
       Run → `/api/run` (Vite proxy) → `parseTrace` → store. Rerun replaces the trace.
 
 ## 6. Trace window

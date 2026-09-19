@@ -1,10 +1,77 @@
-import { TRACE_FORMAT_VERSION } from "@codewalk/trace";
+import { useCallback, useEffect, useMemo } from "react";
 
-export function App() {
+import { Canvas } from "@/canvas/Canvas.tsx";
+import { TooltipProvider } from "@/components/ui/tooltip.tsx";
+import { createFixtureRunner, createHttpRunner } from "@/run/runners.ts";
+import type { TraceRunner } from "@/run/types.ts";
+import { useAppStore } from "@/state/store.ts";
+import { EditorWindow } from "@/windows/EditorWindow.tsx";
+import { OutputWindow } from "@/windows/OutputWindow.tsx";
+import { StdinWindow } from "@/windows/StdinWindow.tsx";
+
+interface AppProps {
+  runner?: TraceRunner;
+}
+
+function defaultRunner(): TraceRunner {
+  return import.meta.env.VITE_RUNNER === "fixture"
+    ? createFixtureRunner()
+    : createHttpRunner();
+}
+
+function runShortcut(): string {
+  return /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl↵";
+}
+
+export function App({ runner: injectedRunner }: AppProps) {
+  const runner = useMemo(
+    () => injectedRunner ?? defaultRunner(),
+    [injectedRunner],
+  );
+
+  const run = useCallback(() => {
+    const state = useAppStore.getState();
+
+    if (state.running) return;
+
+    useAppStore.setState({ running: true, outcome: null });
+    void runner
+      .run({ source: state.source, stdin: state.stdin })
+      .then((outcome) => {
+        useAppStore.getState().setOutcome(outcome);
+      })
+      .catch(() => {
+        useAppStore.getState().setOutcome({
+          kind: "unreachable",
+          message: "Runner failed",
+        });
+      })
+      .finally(() => {
+        useAppStore.getState().setRunning(false);
+      });
+  }, [runner]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key !== "Enter" || (!event.metaKey && !event.ctrlKey)) return;
+      event.preventDefault();
+      run();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [run]);
+
   return (
-    <main>
-      <h1>codewalk</h1>
-      <p>Trace format version {TRACE_FORMAT_VERSION}</p>
-    </main>
+    <TooltipProvider>
+      <Canvas>
+        <EditorWindow onRun={run} shortcut={runShortcut()} />
+        <StdinWindow />
+        <OutputWindow />
+      </Canvas>
+    </TooltipProvider>
   );
 }
