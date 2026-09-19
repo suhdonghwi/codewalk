@@ -145,13 +145,17 @@ function countLineBreaks(text: string, end: number): number {
   return count;
 }
 
+export function sourceLineNumber(source: string, position: number): number {
+  return countLineBreaks(source, position) + 1;
+}
+
 function sourceLines(source: string, start: number, end: number): SourceLine[] {
   const displayStart =
     start === 0 ? 0 : source.lastIndexOf("\n", start - 1) + 1;
 
   const endBreak = source.indexOf("\n", end);
   const displayEnd = endBreak === -1 ? source.length : endBreak;
-  const firstNumber = countLineBreaks(source, displayStart) + 1;
+  const firstNumber = sourceLineNumber(source, displayStart);
   const lines: SourceLine[] = [];
   let lineStart = displayStart;
   let number = firstNumber;
@@ -297,10 +301,13 @@ function spansForLine(
   return spans;
 }
 
-function lineContaining(lines: SourceLine[], position: number): number | null {
-  const line = lines.find(
-    (candidate) => candidate.from <= position && position <= candidate.to,
-  );
+function lineContaining(
+  source: string,
+  lines: SourceLine[],
+  position: number,
+): number | null {
+  const number = sourceLineNumber(source, position);
+  const line = lines.find((candidate) => candidate.number === number);
 
   return line?.number ?? null;
 }
@@ -309,6 +316,7 @@ function outputsByLine(
   trace: Trace,
   sites: Site[],
   lines: SourceLine[],
+  source: string,
 ): Map<number, InlineOutput> {
   const indexesByLine = new Map<number, number[]>();
 
@@ -317,7 +325,7 @@ function outputsByLine(
     const loc = trace.header.locs[site.loc];
 
     if (loc === undefined) continue;
-    const line = lineContaining(lines, loc.end);
+    const line = lineContaining(source, lines, loc.end);
 
     if (line === null) continue;
     const indexes = indexesByLine.get(line) ?? [];
@@ -356,6 +364,7 @@ function exceptionByLine(
   block: NodeId,
   node: TraceNode,
   lines: SourceLine[],
+  source: string,
 ): Map<number, string> {
   const result = new Map<number, string>();
   const origin = exceptionOrigin(trace);
@@ -369,7 +378,8 @@ function exceptionByLine(
   const loc =
     statement === undefined ? undefined : trace.header.locs[statement.loc];
 
-  const line = loc === undefined ? null : lineContaining(lines, loc.end);
+  const line =
+    loc === undefined ? null : lineContaining(source, lines, loc.end);
 
   if (line !== null) result.set(line, node.exc);
 
@@ -407,8 +417,8 @@ export function buildBlockView(
       candidate.end <= loc.end,
   );
 
-  const outputs = outputsByLine(trace, sites, lines);
-  const exceptions = exceptionByLine(trace, block, node, lines);
+  const outputs = outputsByLine(trace, sites, lines, source.text);
+  const exceptions = exceptionByLine(trace, block, node, lines, source.text);
 
   return {
     title: blockTitle(trace, block, node, loc),

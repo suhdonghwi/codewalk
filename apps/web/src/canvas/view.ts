@@ -54,6 +54,23 @@ export function zoomAboutPoint(
   };
 }
 
+/**
+ * How much of a window's width (world units) a reveal should bring into view:
+ * all of it when it fits between the margins at the current scale, otherwise as
+ * much as fits — never less than `minimum`, so something is always revealed.
+ */
+export function revealWidth(
+  windowWidth: number,
+  viewportWidth: number,
+  scale: number,
+  margin: number,
+  minimum: number,
+): number {
+  const available = (viewportWidth - 2 * margin) / scale;
+
+  return Math.max(minimum, Math.min(windowWidth, available));
+}
+
 export function revealRect(
   view: ViewTransform,
   viewport: Viewport,

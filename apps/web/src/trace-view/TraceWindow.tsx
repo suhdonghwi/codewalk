@@ -8,11 +8,13 @@ import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
 import { TraceLine } from "./TraceLine.tsx";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
+import type { Focus } from "@/trace-tree/navigation.ts";
 
 interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   expanded: boolean;
+  focus?: Focus | null;
   openSite?: LocId | null;
   onToggleSite?: (site: LocId) => void;
   chromeRef?: Ref<HTMLElement> | undefined;
@@ -44,6 +46,7 @@ interface ExpandedBodyProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
+  focus: Focus | null;
   onToggleSite: (site: LocId) => void;
 }
 
@@ -51,6 +54,7 @@ function ExpandedBody({
   trace,
   block,
   openSite,
+  focus,
   onToggleSite,
 }: ExpandedBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
@@ -79,6 +83,7 @@ function ExpandedBody({
         {view.lines.map((line) => (
           <TraceLine
             anchor={line.number === anchorLine}
+            focusKind={line.number === focus?.line ? focus.kind : null}
             hoveredSite={hoveredSite}
             key={line.number}
             line={line}
@@ -96,6 +101,7 @@ export function TraceWindow({
   trace,
   block,
   expanded,
+  focus = null,
   openSite = null,
   onToggleSite = () => undefined,
   chromeRef,
@@ -115,6 +121,7 @@ export function TraceWindow({
       {expanded ? (
         <ExpandedBody
           block={block}
+          focus={focus}
           onToggleSite={onToggleSite}
           openSite={openSite}
           trace={trace}

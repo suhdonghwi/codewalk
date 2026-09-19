@@ -197,6 +197,23 @@ textarea {
   overflow: auto;
 }
 
+.output-segment {
+  cursor: pointer;
+}
+
+.output-segment:focus-visible {
+  outline: 1px solid var(--site-accent);
+  outline-offset: 1px;
+}
+
+.output-segment:hover {
+  background: #f5f5f5;
+}
+
+.output-segment-focused {
+  background: color-mix(in srgb, var(--site-accent) 12%, transparent);
+}
+
 .output-error {
   color: #a14f4f;
 }
@@ -302,6 +319,18 @@ textarea {
   white-space: pre;
 }
 
+.trace-line-focused-output {
+  --focus-color: var(--site-accent);
+}
+
+.trace-line-focused-exception {
+  --focus-color: #b65b5b;
+}
+
+.trace-line-focused {
+  background: color-mix(in srgb, var(--focus-color) 8%, transparent);
+}
+
 .trace-gutter {
   position: relative;
   width: 38px;
@@ -310,6 +339,16 @@ textarea {
   color: #a3a3a3;
   text-align: right;
   user-select: none;
+}
+
+.trace-line-focused .trace-gutter::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  content: "";
+  background: var(--focus-color);
 }
 
 .trace-gutter-exception::before {
@@ -393,4 +432,12 @@ textarea {
   color: #858585;
   font: inherit;
   white-space: pre-wrap;
+}
+
+.editor-host .cm-syntax-error {
+  text-decoration-color: #b65b5b;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }

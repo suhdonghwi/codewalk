@@ -3,11 +3,13 @@ import { useState } from "react";
 import { previewInlineOutput } from "./inline-output.ts";
 
 import type { Line, Span } from "./block-view.ts";
+import type { Focus } from "@/trace-tree/navigation.ts";
 import type { LocId } from "@codewalk/trace";
 
 interface TraceLineProps {
   line: Line;
   anchor: boolean;
+  focusKind: Focus["kind"] | null;
   hoveredSite: LocId | null;
   openSite: LocId | null;
   onHoverSite: (site: LocId | null) => void;
@@ -24,6 +26,7 @@ function siteBackground(span: Span): string | undefined {
 export function TraceLine({
   line,
   anchor,
+  focusKind,
   hoveredSite,
   openSite,
   onHoverSite,
@@ -36,7 +39,12 @@ export function TraceLine({
 
   return (
     <div className="trace-line">
-      <div className="trace-line-main" data-site-anchor={anchor || undefined}>
+      <div
+        className={`trace-line-main${focusKind === null ? "" : ` trace-line-focused trace-line-focused-${focusKind}`}`}
+        data-focus-kind={focusKind ?? undefined}
+        data-focused-line={focusKind === null ? undefined : true}
+        data-site-anchor={anchor || undefined}
+      >
         <span
           aria-hidden
           className={`trace-gutter${line.exception === null ? "" : " trace-gutter-exception"}`}

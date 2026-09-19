@@ -2,7 +2,14 @@ import { create } from "zustand";
 
 import type { ViewTransform } from "@/canvas/view.ts";
 import type { RunOutcome } from "@/run/types.ts";
+import {
+  navigateToException,
+  navigateToOutput,
+  type Focus,
+} from "@/trace-tree/navigation.ts";
 import { initialPath, type Path } from "@/trace-tree/path.ts";
+
+import type { NodeId } from "@codewalk/trace";
 
 import { readStoredState, writeStoredState } from "./persistence.ts";
 
@@ -14,6 +21,11 @@ interface WindowState {
   z: number;
 }
 
+interface PendingReveal {
+  block: NodeId;
+  focusLine: boolean;
+}
+
 interface AppState {
   view: ViewTransform;
   windows: Record<WindowId, WindowState>;
@@ -23,6 +35,8 @@ interface AppState {
   outcome: RunOutcome | null;
   running: boolean;
   path: Path;
+  focus: Focus | null;
+  pendingReveal: PendingReveal | null;
   setView: (view: ViewTransform) => void;
   moveWindow: (id: WindowId, x: number, y: number) => void;
   bringToFront: (id: WindowId) => void;
@@ -30,7 +44,9 @@ interface AppState {
   setStdin: (stdin: string) => void;
   setRunning: (running: boolean) => void;
   setOutcome: (outcome: RunOutcome) => void;
-  setPath: (path: Path) => void;
+  setPath: (path: Path, reveal: PendingReveal | null) => void;
+  focusOutput: (chunk: number) => void;
+  clearReveal: (reveal: PendingReveal) => void;
 }
 
 const initialInput = readStoredState(window.localStorage);
@@ -49,6 +65,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
   outcome: null,
   running: false,
   path: [],
+  focus: null,
+  pendingReveal: null,
   setView: (view) => {
     set({ view });
   },
@@ -83,12 +101,39 @@ export const useAppStore = create<AppState>()((set, get) => ({
     set({ running });
   },
   setOutcome: (outcome) => {
+    const navigation =
+      outcome.kind === "trace" ? navigateToException(outcome.trace) : null;
+
     set({
       outcome,
-      path: outcome.kind === "trace" ? initialPath(outcome.trace) : [],
+      path:
+        navigation?.path ??
+        (outcome.kind === "trace" ? initialPath(outcome.trace) : []),
+      focus: navigation?.focus ?? null,
+      // A run never pans the canvas: an exception opens and focuses its path,
+      // but the editor the user has to go back to stays where it is. Only an
+      // explicit click (output, site, sibling) asks for a reveal.
+      pendingReveal: null,
     });
   },
-  setPath: (path) => {
-    set({ path });
+  setPath: (path, reveal) => {
+    set({ path, pendingReveal: reveal });
+  },
+  focusOutput: (chunk) => {
+    const outcome = get().outcome;
+
+    if (outcome?.kind !== "trace") return;
+    const navigation = navigateToOutput(outcome.trace, chunk);
+
+    set({
+      path: navigation.path,
+      focus: navigation.focus,
+      pendingReveal: { block: navigation.focus.block, focusLine: true },
+    });
+  },
+  clearReveal: (reveal) => {
+    set((state) =>
+      state.pendingReveal === reveal ? { pendingReveal: null } : state,
+    );
   },
 }));

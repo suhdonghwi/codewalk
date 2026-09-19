@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { CanvasWindow } from "@/canvas/Window.tsx";
 import { editorExtensions } from "@/code/extensions.ts";
+import { setSyntaxError } from "@/code/syntax-error.ts";
 import { Button } from "@/components/ui/button.tsx";
 import {
   Tooltip,
@@ -37,7 +38,23 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
       }),
     });
 
+    const unsubscribe = useAppStore.subscribe((state, previous) => {
+      if (state.outcome === previous.outcome) return;
+
+      const end =
+        state.outcome?.kind === "trace" ? state.outcome.trace.end : null;
+
+      view.dispatch({
+        effects: setSyntaxError.of(
+          end?.status === "syntax_error"
+            ? { from: end.start, to: end.end }
+            : null,
+        ),
+      });
+    });
+
     return () => {
+      unsubscribe();
       view.destroy();
     };
   }, []);

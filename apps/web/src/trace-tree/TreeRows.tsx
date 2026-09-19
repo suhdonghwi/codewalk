@@ -14,6 +14,7 @@ import {
   type Measurement,
 } from "./MeasuredTraceWindow.tsx";
 
+import type { Focus } from "./navigation.ts";
 import type { PathColumn } from "./path.ts";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -39,6 +40,7 @@ interface TreeBlockRowProps {
   trace: Trace;
   block: NodeId | undefined;
   expandedBlock: NodeId;
+  focus: Focus | null;
   openSite: LocId | null;
   column: number;
   top: number;
@@ -55,6 +57,7 @@ function TreeBlockRow({
   trace,
   block,
   expandedBlock,
+  focus,
   openSite,
   column,
   top,
@@ -86,6 +89,7 @@ function TreeBlockRow({
           block={block}
           className={column === 0 ? "tree-root-window" : ""}
           column={column}
+          focus={focus?.block === block ? focus : null}
           onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(column, site)}
           openSite={openSite}
@@ -137,6 +141,7 @@ interface TreeRowsProps {
   columnIndex: number;
   rows: StackRow[];
   expandedBlock: NodeId;
+  focus: Focus | null;
   layout: ColumnLayout | undefined;
   measurement: Measurement | null;
   onMeasure: (column: number, measurement: Measurement) => void;
@@ -151,6 +156,7 @@ export function TreeRows({
   columnIndex,
   rows,
   expandedBlock,
+  focus,
   layout,
   measurement,
   onMeasure,
@@ -186,6 +192,7 @@ export function TreeRows({
         block={block}
         column={columnIndex}
         expandedBlock={expandedBlock}
+        focus={focus}
         key={`${columnIndex}:block:${block}`}
         layout={layout}
         measurement={measurement}

@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { revealRect, wheelZoomFactor, zoomAboutPoint } from "./view.ts";
+import {
+  revealRect,
+  revealWidth,
+  wheelZoomFactor,
+  zoomAboutPoint,
+} from "./view.ts";
 
 describe("zoomAboutPoint", () => {
   test("keeps the world point beneath the cursor fixed while zooming", () => {
@@ -72,4 +77,33 @@ describe("revealRect", () => {
       ),
     ).toEqual({ x: -68, y: -58, scale: 0.5 });
   });
+});
+
+test.each([
+  {
+    name: "a window that fits is revealed whole",
+    window: 500,
+    scale: 1,
+    expected: 500,
+  },
+  {
+    name: "a window wider than the viewport is revealed as far as it fits",
+    window: 2000,
+    scale: 1,
+    expected: 904,
+  },
+  {
+    name: "zooming in shrinks what fits",
+    window: 800,
+    scale: 2,
+    expected: 452,
+  },
+  {
+    name: "a tiny viewport still reveals the minimum",
+    window: 800,
+    scale: 4,
+    expected: 240,
+  },
+])("$name", ({ window, scale, expected }) => {
+  expect(revealWidth(window, 1000, scale, 48, 240)).toBe(expected);
 });

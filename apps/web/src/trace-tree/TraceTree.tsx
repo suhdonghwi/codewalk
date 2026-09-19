@@ -1,7 +1,6 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useWindowDrag } from "@/canvas/use-window-drag.ts";
-import { revealRect } from "@/canvas/view.ts";
 import { useAppStore } from "@/state/store.ts";
 
 import {
@@ -14,25 +13,19 @@ import { sameMeasurement, type Measurement } from "./MeasuredTraceWindow.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./TreeEdges.tsx";
 import { TreeRows } from "./TreeRows.tsx";
+import { usePendingReveal } from "./use-pending-reveal.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
-interface PendingReveal {
-  column: number;
-  block: NodeId;
-}
-
-const REVEAL_MARGIN = 48;
-
 export function TraceTree({ trace }: { trace: Trace }) {
   const path = useAppStore((state) => state.path);
+  const focus = useAppStore((state) => state.focus);
   const treeWindow = useAppStore((state) => state.windows.trace);
 
   const [measurements, setMeasurements] = useState<(Measurement | undefined)[]>(
     [],
   );
 
-  const pendingReveal = useRef<PendingReveal | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const rootTitlebarProps = useWindowDrag("trace");
 
@@ -115,10 +108,12 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const child = next[column + 1];
 
     if (child !== undefined) {
-      pendingReveal.current = { column: column + 1, block: child };
+      useAppStore.getState().setPath(next, { block: child, focusLine: false });
+
+      return;
     }
 
-    useAppStore.getState().setPath(next);
+    useAppStore.getState().setPath(next, null);
   }
 
   function chooseSibling(column: number, block: NodeId): void {
@@ -126,44 +121,10 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const next = selectSibling(current, column, block);
 
     if (next === current) return;
-    pendingReveal.current = { column, block };
-    useAppStore.getState().setPath(next);
+    useAppStore.getState().setPath(next, { block, focusLine: false });
   }
 
-  useLayoutEffect(() => {
-    const pending = pendingReveal.current;
-
-    if (pending === null) return;
-
-    if (path[pending.column] !== pending.block) {
-      pendingReveal.current = null;
-
-      return;
-    }
-
-    const layout = layouts[pending.column];
-    const canvas = treeRef.current?.closest<HTMLElement>(".canvas");
-
-    if (layout === undefined || canvas === undefined || canvas === null) return;
-
-    const state = useAppStore.getState();
-
-    const view = revealRect(
-      state.view,
-      { width: canvas.clientWidth, height: canvas.clientHeight },
-      {
-        x: state.windows.trace.x + layout.x,
-        y: state.windows.trace.y + layout.expandedTop,
-        width: 240,
-        height: 120,
-      },
-      REVEAL_MARGIN,
-    );
-
-    pendingReveal.current = null;
-
-    if (view !== state.view) state.setView(view);
-  }, [layouts, path]);
+  usePendingReveal(treeRef, path, layouts, columnMeasurements);
 
   if (path.length === 0 || columns.some((column) => column === null)) {
     return null;
@@ -192,6 +153,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
             column={column}
             columnIndex={columnIndex}
             expandedBlock={expandedBlock}
+            focus={focus}
             key={columnIndex}
             layout={layouts[columnIndex]}
             measurement={columnMeasurements[columnIndex] ?? null}

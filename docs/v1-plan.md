@@ -104,10 +104,14 @@ Done when you can walk the fixture from the module down to the innermost `fact`.
 
 ## 8. Navigation and end states
 
-- [ ] Click output chunk → `path = pathTo(node)` + highlight the site.
-- [ ] Failed run → auto-open the path to the exception origin; show traceback.
-- [ ] Syntax error, truncated and timeout notices.
-- [ ] Optional: `path` in the URL.
+- [x] Click output chunk → `path = pathTo(node)`, focus the producing line, pan to it.
+- [x] Failed run → auto-open the path to the exception origin and focus the raising
+      line; show traceback. A run never pans the canvas — the editor stays in view.
+- [x] Syntax error, truncated and timeout notices; the syntax error range is
+      underlined in the editor until the next edit.
+- [ ] Deferred: `path` in the URL — only meaningful once traces are shareable.
+- [ ] Deferred: open the path to where a timed-out/truncated program was — needs
+      the parsed trace to record which nodes were still open at the end.
 
 ## 9. End-to-end tests
 
