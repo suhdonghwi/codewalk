@@ -141,7 +141,10 @@ test("the hard-kill backstop terminates the whole process group and leaves a par
   const marker = `codewalk-child-${crypto.randomUUID()}`;
 
   const runner = new SubprocessRunner(
-    options(root, { timeLimit: 0.4, killGraceMs: 300 }),
+    // The kill timer starts at spawn, so the window must also cover interpreter
+    // start-up under a loaded machine (the full check runs everything at once):
+    // too tight and the tracer dies before it has written its header.
+    options(root, { timeLimit: 0.5, killGraceMs: 3_000 }),
   );
 
   const text = await runner.run({
@@ -158,7 +161,7 @@ hashlib.pbkdf2_hmac("sha256", b"password", b"salt", 2_000_000_000)
 
   expect(traceFrom(text).end).toEqual({ status: "timeout" });
   await expectProcessGone(marker);
-});
+}, 15_000);
 
 test("an output flood is cut at a complete line and ends as truncated", async () => {
   const root = await tempRoot();
