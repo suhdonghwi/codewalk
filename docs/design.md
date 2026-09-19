@@ -38,20 +38,24 @@ it, so debug prints carry their context.
 ## Architecture
 
 ```
- web (React)                server (FastAPI)              sandbox
+ web (React)                server (Fastify)              sandbox (one process)
  ┌──────────────┐  POST /run  ┌─────────────┐   runner   ┌────────────────────┐
- │ editor       │ ──────────▶ │ instrument  │ ─────────▶ │ python instrumented│
- │ stdin        │  {source,   │ (ast → ast) │            │  + tracer runtime  │
- │ trace tree   │ ◀────────── │             │ ◀───────── │                    │
- │ output       │ trace.jsonl └─────────────┘   events   └────────────────────┘
+ │ editor       │ ──────────▶ │ validate    │ ─────────▶ │ python -m codewalk │
+ │ stdin        │  {source,   │ queue, limit│  source,   │  instrument (ast)  │
+ │ trace tree   │ ◀────────── │ cap, relay  │ ◀───────── │  + run with runtime│
+ │ output       │ trace.jsonl └─────────────┘ trace.jsonl└────────────────────┘
  └──────────────┘
 ```
 
+The server contains no Python. Instrumenting and running both happen inside the
+sandboxed process, so hostile source never reaches a parser outside the jail.
+
 | Dir | What |
 |---|---|
-| `spec/` | [Trace format](../spec/trace-format.md), fixtures. The contract between tracer and viewer. |
-| `tracer/` | Python: `ast` instrumenter, runtime (event writer, stdout hook, limits), CLI `python -m codewalk run foo.py`. |
-| `server/` | Python, FastAPI. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner. |
+| `spec/` | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer. |
+| `tracer/` | Python (uv): `ast` instrumenter, runtime (event writer, stdout hook, limits), CLI `python -m codewalk run foo.py`. Stdlib only. |
+| `packages/trace/` | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `web/` and `server/`. |
+| `server/` | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner. |
 | `web/` | React + TypeScript + Vite. Canvas, windows, editor, trace viewer. |
 
 ## Trace model
@@ -145,7 +149,8 @@ user-facing tracebacks.
 
 Testing: golden files — source in, expected trace out — plus an invariant
 checker (proper nesting, role nesting rules, program output == concatenated
-`out` events == output of the uninstrumented program).
+`out` events == output of the uninstrumented program). Every produced trace is
+also validated against `spec/trace.schema.json`.
 
 ## Viewer
 
@@ -204,10 +209,17 @@ path: NodeId[]      // expanded block windows, root → deepest
 
 ## Server and sandbox
 
-`POST /run {source, stdin}` → instrument → run → JSONL trace. Syntax errors
-return a header plus `end: syntax_error`. No streaming in v1.
+`POST /run {source, stdin}` → run `python -m codewalk run` in the sandbox →
+JSONL trace. Syntax errors return a header plus `end: syntax_error`. No
+streaming in v1.
 
-Runner interface with two implementations:
+The sandboxed process gets the source as a file in its workdir, the request's
+stdin on fd 0, and writes the trace to a dedicated fd (not stdout — the program's
+own raw writes to fd 1/2 must not corrupt the trace). The server relays the
+trace, capping its size, and appends `end: timeout` if the process was killed.
+
+Runner interface (injected, so tests use a fake runner rather than module mocks)
+with two implementations:
 
 - `SubprocessRunner` — dev only. Subprocess with timeout.
 - `NsjailRunner` — production (public hosting). nsjail: no network namespace
@@ -223,6 +235,50 @@ secrets and is disposable.
 **The trace is untrusted input.** User code shares a process with the tracer
 runtime and can forge events. The viewer validates the schema, caps sizes, and
 never renders trace content as HTML.
+
+## Tech stack
+
+**Repo.** One repo, two ecosystems. **mise** pins Node, pnpm, Python and uv and
+is the single task runner (`mise run dev`, `mise run check`); CI runs
+`mise run check`. **pnpm** workspaces: `web/`, `server/`, `packages/trace/`.
+`tracer/` is a **uv** project next to them.
+
+**TypeScript (all packages).**
+
+- `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
+  `verbatimModuleSyntax`, `erasableSyntaxOnly`.
+- **oxlint**, type-aware mode on, plus the vendored
+  [anti-slop](https://github.com/dmmulroy/anti-slop) plugin (generic rules only,
+  no Effect rules). Its stance — parse at boundaries, no runtime `typeof`, no
+  unsafe assertions, no module mocking — is the house style.
+- **Zod 4** for every boundary: the trace (untrusted) in `packages/trace`, the
+  HTTP API via `fastify-type-provider-zod`. `spec/trace.schema.json` is generated
+  from the Zod schemas and checked in; the Python tests validate against it, so
+  the contract is enforced from both sides.
+- **ts-pattern** for branching on the format's discriminated unions (`op`,
+  `role`, `end.status`), always `.exhaustive()`.
+- **Prettier** (also formats md/json/css), **knip** for unused
+  files/exports/dependencies, **Vitest** for tests, Playwright for end-to-end
+  from M3.
+
+**web.** Vite, React 19, Tailwind v4 + **shadcn** for chrome only (title bars,
+buttons, toolbar, toasts, dialogs, menus) — never inside the trace window body.
+**Zustand** for state: the canvas transform is read via transient subscription
+and written straight to a CSS transform, so pan/zoom does not re-render React;
+`path` and window positions are ordinary store state. `codemirror` +
+`@codemirror/lang-python` for the editor; `@lezer/python` + `@lezer/highlight`
+with the same `HighlightStyle` for trace windows. No canvas, gesture or layout
+library.
+
+**server.** Node 24 running TypeScript directly (type stripping; `tsc --noEmit`
+is only a check), **Fastify**, `@fastify/rate-limit` and an in-process semaphore
+for the run queue (M5). In dev, Vite proxies `/api` to it.
+
+**tracer.** One pinned Python minor version everywhere (dev, CI, sandbox rootfs)
+— `ast` node shapes differ between minors. Runtime dependencies: none (stdlib
+only; it runs inside the jail's minimal rootfs). Dev: **ruff** (lint + format),
+**ty** (type check), **pytest**, `jsonschema` for validating traces against the
+spec.
 
 ## Milestones
 
