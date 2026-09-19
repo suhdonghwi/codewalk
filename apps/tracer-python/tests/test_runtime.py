@@ -4,7 +4,8 @@ from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 
-from codewalk.runtime import JsonlSink, Runtime
+from codewalk.runtime import Runtime
+from codewalk.sink import JsonlSink
 
 
 class ListSink:

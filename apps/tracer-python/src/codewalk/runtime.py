@@ -1,42 +1,11 @@
-"""In-process trace event runtime for instrumented Python programs."""
+"""The open-node stack: what instrumented code calls while it runs."""
 
-import io
-import json
-import sys
 from collections.abc import Mapping, Sequence
 from types import TracebackType
-from typing import Literal, Protocol, TextIO
+from typing import Literal
 
-
-class EventSink(Protocol):
-    """Destination for trace events."""
-
-    def write(self, event: Mapping[str, object]) -> None: ...
-
-
-class JsonlSink:
-    """Write trace events as compact UTF-8 JSON Lines."""
-
-    def __init__(self, file: TextIO) -> None:
-        self._file = file
-
-    @classmethod
-    def from_fd(cls, fd: int) -> "JsonlSink":
-        file = io.TextIOWrapper(
-            io.FileIO(fd, "w", closefd=True), encoding="utf-8", newline="\n"
-        )
-        return cls(file)
-
-    def write(self, event: Mapping[str, object]) -> None:
-        line = json.dumps(dict(event), ensure_ascii=False, separators=(",", ":"))
-        self._file.write(f"{line}\n")
-        if event.get("op") == "end":
-            # The process may be killed without ever closing the sink (a program
-            # that keeps looping after truncation); the last word must not be lost.
-            self._file.flush()
-
-    def close(self) -> None:
-        self._file.close()
+from codewalk.capture import OutputCapture, Stream
+from codewalk.sink import EventSink
 
 
 class _Node:
@@ -71,52 +40,6 @@ class _BlockContext:
         return False
 
 
-class _CaptureStream(io.TextIOBase):
-    __slots__ = ("_runtime", "_stream")
-
-    def __init__(self, runtime: "Runtime", stream: Literal["stdout", "stderr"]) -> None:
-        self._runtime = runtime
-        self._stream = stream
-
-    def write(self, text: str) -> int:
-        self._runtime.out(self._stream, text)
-        return len(text)
-
-    def flush(self) -> None:
-        pass
-
-    def isatty(self) -> bool:
-        return False
-
-
-class _OutputContext:
-    __slots__ = ("_runtime", "_stderr", "_stdout")
-
-    def __init__(self, runtime: "Runtime") -> None:
-        self._runtime = runtime
-        self._stdout: TextIO | None = None
-        self._stderr: TextIO | None = None
-
-    def __enter__(self) -> None:
-        self._stdout = sys.stdout
-        self._stderr = sys.stderr
-        sys.stdout = _CaptureStream(self._runtime, "stdout")
-        sys.stderr = _CaptureStream(self._runtime, "stderr")
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> Literal[False]:
-        del exc_type, exc, traceback
-        if self._stdout is not None:
-            sys.stdout = self._stdout
-        if self._stderr is not None:
-            sys.stderr = self._stderr
-        return False
-
-
 class Runtime:
     """Maintain the open-node stack and emit trace events."""
 
@@ -132,7 +55,7 @@ class Runtime:
         self._max_events = max_events
         self._event_count = 0
         self._stack: list[_Node] = []
-        self._out_stream: Literal["stdout", "stderr"] | None = None
+        self._out_stream: Stream | None = None
         self._out_text = ""
         self._truncated = False
         self._finished = False
@@ -182,7 +105,7 @@ class Runtime:
                 self._emit({"op": "exit"})
         return value
 
-    def out(self, stream: Literal["stdout", "stderr"], text: str) -> None:
+    def out(self, stream: Stream, text: str) -> None:
         if not self._active or not self._stack:
             return
         self._materialize()
@@ -196,8 +119,8 @@ class Runtime:
             self._out_stream = stream
             self._out_text = text
 
-    def capture_output(self) -> _OutputContext:
-        return _OutputContext(self)
+    def capture_output(self) -> OutputCapture:
+        return OutputCapture(self.out)
 
     def finish(self, status: str, **fields: object) -> None:
         if not self._active:
