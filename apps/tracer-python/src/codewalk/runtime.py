@@ -8,6 +8,14 @@ from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
 
 
+class ExecutionStopped(BaseException):
+    """Raised inside the traced program to end it: time limit or truncation."""
+
+    def __init__(self, status: str) -> None:
+        super().__init__(status)
+        self.status = status
+
+
 class _Node:
     __slots__ = ("block", "loc", "pending")
 
@@ -61,6 +69,7 @@ class Runtime:
         # False once the trace has ended (finished or truncated); a plain
         # attribute because it is read several times per event.
         self._active = True
+        self._stop: str | None = None
 
     @property
     def truncated(self) -> bool:
@@ -72,7 +81,19 @@ class Runtime:
     def iteration(self, loc: int) -> _BlockContext:
         return _BlockContext(self, loc, repair=True)
 
+    def request_stop(self, status: str) -> None:
+        """Make every following statement marker raise `ExecutionStopped`.
+
+        A single asynchronous raise can be swallowed by the program's own bare
+        `except:`. Markers sit before each statement, including the `try`
+        itself and the statements of its handlers, so raising from all of them
+        gets out within a statement or two.
+        """
+        self._stop = status
+
     def stmt(self, loc: int) -> None:
+        if self._stop is not None:
+            raise ExecutionStopped(self._stop)
         if not self._active:
             return
         self._repair(self._parents[loc])
@@ -157,7 +178,7 @@ class Runtime:
         while self._active and self._stack:
             node = self._stack.pop()
             if node is target:
-                if exc is None:
+                if exc is None or isinstance(exc, ExecutionStopped):
                     self._emit({"op": "exit"})
                 else:
                     self._emit({"op": "exit", "exc": _exception_summary(exc)})
@@ -210,6 +231,7 @@ class Runtime:
             self._sink.write({"op": "end", "status": "truncated"})
             self._truncated = True
             self._active = False
+            self._stop = "truncated"
             self._stack.clear()
             self._out_stream = None
             self._out_text = ""

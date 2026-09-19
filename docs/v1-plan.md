@@ -57,7 +57,9 @@ Done when the hand-instrumented sample in design.md produces the fixture's event
 - [x] Flush/timeout policy: the CLI runs a repeating ~100 ms interval timer
       that flushes the sink and, once the time limit has passed or the trace is
       truncated, raises in the main thread; `finish("timeout")` then ends the
-      trace cleanly. The server's hard kill is only a backstop (≤ one tick lost).
+      trace cleanly. Once a stop is requested every statement marker raises too,
+      so the program's own bare `except:` cannot swallow it. The server's hard
+      kill is only a backstop (≤ one tick lost).
 
 Note: loc numbering in the hand-written `fact` fixture is not normative. If the
 instrumenter numbers differently, regenerate it once and review the diff.

@@ -4,7 +4,9 @@ from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
 
-from codewalk.runtime import Runtime
+import pytest
+
+from codewalk.runtime import ExecutionStopped, Runtime
 from codewalk.sink import JsonlSink
 
 
@@ -230,7 +232,9 @@ def test_repair_stops_at_a_block_when_the_static_parent_is_not_open() -> None:
     ]
 
 
-def test_truncation_follows_exactly_the_limit_and_does_not_change_values() -> None:
+def test_truncation_ends_the_trace_at_the_limit_and_stops_at_the_next_statement() -> (
+    None
+):
     sink = ListSink()
     runtime = Runtime([None, 0, 1], sink, max_events=3)
 
@@ -239,12 +243,11 @@ def test_truncation_follows_exactly_the_limit_and_does_not_change_values() -> No
         loc = runtime.begin(2)
         runtime.out("stdout", "too much")
         result = runtime.end(loc, 42)
-        runtime.stmt(1)
-        later = runtime.end(runtime.begin(2), "still running")
+        with pytest.raises(ExecutionStopped):
+            runtime.stmt(1)
     runtime.finish("ok")
 
     assert result == 42
-    assert later == "still running"
     assert runtime.truncated
     assert sink.events == [
         {"op": "enter", "loc": 0},

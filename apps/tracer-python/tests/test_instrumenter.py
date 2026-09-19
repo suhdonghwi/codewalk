@@ -192,11 +192,15 @@ def test_event_limit_stops_an_infinite_program_at_the_exact_limit(
 def test_repeating_timer_escapes_a_bare_exception_handler(tmp_path: Path) -> None:
     path = tmp_path / "prog.py"
     path.write_text(
-        "while True:\n    try:\n        pass\n    except:\n        pass\n",
+        "while True:\n    try:\n        sum(range(20000))\n    except:\n        pass\n",
         encoding="utf-8",
     )
 
-    result = _trace(path, "--time-limit", "0.15", timeout=3)
+    # The event limit is lifted so that only the time limit can end this run,
+    # however fast the machine produces events.
+    result = _trace(
+        path, "--time-limit", "0.15", "--max-events", "1000000000", timeout=5
+    )
     end = json.loads(result.stdout.decode().splitlines()[-1])
 
     assert result.returncode == 0

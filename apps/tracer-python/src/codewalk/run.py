@@ -11,16 +11,11 @@ from types import FrameType
 
 from codewalk.instrument import instrument
 from codewalk.locs import Loc, SourceMap
-from codewalk.runtime import Runtime
+from codewalk.runtime import ExecutionStopped, Runtime
 from codewalk.sink import JsonlSink
 
 _TICK_SECONDS = 0.1
 _PACKAGE_DIRECTORY = Path(__file__).parent
-
-
-class _ExecutionStopped(BaseException):
-    def __init__(self, status: str) -> None:
-        self.status = status
 
 
 def run(
@@ -83,10 +78,14 @@ def run(
     def tick(signum: int, frame: FrameType | None) -> None:
         del signum, frame
         sink.flush()
+        # Statement markers raise from here on (see `Runtime.request_stop`);
+        # raising now as well covers code that runs no markers, such as a loop
+        # inside an uninstrumented generator.
         if runtime.truncated:
-            raise _ExecutionStopped("truncated")
+            raise ExecutionStopped("truncated")
         if time_limit is not None and time.monotonic() - started >= time_limit:
-            raise _ExecutionStopped("timeout")
+            runtime.request_stop("timeout")
+            raise ExecutionStopped("timeout")
 
     signal.signal(signal.SIGALRM, tick)
     signal.setitimer(signal.ITIMER_REAL, _TICK_SECONDS, _TICK_SECONDS)
@@ -101,7 +100,7 @@ def run(
                     signal.setitimer(signal.ITIMER_REAL, 0)
             except SystemExit:
                 runtime.finish("ok")
-            except _ExecutionStopped as stopped:
+            except ExecutionStopped as stopped:
                 if stopped.status == "timeout":
                     runtime.finish("timeout")
             except BaseException as error:
