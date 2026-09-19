@@ -11,6 +11,11 @@ generation tokens to Codex while Claude spends only on spec + diff review.
 Don't ping-pong trivia through delegation; don't re-read what Codex already
 summarized.
 
+This skill is for Claude only. It must live in `.claude/skills/`, never in the
+shared `.agents/skills/` — Codex reads that directory, loads the skill, and
+delegates its work order to another Codex, recursively. Every work-order prompt
+also states: "You are the worker. Do the work yourself; never launch `codex`."
+
 ## Route
 
 Delegate to Codex:
