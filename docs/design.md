@@ -165,8 +165,10 @@ Movable objects on the canvas: the **editor** window, the **stdin** window, the
 _inside_ the trace tree are not individually draggable: the tree is laid out
 automatically and moves as one rigid unit, so users cannot wreck its shape.
 
-Default placement: editor top-left, stdin below it, output below stdin; the
-trace root to the right of the editor, growing rightwards.
+Default placement: editor at the origin; stdin and output in a column to its
+left (the editor grows downward with its content, so nothing sits below it); the
+trace root to the right of the editor, growing rightwards. Windows size to their
+content — there are no resize handles.
 
 ### Windows
 

@@ -1,9 +1,18 @@
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": new URL("./src", import.meta.url).pathname,
+    },
+  },
   server: {
+    fs: {
+      allow: [new URL("../..", import.meta.url).pathname],
+    },
     proxy: {
       "/api": "http://127.0.0.1:3001",
     },

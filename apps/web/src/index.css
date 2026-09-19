@@ -1,0 +1,184 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+}
+
+:root {
+  --background: #fafafa;
+  --foreground: #262626;
+  --accent: #f5f5f5;
+  --accent-foreground: #262626;
+  --ring: #a3a3a3;
+  color: var(--foreground);
+  background: var(--background);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  background-color: #fafafa;
+  background-image: radial-gradient(circle, #dedede 0.75px, transparent 0.85px);
+}
+
+.canvas-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-window {
+  position: absolute;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 4%),
+    0 6px 18px rgb(0 0 0 / 5%);
+}
+
+.window-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  padding: 0 5px 0 9px;
+  color: #737373;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  user-select: none;
+  cursor: grab;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.window-titlebar:active {
+  cursor: grabbing;
+}
+
+.editor-window {
+  width: 560px;
+}
+
+.editor-host,
+.editor-host .cm-editor,
+.editor-host .cm-content {
+  min-height: 248px;
+}
+
+.editor-host .cm-editor {
+  color: #30343b;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.editor-host .cm-editor.cm-focused {
+  outline: none;
+}
+
+.editor-host .cm-scroller {
+  overflow-x: auto;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.editor-host .cm-content {
+  min-width: max-content;
+  padding: 7px 0;
+  caret-color: #262626;
+}
+
+.editor-host .cm-line {
+  padding: 0 10px 0 6px;
+}
+
+.editor-host .cm-gutters {
+  color: #a3a3a3;
+  background: #ffffff;
+  border-right: 0;
+}
+
+.editor-host .cm-lineNumbers .cm-gutterElement {
+  min-width: 34px;
+  padding: 0 7px 0 6px;
+}
+
+.editor-host .cm-activeLine,
+.editor-host .cm-activeLineGutter {
+  background: transparent;
+}
+
+.stdin-window,
+.output-window {
+  width: 320px;
+}
+
+.stdin-window textarea,
+.output-window pre {
+  display: block;
+  width: 100%;
+  margin: 0;
+  color: #30343b;
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.stdin-window textarea {
+  height: 131px;
+  padding: 7px 9px;
+  overflow: auto;
+  resize: none;
+}
+
+.output-window pre {
+  max-height: 480px;
+  padding: 7px 9px;
+  overflow: auto;
+}
+
+.output-error {
+  color: #a14f4f;
+}

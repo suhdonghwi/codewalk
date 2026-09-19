@@ -4,6 +4,7 @@ export default defineConfig({
   ignorePatterns: [
     ".agents/**",
     ".claude/**",
+    "apps/web/src/components/ui/**",
     "tools/oxlint/anti-slop/**",
     "apps/tracer-python/**",
   ],
