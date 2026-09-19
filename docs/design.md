@@ -229,7 +229,7 @@ Runner interface (injected, so tests use a fake runner rather than module mocks)
 with two implementations:
 
 - `SubprocessRunner` — dev only. Subprocess with timeout.
-- `NsjailRunner` — production (public hosting). nsjail: no network namespace
+- `NsjailRunner` — production (public hosting); **not built yet**. nsjail: no network namespace
   interfaces, read-only bind-mounted minimal rootfs with Python, small tmpfs
   workdir, cgroup memory (~256 MB) and pids limits, CPU and wall time limits,
   unprivileged user, seccomp policy. The server caps trace bytes read; the
@@ -294,27 +294,26 @@ Follow the `writing-tests` skill. Project-specific designations it refers to:
 
 - **Golden contract:** tracer output only (`spec/fixtures/`, source → trace).
   No goldens or snapshots anywhere else.
-- **Core end-to-end journeys** (the complete list):
+- **Core end-to-end journeys** — none are automated yet; when an end-to-end suite
+  is added, this is the complete list it may cover:
   1. Run a program → click a call site → the callee window opens.
   2. Click a loop → iteration stack opens → switch iteration.
   3. Click an output line → the path to its site opens.
   4. A run that raises → the path to the exception origin opens automatically.
   5. A syntax error is shown and no trace tree appears.
 
-## Milestones
-
-- **M0 — Spec.** Trace format, fixtures. _(this document + `spec/`)_
-- **M1 — Tracer.** Instrumenter, runtime, CLI, golden tests, invariant checker.
-- **M2 — Viewer core** (parallel with M1, against fixtures). Canvas, window
-  component, trace window (highlighting, statement states, clickable sites,
-  inline output), path-driven column layout.
-- **M3 — End to end.** Server + `SubprocessRunner`, editor, Run, stdin, output
-  window, replace-on-rerun, syntax errors.
-- **M4 — Navigation.** Reverse navigation, exception auto-open, has-output
-  markers, edges, alignment, transitions, path in URL.
-- **M5 — Production.** `NsjailRunner`, limits, rate limiting, deployment.
-
 ## Deferred
+
+The MVP is built: tracer, run server, canvas, trace tree, navigation. Not built:
+
+- Production: the `NsjailRunner`, rate limiting, a run queue, deployment. Until
+  then the server runs code unsandboxed and must stay on loopback.
+- An automated end-to-end suite (see Testing for its scope).
+- Opening the path to where a timed-out or truncated program was: the parsed
+  trace does not record which nodes were still open at the end.
+- The path in the URL — only meaningful once traces are shareable.
+
+Further out:
 
 - Values: call arguments in window titles first, then expression values
   (`_cw_e` already sees them), then variable/heap state.
