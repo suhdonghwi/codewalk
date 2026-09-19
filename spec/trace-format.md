@@ -135,7 +135,9 @@ Range conventions:
 
 Well-formedness: `enter`/`exit` are properly nested. Nodes still open at `end`
 or at EOF are implicitly closed there (truncation, timeout, hard kill). If the
-file has no `end` line the viewer treats it as `timeout`.
+file has no `end` line the viewer treats it as `timeout`. A final line that has
+no terminating newline and is not valid JSON is ignored: the process was killed
+mid-write. Any other unparseable line makes the whole trace invalid.
 
 ### What is _not_ recorded
 

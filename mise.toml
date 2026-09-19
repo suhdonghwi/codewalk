@@ -39,6 +39,14 @@ uv run --project apps/tracer-python ty check --project apps/tracer-python
 description = "Check for unused JavaScript and TypeScript code"
 run = "pnpm run knip"
 
+[tasks.schema]
+description = "Regenerate the trace JSON Schema"
+run = "node packages/trace/scripts/generate-schema.ts"
+
+[tasks."schema:check"]
+description = "Check that the trace JSON Schema is current"
+run = "node packages/trace/scripts/generate-schema.ts --check"
+
 [tasks.test]
 description = "Run JavaScript, TypeScript, and Python tests"
 run = """
@@ -54,7 +62,7 @@ esac
 
 [tasks.check]
 description = "Run every repository check"
-depends = ["format", "lint", "typecheck", "knip", "test"]
+depends = ["format", "lint", "typecheck", "knip", "test", "schema:check"]
 
 [tasks.fix]
 description = "Apply automatic formatting and lint fixes"

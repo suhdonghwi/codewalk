@@ -1,5 +1,6 @@
 pnpm-lock.yaml
 spec/fixtures/
+spec/trace.schema.json
 .agents/
 .claude/
 tools/oxlint/anti-slop/

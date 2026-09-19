@@ -27,10 +27,10 @@ Rule from here on: a dependency is installed by the step that first uses it
 
 ## 1. `packages/trace`
 
-- [ ] Zod schemas for header and events; generate and check in `spec/trace.schema.json`.
-- [ ] `parseTrace(jsonl)` → node tree (implicit ids, implicit close at `end`/EOF,
+- [x] Zod schemas for header and events; generate and check in `spec/trace.schema.json`.
+- [x] `parseTrace(jsonl)` → node tree (implicit ids, implicit close at `end`/EOF,
       missing `end` → `timeout`).
-- [ ] Derived views from the spec: output chunks → node, `pathTo(node)`, sites of a
+- [x] Derived views from the spec: output chunks → node, `pathTo(node)`, sites of a
       block (grouped by loc), statement state (lit/dimmed/inert), has-output,
       exception origin.
 
