@@ -170,7 +170,9 @@ automatically and moves as one rigid unit, so users cannot wreck its shape.
 Default placement: editor at the origin; stdin and output in a column to its
 left (the editor grows downward with its content, so nothing sits below it); the
 trace root to the right of the editor, growing rightwards. Windows size to their
-content — there are no resize handles.
+content, except the editor: it has a fixed size, scrolls inside, and resizes from
+its right edge, bottom edge and corner (invisible handles). While the trace tree
+is still at its default spot it stays docked to the editor's right edge.
 
 ### Windows
 

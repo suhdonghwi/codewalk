@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { ViewTransform } from "@/canvas/view.ts";
+import type { Size, ViewTransform } from "@/canvas/view.ts";
 import type { RunOutcome } from "@/run/types.ts";
 import {
   navigateToException,
@@ -12,6 +12,8 @@ import { initialPath, type Path } from "@/trace-tree/path.ts";
 import type { NodeId } from "@codewalk/trace";
 
 import { readStoredState, writeStoredState } from "./persistence.ts";
+
+const WINDOW_GAP = 16;
 
 export type WindowId = "editor" | "stdin" | "output" | "trace";
 
@@ -29,6 +31,7 @@ interface PendingReveal {
 interface AppState {
   view: ViewTransform;
   windows: Record<WindowId, WindowState>;
+  editorSize: Size;
   nextZ: number;
   source: string;
   stdin: string;
@@ -39,6 +42,7 @@ interface AppState {
   pendingReveal: PendingReveal | null;
   setView: (view: ViewTransform) => void;
   moveWindow: (id: WindowId, x: number, y: number) => void;
+  resizeEditor: (size: Size) => void;
   bringToFront: (id: WindowId) => void;
   setSource: (source: string) => void;
   setStdin: (stdin: string) => void;
@@ -59,6 +63,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     output: { x: -336, y: 177, z: 1 },
     trace: { x: 576, y: 0, z: 4 },
   },
+  editorSize: { width: 560, height: 320 },
   nextZ: 5,
   source: initialInput.source,
   stdin: initialInput.stdin,
@@ -69,6 +74,28 @@ export const useAppStore = create<AppState>()((set, get) => ({
   pendingReveal: null,
   setView: (view) => {
     set({ view });
+  },
+  resizeEditor: (editorSize) => {
+    set((state) => {
+      // While the trace tree still sits at its default spot beside the editor it
+      // stays docked to the editor's right edge; once either was dragged, it is
+      // the user's layout and is left alone.
+      const { editor, trace } = state.windows;
+
+      const docked =
+        trace.x === editor.x + state.editorSize.width + WINDOW_GAP &&
+        trace.y === editor.y;
+
+      return {
+        editorSize,
+        windows: docked
+          ? {
+              ...state.windows,
+              trace: { ...trace, x: editor.x + editorSize.width + WINDOW_GAP },
+            }
+          : state.windows,
+      };
+    });
   },
   moveWindow: (id, x, y) => {
     set((state) => ({

@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode, Ref } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 
 import { useAppStore, type WindowId } from "@/state/store.ts";
 
@@ -10,6 +10,7 @@ interface CanvasWindowProps {
   titleIndicator?: ReactNode;
   titleAction?: ReactNode;
   className: string;
+  style?: CSSProperties | undefined;
   children: ReactNode;
 }
 
@@ -19,6 +20,7 @@ interface WindowChromeProps {
   titleAction?: ReactNode;
   className: string;
   children?: ReactNode;
+  style?: CSSProperties | undefined;
   chromeRef?: Ref<HTMLElement> | undefined;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
 }
@@ -29,11 +31,16 @@ export function WindowChrome({
   titleAction,
   className,
   children,
+  style,
   chromeRef,
   titlebarProps,
 }: WindowChromeProps) {
   return (
-    <section className={`window-chrome ${className}`} ref={chromeRef}>
+    <section
+      className={`window-chrome ${className}`}
+      ref={chromeRef}
+      style={style}
+    >
       <div className="window-titlebar" {...titlebarProps}>
         <span className="window-title">
           <span>{title}</span>
@@ -52,6 +59,7 @@ export function CanvasWindow({
   titleIndicator,
   titleAction,
   className,
+  style,
   children,
 }: CanvasWindowProps) {
   const windowState = useAppStore((state) => state.windows[id]);
@@ -69,6 +77,7 @@ export function CanvasWindow({
     >
       <WindowChrome
         className={className}
+        style={style}
         title={title}
         titleAction={titleAction}
         titleIndicator={titleIndicator}

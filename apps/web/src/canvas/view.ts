@@ -54,6 +54,33 @@ export function zoomAboutPoint(
   };
 }
 
+export interface Size {
+  width: number;
+  height: number;
+}
+
+/**
+ * A window's size after its edge or corner was dragged by a screen-space delta:
+ * the delta is divided by the canvas scale (the window lives in world units),
+ * applied only on the dragged axes, and clamped to the minimum size.
+ */
+export function resizedSize(
+  start: Size,
+  delta: Point,
+  scale: number,
+  axes: { x: boolean; y: boolean },
+  minimum: Size,
+): Size {
+  return {
+    width: axes.x
+      ? Math.max(minimum.width, start.width + delta.x / scale)
+      : start.width,
+    height: axes.y
+      ? Math.max(minimum.height, start.height + delta.y / scale)
+      : start.height,
+  };
+}
+
 /**
  * How much of a window's width (world units) a reveal should bring into view:
  * all of it when it fits between the margins at the current scale, otherwise as

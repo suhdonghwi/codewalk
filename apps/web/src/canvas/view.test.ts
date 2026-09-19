@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   revealRect,
   revealWidth,
+  resizedSize,
   wheelZoomFactor,
   zoomAboutPoint,
 } from "./view.ts";
@@ -106,4 +107,35 @@ test.each([
   },
 ])("$name", ({ window, scale, expected }) => {
   expect(revealWidth(window, 1000, scale, 48, 240)).toBe(expected);
+});
+
+test.each([
+  {
+    name: "a corner drag at 200% moves the size by half the screen delta",
+    delta: { x: 100, y: 60 },
+    scale: 2,
+    axes: { x: true, y: true },
+    expected: { width: 610, height: 350 },
+  },
+  {
+    name: "an edge drag leaves the other axis alone",
+    delta: { x: 100, y: 60 },
+    scale: 1,
+    axes: { x: true, y: false },
+    expected: { width: 660, height: 320 },
+  },
+  {
+    name: "shrinking stops at the minimum size",
+    delta: { x: -900, y: -900 },
+    scale: 1,
+    axes: { x: true, y: true },
+    expected: { width: 320, height: 160 },
+  },
+])("$name", ({ delta, scale, axes, expected }) => {
+  expect(
+    resizedSize({ width: 560, height: 320 }, delta, scale, axes, {
+      width: 320,
+      height: 160,
+    }),
+  ).toEqual(expected);
 });
