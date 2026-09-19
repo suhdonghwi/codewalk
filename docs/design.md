@@ -1,7 +1,7 @@
 # codewalk — design
 
 codewalk is a code execution visualizer. You write a program, run it, and then
-freely navigate *what happened* as a structure in space — call by call,
+freely navigate _what happened_ as a structure in space — call by call,
 iteration by iteration — instead of stepping through it in time.
 
 ## Problem
@@ -22,9 +22,9 @@ it, so debug prints carry their context.
 
 ## Principles
 
-1. **One UI language.** No special-case widgets. Everything is: *a window shows
+1. **One UI language.** No special-case widgets. Everything is: _a window shows
    one execution of a source range; ranges in it that spawned child executions
-   are clickable; clicking opens the child windows.* Calls, loops, callbacks and
+   are clickable; clicking opens the child windows._ Calls, loops, callbacks and
    navigation jumps all use this. Convenience abstractions (tables, scrubbers,
    abbreviation of repetition) come later, once real repetition patterns show up.
 2. **Language-agnostic trace.** The tracer is per-language; the trace format and
@@ -50,13 +50,13 @@ it, so debug prints carry their context.
 The server contains no Python. Instrumenting and running both happen inside the
 sandboxed process, so hostile source never reaches a parser outside the jail.
 
-| Dir | What |
-|---|---|
-| `spec/` | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer. |
-| `tracer/` | Python (uv): `ast` instrumenter, runtime (event writer, stdout hook, limits), CLI `python -m codewalk run foo.py`. Stdlib only. |
-| `packages/trace/` | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `web/` and `server/`. |
-| `server/` | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner. |
-| `web/` | React + TypeScript + Vite. Canvas, windows, editor, trace viewer. |
+| Dir                   | What                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                               |
+| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook, limits), CLI `python -m codewalk run foo.py`. Stdlib only. |
+| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `apps/web/` and `apps/server/`.                      |
+| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                                     |
+| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                                       |
 
 ## Trace model
 
@@ -116,7 +116,7 @@ for i in _e(_b(13), range(2)):
   until the top is that parent. Function-block entry does no repair (its dynamic
   parent is whatever is open). Block exit pops down to the block. Repair never
   pops a block — if it would have to, something is wrong and it stops.
-- **Lazy emission.** `_b` pushes a *pending* node and writes nothing. The first
+- **Lazy emission.** `_b` pushes a _pending_ node and writes nothing. The first
   thing that happens inside it (output, block entry) writes the pending chain's
   `enter` events first. A pending node that closes untouched is dropped. So the
   trace contains only meaningful expr nodes, however much is bracketed; the
@@ -133,15 +133,15 @@ for i in _e(_b(13), range(2)):
 
 Python construct mapping:
 
-| Construct | v1 treatment |
-|---|---|
-| `def` (incl. nested, methods) | `def` header is a stmt in the defining block; body is a `function` block. |
-| `for` / `while` | Header is a `loop` stmt that stays open; each pass through the body is an `iteration` block. A `for` iterable and a `while` condition belong to the loop stmt (parent window), not to the iteration. |
-| `if`/`with`/`try`/`class` | Header-only stmt; body statements are siblings in the enclosing block. |
-| Comprehensions | No iteration blocks; expressions inside are bracketed, so calls inside still expand (same loc entered N times → one merged stack). |
-| Lambdas, generators, `async` | Body left uninstrumented: a lambda body's static parent is not on the stack when it runs, and generator/coroutine activations do not nest. They run normally, output is attributed to the calling site, not expandable. |
-| Builtins / library calls | Opaque: a call expr with output and no blocks (`print(...)` is exactly this). |
-| Threads | Unsupported; single stack assumed. |
+| Construct                     | v1 treatment                                                                                                                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `def` (incl. nested, methods) | `def` header is a stmt in the defining block; body is a `function` block.                                                                                                                                               |
+| `for` / `while`               | Header is a `loop` stmt that stays open; each pass through the body is an `iteration` block. A `for` iterable and a `while` condition belong to the loop stmt (parent window), not to the iteration.                    |
+| `if`/`with`/`try`/`class`     | Header-only stmt; body statements are siblings in the enclosing block.                                                                                                                                                  |
+| Comprehensions                | No iteration blocks; expressions inside are bracketed, so calls inside still expand (same loc entered N times → one merged stack).                                                                                      |
+| Lambdas, generators, `async`  | Body left uninstrumented: a lambda body's static parent is not on the stack when it runs, and generator/coroutine activations do not nest. They run normally, output is attributed to the calling site, not expandable. |
+| Builtins / library calls      | Opaque: a call expr with output and no blocks (`print(...)` is exactly this).                                                                                                                                           |
+| Threads                       | Unsupported; single stack assumed.                                                                                                                                                                                      |
 
 Expected slowdown is roughly 5–20×; time limits account for it. Instrumentation
 preserves line numbers (`ast.copy_location`) and `_cw` frames are filtered out of
@@ -161,7 +161,7 @@ layout and interaction logic is too custom.
 
 Movable objects on the canvas: the **editor** window, the **stdin** window, the
 **output** window, and the **trace tree** (dragged by its root window). Windows
-*inside* the trace tree are not individually draggable: the tree is laid out
+_inside_ the trace tree are not individually draggable: the tree is laid out
 automatically and moves as one rigid unit, so users cannot wreck its shape.
 
 Default placement: editor top-left, stdin below it, output below stdin; the
@@ -174,7 +174,7 @@ trace root to the right of the editor, growing rightwards.
 - **Output** — concatenated `out` events (stderr styled differently), followed by
   the traceback / truncation / timeout notice. Every chunk is clickable
   (reverse navigation).
-- **Trace window** — custom read-only React component, *not* CodeMirror. Renders
+- **Trace window** — custom read-only React component, _not_ CodeMirror. Renders
   the block's source range from the trace's own `sources`, highlighted with the
   same engine as the editor: Lezer (`@lezer/python` + `@lezer/highlight`) with
   the shared `HighlightStyle`. Tokens are split at loc boundaries so highlight
@@ -183,8 +183,8 @@ trace root to the right of the editor, growing rightwards.
   - clickable ranges for sites that contain blocks;
   - inline output at the end of the line of sites that contain output;
   - the exception marker on the origin statement.
-  Title bar: kind + name (`function fact`, `iteration 3`), has-output marker.
-  A window is either expanded or collapsed to its title bar.
+    Title bar: kind + name (`function fact`, `iteration 3`), has-output marker.
+    A window is either expanded or collapsed to its title bar.
 
 Running replaces the previous trace (the tree keeps its position).
 
@@ -197,8 +197,8 @@ view is derived from
 path: NodeId[]      // expanded block windows, root → deepest
 ```
 
-- Column *k* of the tree holds the child stack of the site selected in column
-  *k−1*: all child blocks as title bars, one of them expanded. (Finder column
+- Column _k_ of the tree holds the child stack of the site selected in column
+  _k−1_: all child blocks as title bars, one of them expanded. (Finder column
   view, on a canvas.) The expanded child is vertically aligned to the clicked
   range where possible; an edge connects range → stack.
 - **Click a site** → truncate `path` at that window, append the site's first
@@ -240,8 +240,9 @@ never renders trace content as HTML.
 
 **Repo.** One repo, two ecosystems. **mise** pins Node, pnpm, Python and uv and
 is the single task runner (`mise run dev`, `mise run check`); CI runs
-`mise run check`. **pnpm** workspaces: `web/`, `server/`, `packages/trace/`.
-`tracer/` is a **uv** project next to them.
+`mise run check`. **pnpm** workspaces: `apps/web/`, `apps/server/`,
+`packages/trace/`. `apps/tracer-python/` is a **uv** project next to them; tracers
+for other languages become `apps/tracer-<language>/`.
 
 **TypeScript (all packages).**
 
@@ -295,7 +296,7 @@ Follow the `writing-tests` skill. Project-specific designations it refers to:
 
 ## Milestones
 
-- **M0 — Spec.** Trace format, fixtures. *(this document + `spec/`)*
+- **M0 — Spec.** Trace format, fixtures. _(this document + `spec/`)_
 - **M1 — Tracer.** Instrumenter, runtime, CLI, golden tests, invariant checker.
 - **M2 — Viewer core** (parallel with M1, against fixtures). Canvas, window
   component, trace window (highlighting, statement states, clickable sites,

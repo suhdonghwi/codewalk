@@ -1,0 +1,66 @@
+[tools]
+node = "24.21.0"
+pnpm = "12.4.2"
+uv = "0.12.16"
+
+[tasks.install]
+description = "Install JavaScript and Python dependencies"
+run = """
+pnpm install
+uv sync --project apps/tracer-python
+"""
+
+[tasks.dev]
+description = "Run the server and web development servers"
+run = "pnpm run dev"
+
+[tasks.format]
+description = "Check formatting"
+run = """
+pnpm run format
+uv run --project apps/tracer-python ruff format --check apps/tracer-python
+"""
+
+[tasks.lint]
+description = "Lint TypeScript and Python"
+run = """
+pnpm run lint
+uv run --project apps/tracer-python ruff check apps/tracer-python
+"""
+
+[tasks.typecheck]
+description = "Type-check TypeScript and Python"
+run = """
+pnpm run typecheck
+uv run --project apps/tracer-python ty check --project apps/tracer-python
+"""
+
+[tasks.knip]
+description = "Check for unused JavaScript and TypeScript code"
+run = "pnpm run knip"
+
+[tasks.test]
+description = "Run JavaScript, TypeScript, and Python tests"
+run = """
+pnpm run test
+python_test_status=0
+uv run --project apps/tracer-python pytest apps/tracer-python || python_test_status=$?
+# Remove the exit-code-5 tolerance when the first Python test lands.
+case "$python_test_status" in
+  0|5) ;;
+  *) exit "$python_test_status" ;;
+esac
+"""
+
+[tasks.check]
+description = "Run every repository check"
+depends = ["format", "lint", "typecheck", "knip", "test"]
+
+[tasks.fix]
+description = "Apply automatic formatting and lint fixes"
+run = """
+pnpm run fix:format
+pnpm run fix:lint
+uv run --project apps/tracer-python ruff format apps/tracer-python
+uv run --project apps/tracer-python ruff check --fix apps/tracer-python
+"""

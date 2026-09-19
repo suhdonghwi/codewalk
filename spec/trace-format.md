@@ -12,11 +12,11 @@ Example: [`fixtures/fact.py`](fixtures/fact.py) →
 The trace is a tree of **nodes**. Every node is one execution of a source range
 (a **loc**). A loc has one of three roles:
 
-| Role | Meaning | In the viewer |
-|---|---|---|
-| `block` | One execution of a body of code: a module run, a function activation, a loop iteration. | A window. |
-| `stmt` | A statement that started executing in the enclosing block. Always recorded. | Lit (vs. dimmed) code. |
-| `expr` | An expression that was evaluated. Recorded only if something happened inside it. | — |
+| Role    | Meaning                                                                                 | In the viewer          |
+| ------- | --------------------------------------------------------------------------------------- | ---------------------- |
+| `block` | One execution of a body of code: a module run, a function activation, a loop iteration. | A window.              |
+| `stmt`  | A statement that started executing in the enclosing block. Always recorded.             | Lit (vs. dimmed) code. |
+| `expr`  | An expression that was evaluated. Recorded only if something happened inside it.        | —                      |
 
 A **site** is any `stmt` or `expr` node that directly contains a `block` node or
 output. Sites are what the user interacts with: a site containing blocks is a
@@ -53,11 +53,33 @@ killed mid-way.
 ```json
 {
   "codewalk": 1,
-  "sources": [{"file": "main.py", "text": "def fact(n):\n ..."}],
+  "sources": [{ "file": "main.py", "text": "def fact(n):\n ..." }],
   "locs": [
-    {"role": "block", "kind": "module", "file": 0, "start": 0, "end": 135, "parent": null},
-    {"role": "stmt",  "kind": "def",    "file": 0, "start": 0, "end": 12,  "parent": 0},
-    {"role": "block", "kind": "function", "name": "fact", "file": 0, "start": 0, "end": 92, "parent": 1}
+    {
+      "role": "block",
+      "kind": "module",
+      "file": 0,
+      "start": 0,
+      "end": 135,
+      "parent": null
+    },
+    {
+      "role": "stmt",
+      "kind": "def",
+      "file": 0,
+      "start": 0,
+      "end": 12,
+      "parent": 0
+    },
+    {
+      "role": "block",
+      "kind": "function",
+      "name": "fact",
+      "file": 0,
+      "start": 0,
+      "end": 92,
+      "parent": 1
+    }
   ]
 }
 ```
@@ -83,7 +105,7 @@ Range conventions:
   whole loop statement (header included), the whole module.
 - A compound statement's `stmt` loc covers **only its header**
   (`if n <= 1:`, `for i in range(2):`, `def fact(n):`). Statements in its body
-  are separate `stmt` locs whose `parent` is the enclosing *block*, not the
+  are separate `stmt` locs whose `parent` is the enclosing _block_, not the
   compound statement. Exception: the body of a loop belongs to the loop's
   iteration block, whose `parent` is the loop `stmt`.
 
@@ -115,7 +137,7 @@ Well-formedness: `enter`/`exit` are properly nested. Nodes still open at `end`
 or at EOF are implicitly closed there (truncation, timeout, hard kill). If the
 file has no `end` line the viewer treats it as `timeout`.
 
-### What is *not* recorded
+### What is _not_ recorded
 
 - `expr` nodes with nothing inside them (no block, no output, no non-empty
   descendant) are never written. Absence of an `expr` node says nothing about
@@ -132,12 +154,12 @@ remembers its node, so clicking output resolves to a path from the root.
 windows to open; the chain of sites between them is the list of ranges to
 highlight.
 
-**Statement state in a window** for block node *B* with loc *b* — for every
-`stmt` loc *s* lying inside *b*'s range, find its nearest `block` ancestor via
+**Statement state in a window** for block node _B_ with loc _b_ — for every
+`stmt` loc _s_ lying inside _b_'s range, find its nearest `block` ancestor via
 `parent`:
 
-- it is *b*, and *B* has a child node for *s* → **lit**;
-- it is *b*, and *B* has none → **dimmed** (did not run in this execution);
+- it is _b_, and _B_ has a child node for _s_ → **lit**;
+- it is _b_, and _B_ has none → **dimmed** (did not run in this execution);
 - it is another block loc → **inert** (belongs to a nested function or loop
   body; it becomes live in that block's own window).
 

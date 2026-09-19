@@ -1,0 +1,11 @@
+pnpm-lock.yaml
+spec/fixtures/
+.agents/
+.claude/
+tools/oxlint/anti-slop/
+apps/tracer-python/
+node_modules/
+dist/
+build/
+coverage/
+.venv/

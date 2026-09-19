@@ -1,0 +1,26 @@
+{
+  "name": "codewalk",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @codewalk/server --filter @codewalk/web run dev",
+    "fix:format": "prettier --write .",
+    "fix:lint": "oxlint --type-aware --fix .",
+    "format": "prettier --check .",
+    "knip": "knip",
+    "lint": "oxlint --type-aware .",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit -p packages/trace && tsc --noEmit -p apps/server && tsc --noEmit -p apps/web"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.83.0",
+    "@types/node": "24.13.5",
+    "knip": "6.37.0",
+    "oxlint": "1.83.0",
+    "oxlint-tsgolint": "7.0.2002",
+    "prettier": "3.9.8",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

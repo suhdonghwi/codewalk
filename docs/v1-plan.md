@@ -1,8 +1,8 @@
 # v1 implementation plan
 
-> Transient working doc — delete when v1 ships. The source of truth for *what* we
+> Transient working doc — delete when v1 ships. The source of truth for _what_ we
 > build is [design.md](design.md) and [the trace spec](../spec/trace-format.md);
-> this file is only the *order* to build it in. Tick steps off as they land.
+> this file is only the _order_ to build it in. Tick steps off as they land.
 
 ```
 0 scaffold ─▶ 1 packages/trace ─┬─▶ 2 runtime ─▶ 3 instrumenter ─▶ 4 server ─┐
@@ -14,13 +14,16 @@ runs against `spec/fixtures/` until the server exists.
 
 ## 0. Scaffold
 
-- [ ] `mise.toml` pinning Node 24, pnpm, Python (one minor), uv; tasks `dev`, `check`.
-- [ ] pnpm workspace (`web/`, `server/`, `packages/trace/`), shared strict tsconfig,
+- [x] `mise.toml` pinning Node 24, pnpm, uv (Python 3.13 via uv); tasks `dev`, `check`.
+- [x] pnpm workspace (`apps/web/`, `apps/server/`, `packages/trace/`), shared strict tsconfig,
       oxlint (type-aware) + vendored anti-slop, prettier, knip, vitest.
-- [ ] `tracer/` uv project: ruff, ty, pytest, `jsonschema`. No runtime deps.
-- [ ] CI runs `mise run check`.
+- [x] `apps/tracer-python/` uv project: ruff, ty, pytest. No runtime deps.
+- [x] CI runs `mise run check`.
 
 Done when `mise run check` is green on the empty skeleton.
+
+Rule from here on: a dependency is installed by the step that first uses it
+(knip fails the check on unused ones). `jsonschema` arrives with step 3.
 
 ## 1. `packages/trace`
 
