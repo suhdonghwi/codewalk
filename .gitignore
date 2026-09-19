@@ -10,3 +10,4 @@ coverage/
 *.pyc
 *.pyo
 *.tsbuildinfo
+.playwright-mcp/
