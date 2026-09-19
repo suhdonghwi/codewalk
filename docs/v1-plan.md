@@ -66,8 +66,8 @@ instrumenter numbers differently, regenerate it once and review the diff.
 
 ## 4. Server
 
-- [ ] Fastify `POST /api/run {source, stdin}` (Zod type provider) → JSONL.
-- [ ] `Runner` interface; `SubprocessRunner`: spawn the CLI, source file in a temp
+- [x] Fastify `POST /api/run {source, stdin}` (Zod type provider) → JSONL.
+- [x] `Runner` interface; `SubprocessRunner`: spawn the CLI, source file in a temp
       dir, stdin on fd 0, trace on its own fd, wall timeout, byte cap, append
       `end: timeout` when killed.
 

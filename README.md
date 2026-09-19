@@ -18,6 +18,11 @@ mise run install
 mise run dev
 ```
 
+`mise run dev` executes the code you run **unsandboxed**, with your user's
+privileges. The server therefore only listens on loopback and refuses any other
+`HOST` unless `CODEWALK_ALLOW_UNSANDBOXED=1` is set. Do not expose the dev servers
+to a network you do not trust; sandboxing (nsjail) is a later step.
+
 Run all checks or apply automatic fixes:
 
 ```sh

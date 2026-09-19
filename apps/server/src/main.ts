@@ -1,12 +1,17 @@
-import Fastify from "fastify";
+import { buildApp } from "./app.ts";
+import { readConfig } from "./config.ts";
+import { SubprocessRunner } from "./subprocess-runner.ts";
 
-import { TRACE_FORMAT_VERSION } from "@codewalk/trace";
+const config = readConfig();
 
-const server = Fastify();
+const runner = new SubprocessRunner({
+  pythonPath: config.pythonPath,
+  timeLimit: config.timeLimit,
+  maxEvents: config.maxEvents,
+  maxTraceBytes: config.maxTraceBytes,
+  killGraceMs: config.killGraceMs,
+});
 
-server.get("/api/health", () => ({
-  ok: true,
-  traceFormat: TRACE_FORMAT_VERSION,
-}));
+const app = buildApp({ runner, logger: true });
 
-await server.listen({ host: "127.0.0.1", port: 3001 });
+await app.listen({ host: config.host, port: config.port });
