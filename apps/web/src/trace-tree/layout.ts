@@ -24,6 +24,31 @@ export type StackRow =
   | { kind: "block"; index: number }
   | { kind: "omitted"; side: "above" | "below" };
 
+interface ColumnReadiness {
+  measured: boolean; // the expanded window's own size is known
+  anchorFresh: boolean; // its anchor line was measured for the current open site
+}
+
+/**
+ * How many leading columns can be laid out right now. A column needs its own
+ * measurement and a fresh anchor from every column before it; its own anchor
+ * only matters to the column after it. Laying out this prefix — rather than all
+ * columns or none — keeps existing windows and edges mounted while a newly
+ * opened column is still being measured.
+ */
+export function layoutableColumns(columns: readonly ColumnReadiness[]): number {
+  let count = 0;
+
+  for (const column of columns) {
+    if (!column.measured) break;
+    count += 1;
+
+    if (!column.anchorFresh) break;
+  }
+
+  return count;
+}
+
 export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
   const layouts: ColumnLayout[] = [];
 

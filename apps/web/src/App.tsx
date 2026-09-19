@@ -37,7 +37,9 @@ export function App({ runner: injectedRunner }: AppProps) {
 
     if (state.running) return;
 
-    useAppStore.setState({ running: true, outcome: null });
+    // The previous result stays on screen until the new one replaces it, so the
+    // output window and the trace tree do not collapse and re-expand.
+    useAppStore.getState().setRunning(true);
     void runner
       .run({ source: state.source, stdin: state.stdin })
       .then((outcome) => {

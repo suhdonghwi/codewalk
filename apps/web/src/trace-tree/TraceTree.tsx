@@ -4,7 +4,12 @@ import { useWindowDrag } from "@/canvas/use-window-drag.ts";
 import { revealRect } from "@/canvas/view.ts";
 import { useAppStore } from "@/state/store.ts";
 
-import { layoutTree, stackRows, visualExpandedIndex } from "./layout.ts";
+import {
+  layoutableColumns,
+  layoutTree,
+  stackRows,
+  visualExpandedIndex,
+} from "./layout.ts";
 import { sameMeasurement, type Measurement } from "./MeasuredTraceWindow.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./TreeEdges.tsx";
@@ -46,52 +51,50 @@ export function TraceTree({ trace }: { trace: Trace }) {
     [columns],
   );
 
-  const validMeasurements = columns.map((column, index) => {
+  // A measurement stays usable for its own column while the open site changes;
+  // only the anchor it carries goes stale (see `layoutableColumns`).
+  const columnMeasurements = columns.map((column, index) => {
     const measurement = measurements[index];
-    const block = path[index];
 
     return column !== null &&
-      block !== undefined &&
-      measurement?.block === block &&
-      measurement.openSite === column.openSite
+      measurement !== undefined &&
+      measurement.block === path[index]
       ? measurement
       : null;
   });
 
-  const ready = validMeasurements.every(
-    (measurement, index) =>
-      measurement !== null &&
-      (index === validMeasurements.length - 1 ||
-        measurement.anchorCenterY !== null),
+  const layoutable = layoutableColumns(
+    columnMeasurements.map((measurement, index) => ({
+      measured: measurement !== null,
+      anchorFresh:
+        measurement !== null &&
+        measurement.anchorCenterY !== null &&
+        measurement.openSite === columns[index]?.openSite,
+    })),
   );
 
-  const layouts = ready
-    ? layoutTree(
-        validMeasurements.map((measurement, index) => {
-          if (measurement === null) {
-            throw new Error("A ready tree must have every measurement");
-          }
+  const layouts = layoutTree(
+    columnMeasurements.slice(0, layoutable).flatMap((measurement, index) => {
+      const column = columns[index];
 
-          const columnRows = rows[index] ?? [];
-          const column = columns[index];
+      if (measurement === null || column === null || column === undefined) {
+        return [];
+      }
 
-          if (column === null || column === undefined) {
-            throw new Error("A ready tree must have every column");
-          }
-
-          return {
-            count: columnRows.length,
-            expandedIndex: visualExpandedIndex(
-              columnRows,
-              column.expandedIndex,
-            ),
-            width: measurement.width,
-            height: measurement.height,
-            anchorCenterY: measurement.anchorCenterY,
-          };
-        }),
-      )
-    : null;
+      return [
+        {
+          count: (rows[index] ?? []).length,
+          expandedIndex: visualExpandedIndex(
+            rows[index] ?? [],
+            column.expandedIndex,
+          ),
+          width: measurement.width,
+          height: measurement.height,
+          anchorCenterY: measurement.anchorCenterY,
+        },
+      ];
+    }),
+  );
 
   const onMeasure = useCallback(
     (column: number, measurement: Measurement): void => {
@@ -130,7 +133,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
   useLayoutEffect(() => {
     const pending = pendingReveal.current;
 
-    if (pending === null || layouts === null) return;
+    if (pending === null) return;
 
     if (path[pending.column] !== pending.block) {
       pendingReveal.current = null;
@@ -173,13 +176,11 @@ export function TraceTree({ trace }: { trace: Trace }) {
       ref={treeRef}
       style={{ left: treeWindow.x, top: treeWindow.y, zIndex: treeWindow.z }}
     >
-      {layouts === null ? null : (
-        <TreeEdges
-          layouts={layouts}
-          measurements={validMeasurements}
-          path={path}
-        />
-      )}
+      <TreeEdges
+        layouts={layouts}
+        measurements={columnMeasurements}
+        path={path}
+      />
       {columns.map((column, columnIndex) => {
         if (column === null) return null;
         const expandedBlock = path[columnIndex];
@@ -192,8 +193,8 @@ export function TraceTree({ trace }: { trace: Trace }) {
             columnIndex={columnIndex}
             expandedBlock={expandedBlock}
             key={columnIndex}
-            layout={layouts?.[columnIndex]}
-            measurement={validMeasurements[columnIndex] ?? null}
+            layout={layouts[columnIndex]}
+            measurement={columnMeasurements[columnIndex] ?? null}
             onChoose={chooseSibling}
             onMeasure={onMeasure}
             onToggleSite={openSite}

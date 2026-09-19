@@ -47,6 +47,7 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
       <TooltipTrigger asChild>
         <Button
           aria-label="Run"
+          className="size-[22px] rounded-[5px]"
           data-window-control
           disabled={running}
           onClick={onRun}

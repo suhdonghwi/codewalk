@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  layoutableColumns,
   layoutTree,
   stackRows,
   visualExpandedIndex,
@@ -90,4 +91,35 @@ describe("stackRows", () => {
       }).toEqual({ first, last, length, visual });
     },
   );
+});
+
+test.each([
+  {
+    name: "a stale anchor in the deepest open column still lays out that column",
+    columns: [
+      { measured: true, anchorFresh: true },
+      { measured: true, anchorFresh: false },
+      { measured: false, anchorFresh: false },
+    ],
+    expected: 2,
+  },
+  {
+    name: "an unmeasured column stops the layout before it",
+    columns: [
+      { measured: true, anchorFresh: true },
+      { measured: false, anchorFresh: false },
+      { measured: true, anchorFresh: true },
+    ],
+    expected: 1,
+  },
+  {
+    name: "a fully measured path lays out every column",
+    columns: [
+      { measured: true, anchorFresh: true },
+      { measured: true, anchorFresh: false },
+    ],
+    expected: 2,
+  },
+])("$name", ({ columns, expected }) => {
+  expect(layoutableColumns(columns)).toBe(expected);
 });
