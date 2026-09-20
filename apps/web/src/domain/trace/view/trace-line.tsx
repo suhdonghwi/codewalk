@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/ui/utils.ts";
@@ -140,8 +141,7 @@ export function TraceLine({
           <button
             className={cn(
               OUTPUT_CHIP_CLASSES,
-              "cursor-pointer border-0 py-0 [font:inherit] hover:brightness-95",
-              expanded && "ring-1 ring-inline-output/30",
+              "cursor-pointer border-0 py-0 pl-[0.25ch] [font:inherit] hover:brightness-95",
             )}
             aria-expanded={expanded}
             onClick={() => {
@@ -149,6 +149,14 @@ export function TraceLine({
             }}
             type="button"
           >
+            <ChevronRight
+              aria-hidden
+              className={cn(
+                "mr-[0.25ch] inline-block size-[1em] align-[-0.125em] transition-transform",
+                expanded && "rotate-90",
+              )}
+              strokeWidth={2.25}
+            />
             {preview.segments.map((segment, index) => (
               <span
                 className={
@@ -181,7 +189,7 @@ export function TraceLine({
         )}
       </div>
       {expanded && line.output !== null ? (
-        <pre className="m-0 mt-1 mr-4 mb-1.5 ml-gutter rounded-sm border border-inline-output/30 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
+        <pre className="m-0 mt-1 mr-4 mb-1.5 ml-gutter rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           {line.output.segments.map((segment, index) => (
             <span
               className={
