@@ -175,7 +175,7 @@ function countLineBreaks(text: string, end: number): number {
   return count;
 }
 
-export function sourceLineNumber(source: string, position: number): number {
+function sourceLineNumber(source: string, position: number): number {
   return countLineBreaks(source, position) + 1;
 }
 

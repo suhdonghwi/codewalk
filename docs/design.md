@@ -221,7 +221,9 @@ path: NodeId[]      // expanded block windows, root → deepest
   column's entry.
 - **Reverse navigation** (click output) and **exception auto-open** (on a failed
   run) are both just `path = pathTo(node)`: they leave no state or styling
-  behind. Clicking output also pans the target line into view.
+  behind.
+- Navigation never moves the canvas. The view changes only when the user pans
+  or zooms.
 - `path` is serializable (URL → "look at this exact moment").
 
 ## Server and sandbox

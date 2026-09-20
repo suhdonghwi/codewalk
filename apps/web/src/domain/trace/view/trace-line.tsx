@@ -50,7 +50,6 @@ export function TraceLine({
     <div className="min-w-max">
       <div
         className="flex min-h-[1.5em] w-max min-w-full items-baseline pr-4 whitespace-pre"
-        data-line={line.number}
         data-site-anchor={anchor || undefined}
       >
         <span

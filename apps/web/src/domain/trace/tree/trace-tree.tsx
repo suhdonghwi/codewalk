@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
@@ -7,7 +7,6 @@ import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
-import { usePendingReveal } from "./use-pending-reveal.ts";
 import { useTraceStore } from "../store.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
@@ -20,7 +19,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
     [],
   );
 
-  const treeRef = useRef<HTMLDivElement>(null);
   const rootTitlebarProps = useWindowDrag("trace");
 
   const columns = useMemo(
@@ -83,16 +81,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   function openSite(column: number, site: LocId): void {
     const current = useTraceStore.getState().path;
-    const next = toggleSite(trace, current, column, site);
-    const child = next[column + 1];
-
-    if (child !== undefined) {
-      useTraceStore.getState().setPath(next, { block: child, line: null });
-
-      return;
-    }
-
-    useTraceStore.getState().setPath(next, null);
+    useTraceStore.getState().setPath(toggleSite(trace, current, column, site));
   }
 
   function chooseSibling(column: number, block: NodeId): void {
@@ -100,10 +89,8 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const next = selectSibling(current, column, block);
 
     if (next === current) return;
-    useTraceStore.getState().setPath(next, null);
+    useTraceStore.getState().setPath(next);
   }
-
-  usePendingReveal(treeRef, path, layouts, columnMeasurements);
 
   if (path.length === 0 || columns.some((column) => column === null)) {
     return null;
@@ -114,7 +101,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
       className="absolute"
       data-trace-tree
       onPointerDown={() => useCanvasStore.getState().bringToFront("trace")}
-      ref={treeRef}
       style={{ left: treeWindow.x, top: treeWindow.y, zIndex: treeWindow.z }}
     >
       <TreeEdges
