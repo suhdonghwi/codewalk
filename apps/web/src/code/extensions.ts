@@ -14,6 +14,7 @@ import {
 import type { Extension } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 
+import { editorTheme } from "./editor-theme.ts";
 import { codeHighlightStyle } from "./highlight.ts";
 import { syntaxErrorExtension } from "./syntax-error.ts";
 
@@ -35,6 +36,7 @@ export function editorExtensions(
     closeBrackets(),
     syntaxHighlighting(codeHighlightStyle),
     syntaxErrorExtension,
+    editorTheme,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) onChange(update.state.doc.toString());
     }),

@@ -182,14 +182,15 @@ export function Canvas({ children }: CanvasProps) {
 
   return (
     <main
-      className="canvas"
+      className="relative size-full touch-none overflow-hidden bg-neutral-50 bg-[radial-gradient(circle,#dedede_0.75px,transparent_0.85px)]"
+      data-canvas
       onPointerCancel={endPan}
       onPointerDown={startPan}
       onPointerMove={continuePan}
       onPointerUp={endPan}
       ref={canvasRef}
     >
-      <div className="canvas-world" ref={worldRef}>
+      <div className="absolute top-0 left-0 origin-top-left" ref={worldRef}>
         {children}
       </div>
     </main>

@@ -74,7 +74,7 @@ function TreeBlockRow({
 
   return (
     <div
-      className={`tree-window${expanded ? " tree-expanded" : " tree-collapsed"}`}
+      className="absolute z-[1] animate-tree-fade-in"
       data-block={block}
       data-expanded={expanded}
       style={{
@@ -87,20 +87,24 @@ function TreeBlockRow({
       {expanded ? (
         <MeasuredTraceWindow
           block={block}
-          className={column === 0 ? "tree-root-window" : ""}
+          className=""
           column={column}
           focus={focus?.block === block ? focus : null}
           onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(column, site)}
           openSite={openSite}
           titlebarProps={column === 0 ? rootTitlebarProps : undefined}
+          titlebarClassName={
+            column === 0 ? "cursor-grab active:cursor-grabbing" : undefined
+          }
           trace={trace}
         />
       ) : (
         <TraceWindow
           block={block}
-          className="tree-collapsed-window"
+          className="w-full"
           expanded={false}
+          titlebarClassName="cursor-pointer hover:bg-neutral-50"
           titlebarProps={{ onClick: () => onChoose(column, block) }}
           trace={trace}
         />
@@ -122,7 +126,7 @@ function OmittedTreeRow({
 }) {
   return (
     <div
-      className="tree-window tree-collapsed tree-omitted"
+      className="absolute z-[1] animate-tree-fade-in"
       style={{
         left: layout?.x ?? 0,
         top,
@@ -130,7 +134,11 @@ function OmittedTreeRow({
         width: measurement?.width,
       }}
     >
-      <WindowChrome className="trace-window" title="⋯" />
+      <WindowChrome
+        className="w-full max-w-[720px]"
+        title="⋯"
+        titlebarClassName="justify-center p-0 text-neutral-400"
+      />
     </div>
   );
 }

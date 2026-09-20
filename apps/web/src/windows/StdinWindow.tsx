@@ -11,9 +11,10 @@ export function StdinWindow() {
   }
 
   return (
-    <CanvasWindow className="stdin-window" id="stdin" title="stdin">
+    <CanvasWindow className="w-[320px]" id="stdin" title="stdin">
       <textarea
         aria-label="stdin"
+        className="m-0 block h-[131px] w-full resize-none overflow-auto rounded-none border-0 bg-white px-[9px] py-[7px] font-code text-code text-code-foreground whitespace-pre outline-none"
         onChange={updateStdin}
         spellCheck={false}
         value={stdin}

@@ -26,6 +26,7 @@ interface MeasuredTraceWindowProps {
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (site: LocId) => void;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+  titlebarClassName?: string | undefined;
 }
 
 function measureWindow(
@@ -62,6 +63,7 @@ export function MeasuredTraceWindow({
   onMeasure,
   onToggleSite,
   titlebarProps,
+  titlebarClassName,
 }: MeasuredTraceWindowProps) {
   const windowRef = useRef<HTMLElement>(null);
 
@@ -93,6 +95,7 @@ export function MeasuredTraceWindow({
       onToggleSite={onToggleSite}
       openSite={openSite}
       titlebarProps={titlebarProps}
+      titlebarClassName={titlebarClassName}
       trace={trace}
     />
   );

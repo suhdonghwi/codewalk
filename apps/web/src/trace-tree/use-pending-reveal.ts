@@ -34,7 +34,7 @@ export function usePendingReveal(
 
     const layout = layouts[column];
     const measurement = measurements[column];
-    const canvas = treeRef.current?.closest<HTMLElement>(".canvas");
+    const canvas = treeRef.current?.closest<HTMLElement>("[data-canvas]");
 
     if (
       layout === undefined ||

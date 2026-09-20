@@ -11,7 +11,10 @@ interface TreeEdgesProps {
 
 export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
   return (
-    <svg aria-hidden className="trace-tree-edges">
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute z-0 size-px overflow-visible"
+    >
       {layouts.slice(1).map((layout, relativeIndex) => {
         const column = relativeIndex + 1;
         const parentLayout = layouts[column - 1];
@@ -39,6 +42,7 @@ export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
 
         return (
           <path
+            className="animate-tree-fade-in fill-none stroke-site-accent stroke-[1.5px] [stroke-opacity:0.6]"
             d={`M ${startX} ${startY} C ${controlX} ${startY}, ${controlX} ${endY}, ${endX} ${endY}`}
             key={`${column}:${child}`}
           />

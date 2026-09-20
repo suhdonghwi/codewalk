@@ -1,5 +1,6 @@
 import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 
+import { cn } from "@/lib/utils.ts";
 import { useAppStore, type WindowId } from "@/state/store.ts";
 
 import { useWindowDrag } from "./use-window-drag.ts";
@@ -23,6 +24,7 @@ interface WindowChromeProps {
   style?: CSSProperties | undefined;
   chromeRef?: Ref<HTMLElement> | undefined;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
+  titlebarClassName?: string | undefined;
 }
 
 export function WindowChrome({
@@ -34,15 +36,27 @@ export function WindowChrome({
   style,
   chromeRef,
   titlebarProps,
+  titlebarClassName,
 }: WindowChromeProps) {
   return (
     <section
-      className={`window-chrome ${className}`}
+      className={cn(
+        "relative overflow-hidden rounded-[6px] bg-white shadow-[0_1px_2px_rgb(0_0_0_/_4%),0_6px_18px_rgb(0_0_0_/_5%)] after:pointer-events-none after:absolute after:inset-0 after:z-[3] after:rounded-[inherit] after:border after:border-window-border after:content-['']",
+        className,
+      )}
+      data-window-chrome
       ref={chromeRef}
       style={style}
     >
-      <div className="window-titlebar" {...titlebarProps}>
-        <span className="window-title">
+      <div
+        {...titlebarProps}
+        className={cn(
+          "flex h-7 cursor-default items-center justify-between border-b border-[#eeeeee] pt-px pr-[5px] pl-[9px] text-xs leading-none font-medium text-neutral-500 select-none",
+          titlebarClassName,
+          titlebarProps?.className,
+        )}
+      >
+        <span className="inline-flex items-center gap-1.5">
           <span>{title}</span>
           {titleIndicator}
         </span>
@@ -67,7 +81,7 @@ export function CanvasWindow({
 
   return (
     <div
-      className="canvas-window-position"
+      className="absolute"
       onPointerDown={() => useAppStore.getState().bringToFront(id)}
       style={{
         left: windowState.x,
@@ -81,6 +95,7 @@ export function CanvasWindow({
         title={title}
         titleAction={titleAction}
         titleIndicator={titleIndicator}
+        titlebarClassName="cursor-grab active:cursor-grabbing"
         titlebarProps={titlebarProps}
       >
         {children}

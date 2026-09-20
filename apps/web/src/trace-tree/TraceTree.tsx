@@ -132,7 +132,8 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   return (
     <div
-      className="trace-tree"
+      className="absolute"
+      data-trace-tree
       onPointerDown={() => useAppStore.getState().bringToFront("trace")}
       ref={treeRef}
       style={{ left: treeWindow.x, top: treeWindow.y, zIndex: treeWindow.z }}

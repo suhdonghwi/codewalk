@@ -17,6 +17,8 @@ import { useAppStore } from "@/state/store.ts";
 
 const MINIMUM_SIZE = { width: 320, height: 160 };
 
+const RESIZE_HANDLE = "absolute z-[4] touch-none";
+
 interface EditorWindowProps {
   onRun: () => void;
   shortcut: string;
@@ -112,16 +114,25 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
 
   return (
     <CanvasWindow
-      className="editor-window"
+      className="flex flex-col"
       id="editor"
       style={{ width: size.width, height: size.height }}
       title="main.py"
       titleAction={runButton}
     >
-      <div className="editor-host" ref={editorHost} />
-      <div className="resize-handle resize-handle-right" {...resizeRight} />
-      <div className="resize-handle resize-handle-bottom" {...resizeBottom} />
-      <div className="resize-handle resize-handle-corner" {...resizeCorner} />
+      <div className="min-h-0 flex-1" ref={editorHost} />
+      <div
+        className={`${RESIZE_HANDLE} top-7 right-0 bottom-3 w-1.5 cursor-ew-resize`}
+        {...resizeRight}
+      />
+      <div
+        className={`${RESIZE_HANDLE} right-3 bottom-0 left-0 h-1.5 cursor-ns-resize`}
+        {...resizeBottom}
+      />
+      <div
+        className={`${RESIZE_HANDLE} right-0 bottom-0 size-3 cursor-nwse-resize`}
+        {...resizeCorner}
+      />
     </CanvasWindow>
   );
 }
