@@ -8,7 +8,7 @@ export const SIBLING_LIST_WIDTH = 168;
 const SIBLING_LIST_GAP = 8;
 
 export interface ColumnInput {
-  hasSiblingList: boolean;
+  siblingListWidth: number | null;
   width: number;
   anchorCenterY: number | null;
 }
@@ -70,9 +70,10 @@ export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
 
     layouts.push({
       x,
-      windowX: column.hasSiblingList
-        ? x + SIBLING_LIST_WIDTH + SIBLING_LIST_GAP
-        : x,
+      windowX:
+        column.siblingListWidth === null
+          ? x
+          : x + column.siblingListWidth + SIBLING_LIST_GAP,
       top: previousLayout.top + previous.anchorCenterY - TITLE_BAR / 2,
     });
   }

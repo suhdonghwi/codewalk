@@ -4,7 +4,7 @@ import { cn } from "@/ui/utils.ts";
 
 import { useCanvasStore, type ResizableWindowId } from "./store.ts";
 import { useWindowDrag } from "./use-window-drag.ts";
-import { useWindowResize } from "./use-window-resize.ts";
+import { useWindowResize, type ResizeAxes } from "./use-window-resize.ts";
 
 import type { Size } from "./view.ts";
 
@@ -71,38 +71,36 @@ export function WindowChrome({
   );
 }
 
-function ResizeHandles({
-  id,
-  minimumSize,
-}: {
-  id: ResizableWindowId;
+interface ResizeHandlesProps {
   minimumSize: Size;
-}) {
-  const currentSize = () => useCanvasStore.getState().sizes[id];
+  onResize: (size: Size, axes: ResizeAxes) => void;
+  onReset?: ((axes: ResizeAxes) => void) | undefined;
+}
 
-  const resize = (size: Size): void => {
-    useCanvasStore.getState().resizeWindow(id, size);
-  };
-
+export function ResizeHandles({
+  minimumSize,
+  onResize,
+  onReset,
+}: ResizeHandlesProps) {
   const right = useWindowResize(
     { x: true, y: false },
     minimumSize,
-    currentSize,
-    resize,
+    onResize,
+    onReset,
   );
 
   const bottom = useWindowResize(
     { x: false, y: true },
     minimumSize,
-    currentSize,
-    resize,
+    onResize,
+    onReset,
   );
 
   const corner = useWindowResize(
     { x: true, y: true },
     minimumSize,
-    currentSize,
-    resize,
+    onResize,
+    onReset,
   );
 
   return (
@@ -155,7 +153,12 @@ export function CanvasWindow({
         titlebarProps={titlebarProps}
       >
         {children}
-        <ResizeHandles id={id} minimumSize={minimumSize} />
+        <ResizeHandles
+          minimumSize={minimumSize}
+          onResize={(next) => {
+            useCanvasStore.getState().resizeWindow(id, next);
+          }}
+        />
       </WindowChrome>
     </div>
   );

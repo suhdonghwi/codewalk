@@ -2,17 +2,18 @@ import { useCallback, useMemo, useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
-import { layoutableColumns, layoutTree } from "./layout.ts";
+import { layoutableColumns, layoutTree, SIBLING_LIST_WIDTH } from "./layout.ts";
 import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
-import { useTraceStore } from "../store.ts";
+import { partSize, useTraceStore } from "../store.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export function TraceTree({ trace }: { trace: Trace }) {
   const path = useTraceStore((state) => state.path);
+  const columnSizes = useTraceStore((state) => state.columnSizes);
   const treeWindow = useCanvasStore((state) => state.windows.trace);
 
   const [measurements, setMeasurements] = useState<(Measurement | undefined)[]>(
@@ -58,7 +59,11 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
       return [
         {
-          hasSiblingList: column.blocks.length > 1,
+          siblingListWidth:
+            column.blocks.length > 1
+              ? (partSize(columnSizes, index, "siblings").width ??
+                SIBLING_LIST_WIDTH)
+              : null,
           width: measurement.width,
           anchorCenterY: measurement.anchorCenterY,
         },

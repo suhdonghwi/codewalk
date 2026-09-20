@@ -2,9 +2,10 @@ import { useLayoutEffect, useRef } from "react";
 
 import { useCanvasStore } from "@/domain/canvas/index.ts";
 
+import { TITLE_BAR } from "./layout.ts";
 import { TraceWindow } from "../view/trace-window.tsx";
 
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export interface Measurement {
@@ -21,6 +22,9 @@ interface MeasuredTraceWindowProps {
   openSite: LocId | null;
   column: number;
   className: string;
+  width: number | null;
+  height: number | null;
+  resizeHandles: ReactNode;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (site: LocId) => void;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
@@ -35,13 +39,21 @@ function measureWindow(
   const anchor = element.querySelector<HTMLElement>("[data-site-anchor]");
   const anchorBounds = anchor?.getBoundingClientRect();
 
+  const height = bounds.height / scale;
+
   return {
     width: bounds.width / scale,
-    height: bounds.height / scale,
+    height,
     anchorCenterY:
       anchorBounds === undefined
         ? null
-        : (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
+        : Math.min(
+            height,
+            Math.max(
+              TITLE_BAR,
+              (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
+            ),
+          ),
   };
 }
 
@@ -51,6 +63,9 @@ export function MeasuredTraceWindow({
   openSite,
   column,
   className,
+  width,
+  height,
+  resizeHandles,
   onMeasure,
   onToggleSite,
   titlebarProps,
@@ -70,9 +85,14 @@ export function MeasuredTraceWindow({
     report();
     const observer = new ResizeObserver(report);
     observer.observe(element);
+    element.addEventListener("scroll", report, {
+      capture: true,
+      passive: true,
+    });
 
     return () => {
       observer.disconnect();
+      element.removeEventListener("scroll", report, { capture: true });
     };
   }, [block, column, onMeasure, openSite]);
 
@@ -82,6 +102,9 @@ export function MeasuredTraceWindow({
       chromeRef={windowRef}
       className={className}
       expanded
+      height={height}
+      resizeHandles={resizeHandles}
+      width={width}
       onToggleSite={onToggleSite}
       openSite={openSite}
       titlebarProps={titlebarProps}

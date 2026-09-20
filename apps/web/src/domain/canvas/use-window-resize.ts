@@ -4,6 +4,11 @@ import { useRef } from "react";
 import { useCanvasStore } from "./store.ts";
 import { resizedSize, type Size } from "./view.ts";
 
+export interface ResizeAxes {
+  x: boolean;
+  y: boolean;
+}
+
 interface Resize {
   pointerId: number;
   clientX: number;
@@ -13,25 +18,41 @@ interface Resize {
 
 type HandleProps = Pick<
   HTMLAttributes<HTMLDivElement>,
-  "onPointerCancel" | "onPointerDown" | "onPointerMove" | "onPointerUp"
+  | "onDoubleClick"
+  | "onPointerCancel"
+  | "onPointerDown"
+  | "onPointerMove"
+  | "onPointerUp"
 >;
+
+function windowSize(handle: HTMLElement): Size | null {
+  const chrome = handle.closest<HTMLElement>("[data-window-chrome]");
+
+  if (chrome === null) return null;
+  const bounds = chrome.getBoundingClientRect();
+  const scale = useCanvasStore.getState().view.scale;
+
+  return { width: bounds.width / scale, height: bounds.height / scale };
+}
 
 /** Pointer handlers for one resize handle (an edge or the corner) of a window. */
 export function useWindowResize(
-  axes: { x: boolean; y: boolean },
+  axes: ResizeAxes,
   minimum: Size,
-  currentSize: () => Size,
-  onResize: (size: Size) => void,
+  onResize: (size: Size, axes: ResizeAxes) => void,
+  onReset: ((axes: ResizeAxes) => void) | undefined,
 ): HandleProps {
   const resize = useRef<Resize | null>(null);
 
   function start(event: PointerEvent<HTMLDivElement>): void {
-    if (event.button !== 0) return;
+    const size = windowSize(event.currentTarget);
+
+    if (event.button !== 0 || size === null) return;
     resize.current = {
       pointerId: event.pointerId,
       clientX: event.clientX,
       clientY: event.clientY,
-      start: currentSize(),
+      start: size,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
@@ -53,6 +74,7 @@ export function useWindowResize(
         axes,
         minimum,
       ),
+      axes,
     );
   }
 
@@ -63,6 +85,12 @@ export function useWindowResize(
   }
 
   return {
+    onDoubleClick:
+      onReset === undefined
+        ? undefined
+        : () => {
+            onReset(axes);
+          },
     onPointerCancel: end,
     onPointerDown: start,
     onPointerMove: move,

@@ -171,11 +171,18 @@ automatically and moves as one rigid unit, so users cannot wreck its shape.
 
 Default placement: editor at the origin; stdin and output in a column to its
 left (the editor grows downward with its content, so nothing sits below it); the
-trace root to the right of the editor, growing rightwards. Trace windows size to
-their content. The editor, stdin and output windows have a fixed size, scroll
-inside, and resize from their right edge, bottom edge and corner (invisible
-handles). While the trace tree is still at its default spot it stays docked to
-the editor's right edge.
+trace root to the right of the editor, growing rightwards. While the trace tree
+is still at its default spot it stays docked to the editor's right edge.
+
+Every window resizes from its right edge, bottom edge and corner (invisible
+handles) and scrolls inside once its content no longer fits. The editor, stdin
+and output windows always have a fixed size. Windows in the trace tree size to
+their content until resized, and are resized **per column**: a column's trace
+window and its sibling list each keep their width and height while the column
+shows a different sibling or site, and the layout follows the new sizes.
+Double-clicking a handle returns that axis to fitting the content. When a
+resized window scrolls, its child column stays attached to the clicked line,
+held at the window's top or bottom edge once the line scrolls out of view.
 
 ### Windows
 
