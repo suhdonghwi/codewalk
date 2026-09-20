@@ -4,10 +4,11 @@ pnpm = "12.4.2"
 uv = "0.12.16"
 
 [tasks.install]
-description = "Install JavaScript and Python dependencies"
+description = "Install JavaScript and Python dependencies and the git hooks"
 run = """
 pnpm install
 uv sync --project apps/tracer-python
+git config core.hooksPath .githooks
 """
 
 [tasks.dev]

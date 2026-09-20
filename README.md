@@ -18,6 +18,9 @@ mise run install
 mise run dev
 ```
 
+`mise run install` also points git at `.githooks/`, whose pre-commit hook formats
+staged files with Prettier and Ruff.
+
 To run the two servers separately (for example one per tmux pane):
 
 ```sh

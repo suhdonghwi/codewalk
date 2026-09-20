@@ -1,14 +1,18 @@
 name: Check
 
 on:
-  push:
   pull_request:
 
 jobs:
   check:
+    name: ${{ matrix.task }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, typecheck, knip, test]
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
       - run: mise run install
-      - run: mise run check
+      - run: mise run ${{ matrix.task }}

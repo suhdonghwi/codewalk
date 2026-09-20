@@ -1,0 +1,33 @@
+#!/bin/sh
+# Format staged files and restage them. A file that also has unstaged changes
+# is only checked, so formatting never pulls the unstaged part into the commit.
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+git diff --cached --name-only --diff-filter=ACMR | sort > "$tmp/staged"
+git diff --name-only | sort > "$tmp/unstaged"
+comm -23 "$tmp/staged" "$tmp/unstaged" > "$tmp/write"
+comm -12 "$tmp/staged" "$tmp/unstaged" > "$tmp/check"
+
+for list in write check; do
+  grep -E '^apps/tracer-python/.*\.pyi?$' "$tmp/$list" > "$tmp/$list.py" || true
+done
+
+# on_files <list> <command...> runs the command with the listed files appended.
+on_files() {
+  list=$1
+  shift
+  [ -s "$list" ] || return 0
+  tr '\n' '\0' < "$list" | xargs -0 "$@"
+}
+
+on_files "$tmp/write" mise exec -- pnpm exec prettier --write --ignore-unknown --log-level warn
+on_files "$tmp/write.py" mise exec -- uv run --project apps/tracer-python ruff format --quiet
+on_files "$tmp/write" git add --
+
+on_files "$tmp/check" mise exec -- pnpm exec prettier --check --ignore-unknown --log-level warn
+on_files "$tmp/check.py" mise exec -- uv run --project apps/tracer-python ruff format --check --quiet
