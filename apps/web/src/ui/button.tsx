@@ -9,6 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         ghost: "hover:bg-accent hover:text-accent-foreground",
+        run: "bg-run text-white hover:bg-run/85",
       },
       size: {
         icon: "size-7",
