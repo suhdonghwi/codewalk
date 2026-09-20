@@ -289,7 +289,8 @@ for other languages become `apps/tracer-<language>/`.
   files/exports/dependencies, **Vitest** for tests, Playwright for end-to-end
   from M3.
 
-**web.** Vite, React 19, Tailwind v4 + **shadcn** for chrome only (title bars,
+**web.** Vite, React 19 with **React Compiler** (Babel preset, Babel 7 — the
+compiler skips components under Babel 8), Tailwind v4 + **shadcn** for chrome only (title bars,
 buttons, toolbar, toasts, dialogs, menus) — never inside the trace window body.
 **Zustand** for state: the canvas transform is read via transient subscription
 and written straight to a CSS transform, so pan/zoom does not re-render React;
