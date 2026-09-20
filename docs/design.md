@@ -160,7 +160,9 @@ also validated against `spec/trace.schema.json`.
 ### Canvas
 
 Hand-made infinite canvas (pan/zoom) and window components — no React Flow; the
-layout and interaction logic is too custom.
+layout and interaction logic is too custom. A wheel over content that
+scrolls (editor, sibling list) belongs to that content, also once it has reached
+its end; only a wheel over nothing scrollable pans.
 
 Movable objects on the canvas: the **editor** window, the **stdin** window, the
 **output** window, and the **trace tree** (dragged by its root window). Windows
