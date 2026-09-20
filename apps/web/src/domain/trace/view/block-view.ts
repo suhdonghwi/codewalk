@@ -238,7 +238,10 @@ function stateAt(
   states: LocatedState[],
   nestedBlocks: Loc[],
 ): StatementState {
-  const statement = states.find(({ loc }) => covers(loc, position));
+  const covering = states.filter(({ loc }) => covers(loc, position));
+
+  const statement =
+    covering.find(({ state }) => state !== "inert") ?? covering[0];
 
   if (statement !== undefined) return statement.state;
 

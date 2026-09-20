@@ -81,12 +81,11 @@ class _Instrumenter:
             for keyword in node.keywords:
                 keyword.value = self._expression(keyword.value, statement)
             node.body = self._body(node.body, block, docstring=True)
-        elif isinstance(node, (ast.For, ast.While)):
-            if isinstance(node, ast.For):
-                self._target(node.target, statement)
-                node.iter = self._expression(node.iter, statement)
-            else:
-                node.test = self._expression(node.test, statement)
+        elif isinstance(node, ast.While):
+            return [marker, *self._while(node, statement, block, (start, end))]
+        elif isinstance(node, ast.For):
+            self._target(node.target, statement)
+            node.iter = self._expression(node.iter, statement)
             loop_start, loop_end = self.source.node_range(node)
             iteration = self._loc("block", "iteration", loop_start, loop_end, statement)
             node.body = [
@@ -148,6 +147,36 @@ class _Instrumenter:
             if node.msg is not None:
                 node.msg = self._expression(node.msg, statement)
         return [marker, node]
+
+    def _while(
+        self, node: ast.While, statement: int, block: int, header: tuple[int, int]
+    ) -> list[ast.stmt]:
+        loop_start, loop_end = self.source.node_range(node)
+        iteration = self._loc("block", "iteration", loop_start, loop_end, statement)
+        test = self._loc("stmt", "test", *header, iteration)
+        leave: list[ast.stmt] = [ast.Break()]
+        if node.orelse:
+            leave.insert(0, ast.Expr(value=_runtime_call("mark_exhausted")))
+        check = ast.If(
+            test=ast.UnaryOp(op=ast.Not(), operand=self._expression(node.test, test)),
+            body=leave,
+            orelse=[],
+        )
+        body = [
+            self._marker(test, node),
+            ast.copy_location(check, node),
+            *self._body(node.body, iteration),
+        ]
+        orelse = self._body(node.orelse, block)
+        node.test = ast.Constant(True)
+        node.body = [self._block_wrapper("iteration", iteration, body, node)]
+        node.orelse = []
+        if not orelse:
+            return [node]
+        # `while True` never reaches its own `else`, so the runtime remembers
+        # that the loop ended on a false test rather than on a `break`.
+        after = ast.If(test=_runtime_call("take_exhausted"), body=orelse, orelse=[])
+        return [node, ast.copy_location(after, node)]
 
     def _definition_expressions(self, node: ast.FunctionDef, parent: int) -> None:
         node.decorator_list = [
@@ -237,29 +266,13 @@ class _Instrumenter:
             node.slice = self._expression(node.slice, parent)
 
     def _marker(self, loc: int, node: ast.stmt) -> ast.stmt:
-        marker = ast.Expr(
-            value=ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id="_cw", ctx=ast.Load()),
-                    attr="stmt",
-                    ctx=ast.Load(),
-                ),
-                args=[ast.Constant(loc)],
-                keywords=[],
-            )
-        )
+        marker = ast.Expr(value=_runtime_call("stmt", ast.Constant(loc)))
         return ast.copy_location(marker, node)
 
     def _block_wrapper(
         self, method: str, loc: int, body: list[ast.stmt], owner: ast.AST
     ) -> ast.With:
-        call = ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="_cw", ctx=ast.Load()), attr=method, ctx=ast.Load()
-            ),
-            args=[ast.Constant(loc)],
-            keywords=[],
-        )
+        call = _runtime_call(method, ast.Constant(loc))
         wrapper = ast.With(
             items=[ast.withitem(context_expr=call)], body=body or [ast.Pass()]
         )
@@ -304,6 +317,16 @@ def _statement_kind(node: ast.stmt) -> str:
     if isinstance(node, (ast.For, ast.While)):
         return "loop"
     return type(node).__name__.lower()
+
+
+def _runtime_call(method: str, *args: ast.expr) -> ast.Call:
+    return ast.Call(
+        func=ast.Attribute(
+            value=ast.Name(id="_cw", ctx=ast.Load()), attr=method, ctx=ast.Load()
+        ),
+        args=list(args),
+        keywords=[],
+    )
 
 
 def _is_docstring(node: ast.stmt) -> bool:

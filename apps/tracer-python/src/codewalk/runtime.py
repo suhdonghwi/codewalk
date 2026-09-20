@@ -70,6 +70,7 @@ class Runtime:
         # attribute because it is read several times per event.
         self._active = True
         self._stop: str | None = None
+        self._exhausted = False
 
     @property
     def truncated(self) -> bool:
@@ -80,6 +81,14 @@ class Runtime:
 
     def iteration(self, loc: int) -> _BlockContext:
         return _BlockContext(self, loc, repair=True)
+
+    def mark_exhausted(self) -> None:
+        self._exhausted = True
+
+    def take_exhausted(self) -> bool:
+        exhausted = self._exhausted
+        self._exhausted = False
+        return exhausted
 
     def request_stop(self, status: str) -> None:
         """Make every following statement marker raise `ExecutionStopped`.
