@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import { Canvas } from "@/domain/canvas/index.ts";
 import { EditorWindow } from "@/domain/editor/index.ts";
@@ -36,14 +36,11 @@ function finishRun(outcome: RunOutcome): void {
 }
 
 export function App({ runner: injectedRunner }: AppProps) {
-  const runner = useMemo(
-    () => injectedRunner ?? defaultRunner(),
-    [injectedRunner],
-  );
+  const runner = injectedRunner ?? defaultRunner();
 
   const outcome = useRunStore((state) => state.outcome);
 
-  const run = useCallback(() => {
+  function run(): void {
     const state = useRunStore.getState();
 
     if (state.running) return;
@@ -63,14 +60,14 @@ export function App({ runner: injectedRunner }: AppProps) {
       .finally(() => {
         useRunStore.getState().setRunning(false);
       });
-  }, [runner]);
+  }
 
-  const selectOutputChunk = useCallback((chunk: number): void => {
+  function selectOutputChunk(chunk: number): void {
     const current = useRunStore.getState().outcome;
 
     if (current?.kind !== "trace") return;
     useTraceStore.getState().openOutput(current.trace, chunk);
-  }, []);
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
