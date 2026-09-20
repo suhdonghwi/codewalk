@@ -34,7 +34,7 @@ function blockSource(trace: Trace, block: NodeId): string {
   return source.text;
 }
 
-function titleIndicator(hasException: boolean, hasOutput: boolean) {
+export function titleIndicator(hasException: boolean, hasOutput: boolean) {
   const color = hasException
     ? "bg-exception"
     : hasOutput

@@ -3,27 +3,23 @@ export const TITLE_BAR = 28;
 
 const COLUMN_GAP = 64;
 
-const STACK_GAP = 4;
+// A site with several child blocks shows them as a sibling list between the
+// parent window and the expanded child.
+export const SIBLING_LIST_WIDTH = 168;
 
-const STACK_RADIUS = 50;
+const SIBLING_LIST_GAP = 8;
 
 export interface ColumnInput {
-  count: number;
-  expandedIndex: number;
+  hasSiblingList: boolean;
   width: number;
-  height: number;
   anchorCenterY: number | null;
 }
 
 export interface ColumnLayout {
-  x: number;
-  expandedTop: number;
-  stackTop: number;
+  x: number; // left edge of the column: the sibling list if any, else the window
+  windowX: number;
+  top: number;
 }
-
-export type StackRow =
-  | { kind: "block"; index: number }
-  | { kind: "omitted"; side: "above" | "below" };
 
 interface ColumnReadiness {
   measured: boolean; // the expanded window's own size is known
@@ -59,7 +55,7 @@ export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
     if (column === undefined) continue;
 
     if (index === 0) {
-      layouts.push({ x: 0, expandedTop: 0, stackTop: 0 });
+      layouts.push({ x: 0, windowX: 0, top: 0 });
       continue;
     }
 
@@ -72,40 +68,16 @@ export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
       throw new Error("A parent column with a child must have an anchor");
     }
 
-    const expandedTop =
-      previousLayout.expandedTop + previous.anchorCenterY - TITLE_BAR / 2;
+    const x = previousLayout.windowX + previous.width + COLUMN_GAP;
 
     layouts.push({
-      x: previousLayout.x + previous.width + COLUMN_GAP,
-      expandedTop,
-      stackTop: expandedTop - column.expandedIndex * (TITLE_BAR + STACK_GAP),
+      x,
+      windowX: column.hasSiblingList
+        ? x + SIBLING_LIST_WIDTH + SIBLING_LIST_GAP
+        : x,
+      top: previousLayout.top + previous.anchorCenterY - TITLE_BAR / 2,
     });
   }
 
   return layouts;
-}
-
-export function stackRows(count: number, expandedIndex: number): StackRow[] {
-  const start = Math.max(0, expandedIndex - STACK_RADIUS);
-  const end = Math.min(count, expandedIndex + STACK_RADIUS + 1);
-  const rows: StackRow[] = [];
-
-  if (start > 0) rows.push({ kind: "omitted", side: "above" });
-
-  for (let index = start; index < end; index += 1) {
-    rows.push({ kind: "block", index });
-  }
-
-  if (end < count) rows.push({ kind: "omitted", side: "below" });
-
-  return rows;
-}
-
-export function visualExpandedIndex(
-  rows: StackRow[],
-  expandedIndex: number,
-): number {
-  return rows.findIndex(
-    (row) => row.kind === "block" && row.index === expandedIndex,
-  );
 }

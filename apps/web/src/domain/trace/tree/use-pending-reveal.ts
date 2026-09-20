@@ -57,14 +57,18 @@ export function usePendingReveal(
       ? (measurement.focusCenterY ?? 0) - REVEAL_HEIGHT / 2
       : 0;
 
+    // A focused line is in the window; an opened site also brings its list.
+    const x = pending.focusLine ? layout.windowX : layout.x;
+    const width = layout.windowX - x + measurement.width;
+
     const view = revealRect(
       canvasState.view,
       { width: canvas.clientWidth, height: canvas.clientHeight },
       {
-        x: canvasState.windows.trace.x + layout.x,
-        y: canvasState.windows.trace.y + layout.expandedTop + focusOffset,
+        x: canvasState.windows.trace.x + x,
+        y: canvasState.windows.trace.y + layout.top + focusOffset,
         width: revealWidth(
-          measurement.width,
+          width,
           canvas.clientWidth,
           canvasState.view.scale,
           REVEAL_MARGIN,

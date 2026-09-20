@@ -31,13 +31,10 @@ export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
           return null;
         }
 
-        const startX = parentLayout.x + parentMeasurement.width;
-
-        const startY =
-          parentLayout.expandedTop + parentMeasurement.anchorCenterY;
-
+        const startX = parentLayout.windowX + parentMeasurement.width;
+        const startY = parentLayout.top + parentMeasurement.anchorCenterY;
         const endX = layout.x;
-        const endY = layout.expandedTop + TITLE_BAR / 2;
+        const endY = layout.top + TITLE_BAR / 2;
         const controlX = (startX + endX) / 2;
 
         return (

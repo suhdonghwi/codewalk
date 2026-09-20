@@ -207,12 +207,16 @@ view is derived from
 path: NodeId[]      // expanded block windows, root → deepest
 ```
 
-- Column _k_ of the tree holds the child stack of the site selected in column
-  _k−1_: all child blocks as title bars, one of them expanded. (Finder column
-  view, on a canvas.) The expanded child is vertically aligned to the clicked
-  range where possible; an edge connects range → stack.
+- Column _k_ of the tree holds the children of the site selected in column
+  _k−1_: the expanded child window, preceded — when the site has several child
+  blocks — by a **sibling list** of all of them with the expanded one
+  highlighted. (Finder column view, on a canvas.) The list has a bounded height
+  and scrolls inside; both it and the window are top-aligned to the clicked
+  range, and an edge connects range → column. Choosing a sibling therefore moves
+  nothing on the canvas, however long the loop.
 - **Click a site** → truncate `path` at that window, append the site's first
-  child. **Click a title bar** in a stack → replace that column's entry.
+  child. **Click a row** in a sibling list (or ↑/↓ inside it) → replace that
+  column's entry.
 - **Reverse navigation** (click output) and **exception auto-open** (on a failed
   run) are both just `path = pathTo(node)`, plus a highlight on the target site.
 - `path` is serializable (URL → "look at this exact moment").
@@ -300,7 +304,7 @@ Follow the `writing-tests` skill. Project-specific designations it refers to:
 - **Core end-to-end journeys** — none are automated yet; when an end-to-end suite
   is added, this is the complete list it may cover:
   1. Run a program → click a call site → the callee window opens.
-  2. Click a loop → iteration stack opens → switch iteration.
+  2. Click a loop → sibling list opens → switch iteration.
   3. Click an output line → the path to its site opens.
   4. A run that raises → the path to the exception origin opens automatically.
   5. A syntax error is shown and no trace tree appears.

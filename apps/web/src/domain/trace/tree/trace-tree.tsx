@@ -2,16 +2,11 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
-import {
-  layoutableColumns,
-  layoutTree,
-  stackRows,
-  visualExpandedIndex,
-} from "./layout.ts";
+import { layoutableColumns, layoutTree } from "./layout.ts";
 import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
-import { TreeRows } from "./tree-rows.tsx";
+import { TreeColumn } from "./tree-column.tsx";
 import { usePendingReveal } from "./use-pending-reveal.ts";
 import { useTraceStore } from "../store.ts";
 
@@ -32,16 +27,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
   const columns = useMemo(
     () => path.map((_, column) => pathColumn(trace, path, column)),
     [path, trace],
-  );
-
-  const rows = useMemo(
-    () =>
-      columns.map((column) =>
-        column === null
-          ? []
-          : stackRows(column.blocks.length, column.expandedIndex),
-      ),
-    [columns],
   );
 
   // A measurement stays usable for its own column while the open site changes;
@@ -76,13 +61,8 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
       return [
         {
-          count: (rows[index] ?? []).length,
-          expandedIndex: visualExpandedIndex(
-            rows[index] ?? [],
-            column.expandedIndex,
-          ),
+          hasSiblingList: column.blocks.length > 1,
           width: measurement.width,
-          height: measurement.height,
           anchorCenterY: measurement.anchorCenterY,
         },
       ];
@@ -123,7 +103,8 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const next = selectSibling(current, column, block);
 
     if (next === current) return;
-    useTraceStore.getState().setPath(next, { block, focusLine: false });
+    // The list and the window it fills stay where they are: nothing to reveal.
+    useTraceStore.getState().setPath(next, null);
   }
 
   usePendingReveal(treeRef, path, layouts, columnMeasurements);
@@ -152,21 +133,19 @@ export function TraceTree({ trace }: { trace: Trace }) {
         if (expandedBlock === undefined) return null;
 
         return (
-          <TreeRows
+          <TreeColumn
             column={column}
             columnIndex={columnIndex}
             expandedBlock={expandedBlock}
             focus={focus}
             key={columnIndex}
             layout={layouts[columnIndex]}
-            measurement={columnMeasurements[columnIndex] ?? null}
             onChoose={chooseSibling}
             onMeasure={onMeasure}
             onToggleSite={openSite}
             rootTitlebarProps={
               columnIndex === 0 ? rootTitlebarProps : undefined
             }
-            rows={rows[columnIndex] ?? []}
             trace={trace}
           />
         );
