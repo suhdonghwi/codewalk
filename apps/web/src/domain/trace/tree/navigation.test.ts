@@ -27,10 +27,11 @@ function fixture(name: string): Trace {
   return parsed.trace;
 }
 
-test("the nested fact output opens every activation and focuses its print statement", () => {
+test("the nested fact output opens every activation down to its print statement", () => {
   expect(navigateToOutput(fixture("fact"), 3)).toEqual({
     path: [0, 12, 16, 23],
-    focus: { kind: "output", block: 23, line: 2, chunk: 3 },
+    block: 23,
+    line: 2,
   });
 });
 
@@ -45,14 +46,16 @@ test("node navigation uses the end of a multiline range to choose its line", () 
 test("the second callback output opens the second activation instead of the first", () => {
   expect(navigateToOutput(fixture("native_callback"), 1)).toEqual({
     path: [0, 9],
-    focus: { kind: "output", block: 9, line: 2, chunk: 1 },
+    block: 9,
+    line: 2,
   });
 });
 
-test("an uncaught exception opens fail and focuses its raise statement", () => {
+test("an uncaught exception opens fail at its raise statement", () => {
   expect(navigateToException(fixture("uncaught_exception"))).toEqual({
     path: [0, 4],
-    focus: { kind: "exception", block: 4, line: 2, chunk: null },
+    block: 4,
+    line: 2,
   });
 });
 

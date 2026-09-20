@@ -5,22 +5,10 @@ import { sourceLineNumber } from "../view/block-view.ts";
 import type { Path } from "./path.ts";
 import type { NodeId, Trace } from "@codewalk/trace";
 
-export interface Focus {
-  kind: "output" | "exception";
-  block: NodeId;
-  line: number;
-  chunk: number | null;
-}
-
-interface NodeNavigation {
+export interface NodeNavigation {
   path: Path;
   block: NodeId;
   line: number;
-}
-
-export interface FocusNavigation {
-  path: Path;
-  focus: Focus;
 }
 
 function nodeLocation(trace: Trace, node: NodeId) {
@@ -52,53 +40,27 @@ export function navigateToNode(trace: Trace, node: NodeId): NodeNavigation {
   };
 }
 
-export function navigateToOutput(trace: Trace, chunk: number): FocusNavigation {
+export function navigateToOutput(trace: Trace, chunk: number): NodeNavigation {
   const output = trace.outputs[chunk];
 
   if (output === undefined) throw new Error(`Output chunk ${chunk} is missing`);
-  const navigation = navigateToNode(trace, output.node);
 
-  return {
-    path: navigation.path,
-    focus: {
-      kind: "output",
-      block: navigation.block,
-      line: navigation.line,
-      chunk,
-    },
-  };
+  return navigateToNode(trace, output.node);
 }
 
-export function navigateToException(trace: Trace): FocusNavigation | null {
+export function navigateToException(trace: Trace): NodeNavigation | null {
   if (trace.end.status !== "exception") return null;
   const origin = exceptionOrigin(trace);
 
   if (origin === null) return null;
 
-  if (origin.stmt !== null) {
-    const navigation = navigateToNode(trace, origin.stmt);
+  if (origin.stmt !== null) return navigateToNode(trace, origin.stmt);
 
-    return {
-      path: navigation.path,
-      focus: {
-        kind: "exception",
-        block: navigation.block,
-        line: navigation.line,
-        chunk: null,
-      },
-    };
-  }
-
-  const path = pathTo(trace, origin.block).map((step) => step.block);
   const { loc, source } = nodeLocation(trace, origin.block);
 
   return {
-    path,
-    focus: {
-      kind: "exception",
-      block: origin.block,
-      line: sourceLineNumber(source.text, loc.start),
-      chunk: null,
-    },
+    path: pathTo(trace, origin.block).map((step) => step.block),
+    block: origin.block,
+    line: sourceLineNumber(source.text, loc.start),
   };
 }

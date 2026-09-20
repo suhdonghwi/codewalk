@@ -14,7 +14,6 @@ import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export function TraceTree({ trace }: { trace: Trace }) {
   const path = useTraceStore((state) => state.path);
-  const focus = useTraceStore((state) => state.focus);
   const treeWindow = useCanvasStore((state) => state.windows.trace);
 
   const [measurements, setMeasurements] = useState<(Measurement | undefined)[]>(
@@ -88,9 +87,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const child = next[column + 1];
 
     if (child !== undefined) {
-      useTraceStore
-        .getState()
-        .setPath(next, { block: child, focusLine: false });
+      useTraceStore.getState().setPath(next, { block: child, line: null });
 
       return;
     }
@@ -136,7 +133,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
             column={column}
             columnIndex={columnIndex}
             expandedBlock={expandedBlock}
-            focus={focus}
             key={columnIndex}
             layout={layouts[columnIndex]}
             onChoose={chooseSibling}

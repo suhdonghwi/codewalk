@@ -5,7 +5,6 @@ import { useCanvasStore } from "@/domain/canvas/index.ts";
 import { TraceWindow } from "../view/trace-window.tsx";
 
 import type { HTMLAttributes } from "react";
-import type { Focus } from "./navigation.ts";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export interface Measurement {
@@ -14,7 +13,6 @@ export interface Measurement {
   width: number;
   height: number;
   anchorCenterY: number | null;
-  focusCenterY: number | null;
 }
 
 interface MeasuredTraceWindowProps {
@@ -23,7 +21,6 @@ interface MeasuredTraceWindowProps {
   openSite: LocId | null;
   column: number;
   className: string;
-  focus: Focus | null;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (site: LocId) => void;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
@@ -37,8 +34,6 @@ function measureWindow(
   const scale = useCanvasStore.getState().view.scale;
   const anchor = element.querySelector<HTMLElement>("[data-site-anchor]");
   const anchorBounds = anchor?.getBoundingClientRect();
-  const focus = element.querySelector<HTMLElement>("[data-focused-line]");
-  const focusBounds = focus?.getBoundingClientRect();
 
   return {
     width: bounds.width / scale,
@@ -47,10 +42,6 @@ function measureWindow(
       anchorBounds === undefined
         ? null
         : (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
-    focusCenterY:
-      focusBounds === undefined
-        ? null
-        : (focusBounds.top + focusBounds.height / 2 - bounds.top) / scale,
   };
 }
 
@@ -60,7 +51,6 @@ export function MeasuredTraceWindow({
   openSite,
   column,
   className,
-  focus,
   onMeasure,
   onToggleSite,
   titlebarProps,
@@ -84,7 +74,7 @@ export function MeasuredTraceWindow({
     return () => {
       observer.disconnect();
     };
-  }, [block, column, focus, onMeasure, openSite]);
+  }, [block, column, onMeasure, openSite]);
 
   return (
     <TraceWindow
@@ -92,7 +82,6 @@ export function MeasuredTraceWindow({
       chromeRef={windowRef}
       className={className}
       expanded
-      focus={focus}
       onToggleSite={onToggleSite}
       openSite={openSite}
       titlebarProps={titlebarProps}
@@ -111,7 +100,6 @@ export function sameMeasurement(
     left.openSite === right.openSite &&
     left.width === right.width &&
     left.height === right.height &&
-    left.anchorCenterY === right.anchorCenterY &&
-    left.focusCenterY === right.focusCenterY
+    left.anchorCenterY === right.anchorCenterY
   );
 }
