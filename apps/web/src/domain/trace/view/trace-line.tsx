@@ -55,14 +55,14 @@ export function TraceLine({
         <span
           aria-hidden
           className={cn(
-            "relative w-gutter flex-none pr-2 pl-1.5 text-right text-neutral-400 select-none",
+            "relative w-gutter flex-none pr-2 pl-1.5 text-right text-line-number select-none",
             line.exception !== null &&
               "before:absolute before:top-[0.58em] before:left-1 before:size-1 before:rounded-full before:bg-exception",
           )}
         >
           {line.number}
         </span>
-        <code className="inline-block min-w-px text-code-foreground [font:inherit]">
+        <code className="inline-block min-w-px pl-2.5 text-code-foreground [font:inherit]">
           {line.spans.map((span, index) => {
             const innermost = span.sites.at(-1);
 
@@ -168,7 +168,7 @@ export function TraceLine({
         )}
       </div>
       {expanded && line.output !== null ? (
-        <pre className="m-0 mt-1 mr-4 mb-1.5 ml-gutter rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
+        <pre className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           {line.output.segments.map((segment, index) => (
             <span
               className={

@@ -23,12 +23,12 @@ export const editorTheme = EditorView.theme({
     caretColor: "#262626",
   },
   ".cm-line": {
-    padding: "0 10px 0 6px",
+    padding: "0 10px",
   },
   ".cm-gutters": {
-    color: "#a3a3a3",
+    color: "var(--color-line-number)",
     backgroundColor: "#ffffff",
-    borderRight: "0",
+    borderRight: "1px solid var(--color-gutter-divider)",
   },
   ".cm-lineNumbers .cm-gutterElement": {
     minWidth: "36px",

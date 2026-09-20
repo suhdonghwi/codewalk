@@ -82,7 +82,11 @@ function ExpandedBody({
 
   return (
     <div className="code-surface max-w-trace overflow-x-auto">
-      <div className="w-max min-w-full py-2">
+      <div className="relative w-max min-w-full py-2">
+        <div
+          aria-hidden
+          className="absolute inset-y-0 left-gutter w-px bg-gutter-divider"
+        />
         {view.lines.map((line) => (
           <TraceLine
             anchor={line.number === anchorLine}
