@@ -12,11 +12,18 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  type KeyBinding,
+} from "@codemirror/view";
 
 import { editorTheme } from "./editor-theme.ts";
 import { codeHighlightStyle } from "./highlight.ts";
 import { syntaxErrorExtension } from "./syntax-error.ts";
+
+const leaveRunShortcutToApp: KeyBinding = { key: "Mod-Enter", run: () => true };
 
 export function editorExtensions(
   onChange: (source: string) => void,
@@ -25,6 +32,7 @@ export function editorExtensions(
     lineNumbers(),
     history(),
     keymap.of([
+      leaveRunShortcutToApp,
       ...closeBracketsKeymap,
       ...defaultKeymap,
       ...historyKeymap,
