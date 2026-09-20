@@ -35,7 +35,7 @@ export function OutputWindow({ onSelectChunk }: OutputWindowProps) {
           return (
             <span
               className={cn(
-                "cursor-pointer hover:bg-neutral-100 focus-visible:outline focus-visible:outline-site-accent focus-visible:outline-offset-1",
+                "cursor-pointer hover:bg-site-accent/16 focus-visible:outline focus-visible:outline-site-accent focus-visible:outline-offset-1",
                 segment.kind === "stderr" && "text-code-error",
               )}
               data-output-chunk={segment.chunk}
