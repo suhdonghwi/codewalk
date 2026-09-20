@@ -1,4 +1,4 @@
-import type { HTMLAttributes, Ref } from "react";
+import type { HTMLAttributes, ReactNode, Ref } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import { WindowChrome } from "@/domain/canvas/index.ts";
@@ -14,6 +14,9 @@ interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   expanded: boolean;
+  width?: number | null;
+  height?: number | null;
+  resizeHandles?: ReactNode;
   openSite?: LocId | null;
   onToggleSite?: (site: LocId) => void;
   chromeRef?: Ref<HTMLElement> | undefined;
@@ -51,6 +54,7 @@ interface ExpandedBodyProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
+  fitsContent: boolean;
   onToggleSite: (site: LocId) => void;
 }
 
@@ -58,6 +62,7 @@ function ExpandedBody({
   trace,
   block,
   openSite,
+  fitsContent,
   onToggleSite,
 }: ExpandedBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
@@ -81,7 +86,12 @@ function ExpandedBody({
         )?.number ?? null);
 
   return (
-    <div className="code-surface max-w-trace overflow-x-auto">
+    <div
+      className={cn(
+        "code-surface min-h-0 flex-1 overflow-auto",
+        fitsContent && "max-w-trace",
+      )}
+    >
       <div className="relative w-max min-w-full py-2">
         <div
           aria-hidden
@@ -107,6 +117,9 @@ export function TraceWindow({
   trace,
   block,
   expanded,
+  width = null,
+  height = null,
+  resizeHandles,
   openSite = null,
   onToggleSite = () => undefined,
   chromeRef,
@@ -119,7 +132,12 @@ export function TraceWindow({
   return (
     <WindowChrome
       chromeRef={chromeRef}
-      className={cn("w-max max-w-trace", className)}
+      className={cn(
+        "flex flex-col",
+        width === null && "w-max max-w-trace",
+        className,
+      )}
+      style={{ width: width ?? undefined, height: height ?? undefined }}
       title={title.text}
       titleIndicator={titleIndicator(title.hasException, title.hasOutput)}
       titlebarClassName={titlebarClassName}
@@ -128,11 +146,13 @@ export function TraceWindow({
       {expanded ? (
         <ExpandedBody
           block={block}
+          fitsContent={width === null}
           onToggleSite={onToggleSite}
           openSite={openSite}
           trace={trace}
         />
       ) : null}
+      {resizeHandles}
     </WindowChrome>
   );
 }

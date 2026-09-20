@@ -2,17 +2,17 @@ import { expect, test } from "vitest";
 
 import { layoutableColumns, layoutTree, type ColumnInput } from "./layout.ts";
 
-test("columns accumulate parent widths, make room for sibling lists and align to measured anchors", () => {
+test("columns accumulate parent widths, make room for sibling lists at their own width and align to measured anchors", () => {
   const columns: ColumnInput[] = [
-    { hasSiblingList: false, width: 300, anchorCenterY: 90 },
-    { hasSiblingList: true, width: 180, anchorCenterY: 50 },
-    { hasSiblingList: false, width: 120, anchorCenterY: null },
+    { siblingListWidth: null, width: 300, anchorCenterY: 90 },
+    { siblingListWidth: 200, width: 180, anchorCenterY: 50 },
+    { siblingListWidth: null, width: 120, anchorCenterY: null },
   ];
 
   expect(layoutTree(columns)).toEqual([
     { x: 0, windowX: 0, top: 0 },
-    { x: 364, windowX: 540, top: 76 },
-    { x: 784, windowX: 784, top: 112 },
+    { x: 364, windowX: 572, top: 76 },
+    { x: 816, windowX: 816, top: 112 },
   ]);
 });
 

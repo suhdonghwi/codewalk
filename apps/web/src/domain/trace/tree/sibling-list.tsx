@@ -1,9 +1,9 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { SIBLING_LIST_WIDTH } from "./layout.ts";
+import { TITLE_BAR } from "./layout.ts";
 import { buildBlockTitle, siblingListTitle } from "../view/block-view.ts";
 import { titleIndicator } from "../view/trace-window.tsx";
 
@@ -20,6 +20,9 @@ interface SiblingListProps {
   trace: Trace;
   blocks: NodeId[];
   selectedIndex: number;
+  width: number;
+  height: number | null;
+  resizeHandles: ReactNode;
   onChoose: (block: NodeId) => void;
 }
 
@@ -27,12 +30,20 @@ export function SiblingList({
   trace,
   blocks,
   selectedIndex,
+  width,
+  height,
+  resizeHandles,
   onChoose,
 }: SiblingListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const positioned = useRef(false);
   const [scrollTop, setScrollTop] = useState(0);
-  const viewportHeight = Math.min(blocks.length, MAX_VISIBLE_ROWS) * ROW_HEIGHT;
+  const contentHeight = blocks.length * ROW_HEIGHT;
+
+  const viewportHeight =
+    height === null
+      ? Math.min(contentHeight, MAX_VISIBLE_ROWS * ROW_HEIGHT)
+      : Math.min(contentHeight, height - TITLE_BAR);
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
@@ -73,7 +84,7 @@ export function SiblingList({
   return (
     <WindowChrome
       className=""
-      style={{ width: SIBLING_LIST_WIDTH }}
+      style={{ width }}
       title={siblingListTitle(trace, blocks)}
     >
       <div
@@ -86,10 +97,7 @@ export function SiblingList({
         ref={scrollRef}
         style={{ height: viewportHeight }}
       >
-        <div
-          className="relative"
-          style={{ height: blocks.length * ROW_HEIGHT }}
-        >
+        <div className="relative" style={{ height: contentHeight }}>
           {blocks.slice(first, end).map((block, offset) => {
             const index = first + offset;
 
@@ -124,6 +132,7 @@ export function SiblingList({
           })}
         </div>
       </div>
+      {resizeHandles}
     </WindowChrome>
   );
 }
