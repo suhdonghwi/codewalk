@@ -4,7 +4,7 @@ import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
 import { TITLE_BAR } from "./layout.ts";
-import { buildBlockTitle, siblingListTitle } from "../view/block-view.ts";
+import { buildBlockTitle, siblingListTitle } from "../view/block-title.ts";
 import { titleIndicator } from "../view/trace-window.tsx";
 
 import type { KeyboardEvent } from "react";

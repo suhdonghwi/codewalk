@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { parseTrace } from "@codewalk/trace";
 import { describe, expect, test } from "vitest";
 
+import { buildBlockTitle } from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 
@@ -269,20 +270,20 @@ describe("buildBlockView", () => {
     const fact = fixture("fact");
     const iterations = blockNodes(fact, "iteration");
 
-    expect(buildBlockView(fact, 0, []).title).toEqual({
+    expect(buildBlockTitle(fact, 0)).toEqual({
       text: "fact.py",
       hasOutput: true,
       hasException: false,
     });
     expect(
-      iterations.map((block) => buildBlockView(fact, block, []).title.text),
+      iterations.map((block) => buildBlockTitle(fact, block).text),
     ).toEqual(["iteration 0", "iteration 1"]);
 
     const callbacks = fixture("native_callback");
     const functions = blockNodes(callbacks, "function");
 
     expect(
-      functions.map((block) => buildBlockView(callbacks, block, []).title.text),
+      functions.map((block) => buildBlockTitle(callbacks, block).text),
     ).toEqual(["key · 0", "key · 1"]);
   });
 });

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { buildBlockTitle, buildBlockView } from "./block-view.ts";
+import { buildBlockTitle } from "./block-title.ts";
+import { buildBlockView } from "./block-view.ts";
 import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
 import { TraceLine } from "./trace-line.tsx";
 

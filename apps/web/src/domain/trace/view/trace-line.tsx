@@ -5,7 +5,8 @@ import { cn } from "@/ui/utils.ts";
 
 import { previewInlineOutput } from "./inline-output.ts";
 
-import type { Line, Span } from "./block-view.ts";
+import type { Line } from "./block-view.ts";
+import type { Span } from "./spans.ts";
 import type { LocId } from "@codewalk/trace";
 
 interface TraceLineProps {
