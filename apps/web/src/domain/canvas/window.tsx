@@ -55,7 +55,7 @@ export function WindowChrome({
       <div
         {...titlebarProps}
         className={cn(
-          "flex h-titlebar cursor-default items-center justify-between border-b border-window-border pt-px pr-1 pl-2 text-xs leading-none font-medium text-neutral-500 select-none",
+          "flex h-titlebar flex-none cursor-default items-center justify-between border-b border-window-border pt-px pr-1 pl-2 text-xs leading-none font-medium text-neutral-500 select-none",
           titlebarClassName,
           titlebarProps?.className,
         )}

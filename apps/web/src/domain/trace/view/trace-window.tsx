@@ -83,21 +83,23 @@ function ExpandedBody({
   return (
     <div
       className={cn(
-        "code-surface min-h-0 flex-1 overflow-auto",
+        "code-surface min-h-0 overflow-auto",
         fitsContent && "max-w-trace",
       )}
     >
-      <div className="relative w-max min-w-full py-2">
+      <div className="grid w-max min-w-full py-2">
         <div
           aria-hidden
-          className="absolute inset-y-0 left-gutter w-px bg-gutter-divider"
+          className="sticky left-0 z-1 col-start-1 row-start-1 -my-2 box-content w-gutter border-r border-gutter-divider bg-white"
+          style={{ gridRowEnd: `span ${view.lines.length}` }}
         />
-        {view.lines.map((line) => (
+        {view.lines.map((line, index) => (
           <TraceLine
             anchor={line.number === anchorLine}
             hoveredSite={hoveredSite}
             key={line.number}
             line={line}
+            row={index + 1}
             onHoverSite={setHoveredSite}
             onToggleSite={onToggleSite}
             openSite={openSite}
@@ -128,7 +130,7 @@ export function TraceWindow({
     <WindowChrome
       chromeRef={chromeRef}
       className={cn(
-        "flex flex-col",
+        "flex max-h-max flex-col",
         width === null && "w-max max-w-trace",
         className,
       )}

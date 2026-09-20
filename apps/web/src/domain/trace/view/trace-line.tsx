@@ -11,6 +11,7 @@ import type { LocId } from "@codewalk/trace";
 
 interface TraceLineProps {
   line: Line;
+  row: number;
   anchor: boolean;
   hoveredSite: LocId | null;
   openSite: LocId | null;
@@ -45,6 +46,7 @@ function siteBackground(span: Span): string | undefined {
 
 export function TraceLine({
   line,
+  row,
   anchor,
   hoveredSite,
   openSite,
@@ -57,7 +59,7 @@ export function TraceLine({
     line.output === null ? null : previewInlineOutput(line.output);
 
   return (
-    <div className="min-w-max">
+    <div className="col-start-1 min-w-max" style={{ gridRowStart: row }}>
       <div
         className={cn(
           "flex min-h-code-line w-max min-w-full items-baseline pr-4 whitespace-pre",
@@ -68,8 +70,10 @@ export function TraceLine({
         <span
           aria-hidden
           className={cn(
-            "w-gutter flex-none pr-2 pl-1.5 text-right select-none",
-            line.exception === null ? "text-line-number" : "text-exception",
+            "sticky left-0 z-2 w-gutter flex-none pr-2 pl-1.5 text-right select-none",
+            line.exception === null
+              ? "text-line-number"
+              : "bg-exception/8 text-exception",
           )}
         >
           {line.number}
