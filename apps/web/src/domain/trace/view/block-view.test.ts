@@ -49,6 +49,30 @@ describe("buildBlockView", () => {
     );
   });
 
+  test("a while condition belongs to each iteration, including the final failed check", () => {
+    const trace = fixture("while_condition_call");
+    const parent = buildBlockView(trace, 0, []);
+    const [, lastIteration] = blockNodes(trace, "iteration");
+
+    if (lastIteration === undefined) throw new Error("Missing iteration");
+    const iteration = buildBlockView(trace, lastIteration, []);
+
+    expect(line(parent, 7).spans.map((span) => span.sites)).toEqual([[8]]);
+    expect(line(iteration, 7).spans.every((span) => span.state === "lit")).toBe(
+      true,
+    );
+    expect(
+      line(iteration, 7)
+        .spans.filter((span) => span.sites.includes(11))
+        .map((span) => span.text)
+        .join(""),
+    ).toBe("below(i, 1)");
+    expect(
+      line(iteration, 8).spans.find((span) => span.text.includes("i += 1"))
+        ?.state,
+    ).toBe("dimmed");
+  });
+
   test("an activation dims the branch it skipped and exposes the nested call it ran", () => {
     const trace = fixture("fact");
     const view = buildBlockView(trace, 16, []);

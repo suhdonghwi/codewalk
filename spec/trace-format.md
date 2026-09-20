@@ -38,8 +38,7 @@ The viewer's logic depends only on `role`. `kind` and `name` are display labels
 onto the three roles and the viewer does not change.
 
 The same loc may be entered more than once within one block node (a call inside
-a comprehension, a `while` condition, a callback invoked repeatedly from native
-code). The viewer groups nodes by loc within a block and merges their child
+a comprehension, a callback invoked repeatedly from native code). The viewer groups nodes by loc within a block and merges their child
 blocks into one stack, in execution order.
 
 ## File layout
@@ -108,6 +107,12 @@ Range conventions:
   are separate `stmt` locs whose `parent` is the enclosing _block_, not the
   compound statement. Exception: the body of a loop belongs to the loop's
   iteration block, whose `parent` is the loop `stmt`.
+- A header that is re-evaluated on every pass (a `while` condition) is covered
+  by a second `stmt` loc with the same range whose `parent` is the iteration
+  block. The condition's `expr` locs hang under it, so each check, and whatever
+  it calls, belongs to its own iteration. The check that ends the loop is an
+  iteration with only that `stmt` node. A header evaluated once (a `for`
+  iterable) belongs to the loop `stmt`.
 
 ### Events
 
@@ -165,8 +170,11 @@ highlight.
 - it is another block loc → **inert** (belongs to a nested function or loop
   body; it becomes live in that block's own window).
 
-Text covered by no `stmt` loc is neutral. Note that in an iteration window the
-loop header is inert: it belongs to the parent block.
+Text covered by no `stmt` loc is neutral. Where two `stmt` locs cover the same
+text (a `while` header), the one owned by _b_ decides: the header is lit in the
+parent window through the loop `stmt` and lit in an iteration window through the
+iteration's own `stmt`. A `for` header is inert in an iteration window: it
+belongs to the parent block only.
 
 **Exception origin** — follow `exit.exc` from the root to the deepest block that
 has it; the origin is that block's last `stmt` node. A chain that stops before
