@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 
 import { useAppStore } from "@/state/store.ts";
-import { TraceWindow } from "@/trace-view/TraceWindow.tsx";
+import { TraceWindow } from "@/trace-view/trace-window.tsx";
 
 import type { HTMLAttributes } from "react";
 import type { Focus } from "./navigation.ts";

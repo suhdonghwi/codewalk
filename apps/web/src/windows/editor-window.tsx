@@ -4,7 +4,7 @@ import { LoaderCircle, Play } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { useWindowResize } from "@/canvas/use-window-resize.ts";
-import { CanvasWindow } from "@/canvas/Window.tsx";
+import { CanvasWindow } from "@/canvas/window.tsx";
 import { editorExtensions } from "@/code/extensions.ts";
 import { setSyntaxError } from "@/code/syntax-error.ts";
 import { Button } from "@/components/ui/button.tsx";

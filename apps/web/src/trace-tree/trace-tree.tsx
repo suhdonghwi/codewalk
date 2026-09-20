@@ -9,10 +9,10 @@ import {
   stackRows,
   visualExpandedIndex,
 } from "./layout.ts";
-import { sameMeasurement, type Measurement } from "./MeasuredTraceWindow.tsx";
+import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
 import { pathColumn, selectSibling, toggleSite } from "./path.ts";
-import { TreeEdges } from "./TreeEdges.tsx";
-import { TreeRows } from "./TreeRows.tsx";
+import { TreeEdges } from "./tree-edges.tsx";
+import { TreeRows } from "./tree-rows.tsx";
 import { usePendingReveal } from "./use-pending-reveal.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";

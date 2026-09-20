@@ -5,7 +5,7 @@ import { useAppStore } from "@/state/store.ts";
 
 import type { RefObject } from "react";
 import type { ColumnLayout } from "./layout.ts";
-import type { Measurement } from "./MeasuredTraceWindow.tsx";
+import type { Measurement } from "./measured-trace-window.tsx";
 import type { Path } from "./path.ts";
 
 const REVEAL_MARGIN = 48;

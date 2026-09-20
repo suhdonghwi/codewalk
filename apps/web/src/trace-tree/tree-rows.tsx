@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 
-import { WindowChrome } from "@/canvas/Window.tsx";
-import { TraceWindow } from "@/trace-view/TraceWindow.tsx";
+import { WindowChrome } from "@/canvas/window.tsx";
+import { TraceWindow } from "@/trace-view/trace-window.tsx";
 
 import {
   TITLE_BAR,
@@ -12,7 +12,7 @@ import {
 import {
   MeasuredTraceWindow,
   type Measurement,
-} from "./MeasuredTraceWindow.tsx";
+} from "./measured-trace-window.tsx";
 
 import type { Focus } from "./navigation.ts";
 import type { PathColumn } from "./path.ts";

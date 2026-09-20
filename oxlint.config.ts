@@ -11,11 +11,13 @@ export default defineConfig({
   categories: {
     correctness: "error",
   },
+  plugins: ["unicorn"],
   jsPlugins: [
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
   ],
   rules: {
     "oxc/no-accumulating-spread": "error",
+    "unicorn/filename-case": ["error", { case: "kebabCase" }],
     "anti-slop/no-array-filter-map": "error",
     "anti-slop/no-reduce-accumulator-copy": "error",
     "anti-slop/no-chained-type-assertions": "error",

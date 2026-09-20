@@ -1,12 +1,12 @@
 import type { HTMLAttributes, Ref } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { WindowChrome } from "@/canvas/Window.tsx";
+import { WindowChrome } from "@/canvas/window.tsx";
 import { cn } from "@/lib/utils.ts";
 
 import { buildBlockTitle, buildBlockView } from "./block-view.ts";
 import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
-import { TraceLine } from "./TraceLine.tsx";
+import { TraceLine } from "./trace-line.tsx";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 import type { Focus } from "@/trace-tree/navigation.ts";

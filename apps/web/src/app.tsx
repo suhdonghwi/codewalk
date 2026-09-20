@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo } from "react";
 
-import { Canvas } from "@/canvas/Canvas.tsx";
+import { Canvas } from "@/canvas/canvas.tsx";
 import { TooltipProvider } from "@/components/ui/tooltip.tsx";
 import { createFixtureRunner, createHttpRunner } from "@/run/runners.ts";
 import type { TraceRunner } from "@/run/types.ts";
 import { useAppStore } from "@/state/store.ts";
-import { TraceTree } from "@/trace-tree/TraceTree.tsx";
-import { EditorWindow } from "@/windows/EditorWindow.tsx";
-import { OutputWindow } from "@/windows/OutputWindow.tsx";
-import { StdinWindow } from "@/windows/StdinWindow.tsx";
+import { TraceTree } from "@/trace-tree/trace-tree.tsx";
+import { EditorWindow } from "@/windows/editor-window.tsx";
+import { OutputWindow } from "@/windows/output-window.tsx";
+import { StdinWindow } from "@/windows/stdin-window.tsx";
 
 interface AppProps {
   runner?: TraceRunner;

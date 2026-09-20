@@ -2,7 +2,7 @@ import { outputSegments } from "@/run/output-segments.ts";
 import { cn } from "@/lib/utils.ts";
 import { useAppStore } from "@/state/store.ts";
 
-import { CanvasWindow } from "../canvas/Window.tsx";
+import { CanvasWindow } from "../canvas/window.tsx";
 
 export function OutputWindow() {
   const outcome = useAppStore((state) => state.outcome);

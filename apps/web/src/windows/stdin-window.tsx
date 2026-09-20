@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 
-import { CanvasWindow } from "@/canvas/Window.tsx";
+import { CanvasWindow } from "@/canvas/window.tsx";
 import { useAppStore } from "@/state/store.ts";
 
 export function StdinWindow() {
