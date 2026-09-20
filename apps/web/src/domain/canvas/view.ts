@@ -11,16 +11,6 @@ export interface ViewTransform extends Point {
   scale: number;
 }
 
-export interface Viewport {
-  width: number;
-  height: number;
-}
-
-export interface Rect extends Point {
-  width: number;
-  height: number;
-}
-
 // Trackpad pinches arrive as many small deltas (~1–10), a mouse wheel as one
 // large delta (~100) per notch. The sensitivity suits the pinch; the cap keeps a
 // single wheel notch from jumping more than ~28%.
@@ -79,51 +69,4 @@ export function resizedSize(
       ? Math.max(minimum.height, start.height + delta.y / scale)
       : start.height,
   };
-}
-
-/**
- * How much of a window's width (world units) a reveal should bring into view:
- * all of it when it fits between the margins at the current scale, otherwise as
- * much as fits — never less than `minimum`, so something is always revealed.
- */
-export function revealWidth(
-  windowWidth: number,
-  viewportWidth: number,
-  scale: number,
-  margin: number,
-  minimum: number,
-): number {
-  const available = (viewportWidth - 2 * margin) / scale;
-
-  return Math.max(minimum, Math.min(windowWidth, available));
-}
-
-export function revealRect(
-  view: ViewTransform,
-  viewport: Viewport,
-  rect: Rect,
-  margin: number,
-): ViewTransform {
-  const left = view.x + rect.x * view.scale;
-  const top = view.y + rect.y * view.scale;
-  const right = left + rect.width * view.scale;
-  const bottom = top + rect.height * view.scale;
-  const rightLimit = viewport.width - margin;
-  const bottomLimit = viewport.height - margin;
-
-  const x =
-    left < margin
-      ? view.x + margin - left
-      : right > rightLimit
-        ? view.x + rightLimit - right
-        : view.x;
-
-  const y =
-    top < margin
-      ? view.y + margin - top
-      : bottom > bottomLimit
-        ? view.y + bottomLimit - bottom
-        : view.y;
-
-  return x === view.x && y === view.y ? view : { ...view, x, y };
 }

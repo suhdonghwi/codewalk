@@ -171,10 +171,11 @@ automatically and moves as one rigid unit, so users cannot wreck its shape.
 
 Default placement: editor at the origin; stdin and output in a column to its
 left (the editor grows downward with its content, so nothing sits below it); the
-trace root to the right of the editor, growing rightwards. Windows size to their
-content, except the editor: it has a fixed size, scrolls inside, and resizes from
-its right edge, bottom edge and corner (invisible handles). While the trace tree
-is still at its default spot it stays docked to the editor's right edge.
+trace root to the right of the editor, growing rightwards. Trace windows size to
+their content. The editor, stdin and output windows have a fixed size, scroll
+inside, and resize from their right edge, bottom edge and corner (invisible
+handles). While the trace tree is still at its default spot it stays docked to
+the editor's right edge.
 
 ### Windows
 
@@ -221,7 +222,9 @@ path: NodeId[]      // expanded block windows, root → deepest
   column's entry.
 - **Reverse navigation** (click output) and **exception auto-open** (on a failed
   run) are both just `path = pathTo(node)`: they leave no state or styling
-  behind. Clicking output also pans the target line into view.
+  behind.
+- Navigation never moves the canvas. The view changes only when the user pans
+  or zooms.
 - `path` is serializable (URL → "look at this exact moment").
 
 ## Server and sandbox

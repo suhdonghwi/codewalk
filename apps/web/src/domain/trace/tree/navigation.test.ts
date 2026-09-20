@@ -3,11 +3,7 @@ import { readFileSync } from "node:fs";
 import { parseTrace } from "@codewalk/trace";
 import { expect, test } from "vitest";
 
-import {
-  navigateToException,
-  navigateToNode,
-  navigateToOutput,
-} from "./navigation.ts";
+import { exceptionPath, outputPath } from "./navigation.ts";
 
 import type { Trace } from "@codewalk/trace";
 
@@ -27,39 +23,19 @@ function fixture(name: string): Trace {
   return parsed.trace;
 }
 
-test("the nested fact output opens every activation down to its print statement", () => {
-  expect(navigateToOutput(fixture("fact"), 3)).toEqual({
-    path: [0, 12, 16, 23],
-    block: 23,
-    line: 2,
-  });
-});
-
-test("node navigation uses the end of a multiline range to choose its line", () => {
-  expect(navigateToNode(fixture("fact"), 23)).toEqual({
-    path: [0, 12, 16, 23],
-    block: 23,
-    line: 5,
-  });
+test("the nested fact output opens every activation down to the one that printed", () => {
+  expect(outputPath(fixture("fact"), 3)).toEqual([0, 12, 16, 23]);
 });
 
 test("the second callback output opens the second activation instead of the first", () => {
-  expect(navigateToOutput(fixture("native_callback"), 1)).toEqual({
-    path: [0, 9],
-    block: 9,
-    line: 2,
-  });
+  expect(outputPath(fixture("native_callback"), 1)).toEqual([0, 9]);
 });
 
-test("an uncaught exception opens fail at its raise statement", () => {
-  expect(navigateToException(fixture("uncaught_exception"))).toEqual({
-    path: [0, 4],
-    block: 4,
-    line: 2,
-  });
+test("an uncaught exception opens the activation that raised", () => {
+  expect(exceptionPath(fixture("uncaught_exception"))).toEqual([0, 4]);
 });
 
-test("caught exceptions and successful traces do not trigger exception navigation", () => {
-  expect(navigateToException(fixture("caught_exception"))).toBeNull();
-  expect(navigateToException(fixture("fact"))).toBeNull();
+test("caught exceptions and successful traces do not open an exception path", () => {
+  expect(exceptionPath(fixture("caught_exception"))).toBeNull();
+  expect(exceptionPath(fixture("fact"))).toBeNull();
 });
