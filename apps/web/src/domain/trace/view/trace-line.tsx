@@ -49,7 +49,7 @@ export function TraceLine({
   return (
     <div className="min-w-max">
       <div
-        className="flex min-h-[1.5em] w-max min-w-full items-baseline pr-4 whitespace-pre"
+        className="flex min-h-code-line w-max min-w-full items-baseline pr-4 whitespace-pre"
         data-site-anchor={anchor || undefined}
       >
         <span
@@ -74,7 +74,7 @@ export function TraceLine({
             const interactive = innermost !== undefined && span.state === "lit";
 
             const className = cn(
-              "min-h-[1.5em]",
+              "min-h-code-line",
               STATE_CLASSES[span.state],
               span.classes,
               interactive && "cursor-pointer",
