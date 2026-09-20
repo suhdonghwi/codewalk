@@ -20,9 +20,14 @@ interface TraceLineProps {
 
 const STATE_CLASSES: Record<Span["state"], string> = {
   lit: "",
-  dimmed: "!text-neutral-400 !not-italic !no-underline",
+  // Did not run: colour drained as well as faded. Inert code (it runs in a child
+  // window) only fades and keeps its syntax colours.
+  dimmed: "!text-neutral-500 !not-italic opacity-55",
   inert: "opacity-55",
 };
+
+const OUTPUT_CHIP_CLASSES =
+  "ml-[2ch] rounded-sm bg-inline-output-surface px-[0.75ch] text-inline-output";
 
 const FOCUS_LINE_CLASSES: Record<Focus["kind"], string> = {
   output: "bg-site-accent/8",
@@ -135,7 +140,12 @@ export function TraceLine({
         </code>
         {preview === null ? null : preview.expandable ? (
           <button
-            className="ml-[2ch] cursor-pointer border-0 bg-transparent p-0 text-inline-output [font:inherit]"
+            className={cn(
+              OUTPUT_CHIP_CLASSES,
+              "cursor-pointer border-0 py-0 [font:inherit] hover:brightness-95",
+              expanded && "ring-1 ring-inline-output/30",
+            )}
+            aria-expanded={expanded}
             onClick={() => {
               setExpanded((current) => !current);
             }}
@@ -153,7 +163,7 @@ export function TraceLine({
             ))}
           </button>
         ) : (
-          <span className="ml-[2ch] text-inline-output">
+          <span className={OUTPUT_CHIP_CLASSES}>
             {preview.segments.map((segment, index) => (
               <span
                 className={
@@ -167,11 +177,13 @@ export function TraceLine({
           </span>
         )}
         {line.exception === null ? null : (
-          <span className="ml-[2ch] text-code-error">{line.exception}</span>
+          <span className="ml-[2ch] rounded-sm bg-exception/10 px-[0.75ch] text-code-error">
+            {line.exception}
+          </span>
         )}
       </div>
       {expanded && line.output !== null ? (
-        <pre className="m-0 ml-gutter w-[calc(100%-var(--spacing-gutter))] pt-0.5 pb-1 pl-[2ch] text-inline-output whitespace-pre-wrap [font:inherit]">
+        <pre className="m-0 mt-1 mr-4 mb-1.5 ml-gutter rounded-sm border border-inline-output/30 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           {line.output.segments.map((segment, index) => (
             <span
               className={

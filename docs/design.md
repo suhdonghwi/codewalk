@@ -186,9 +186,12 @@ is still at its default spot it stays docked to the editor's right edge.
   same engine as the editor: Lezer (`@lezer/python` + `@lezer/highlight`) with
   the shared `HighlightStyle`. Tokens are split at loc boundaries so highlight
   spans and interactive ranges are one flat span list. Shows:
-  - lit / dimmed / inert statements (see spec, "Statement state");
+  - statement state (see spec, "Statement state"): lit at full strength; inert
+    (runs in a child window) faded but still syntax-coloured; dimmed (did not
+    run) faded and grey;
   - clickable ranges for sites that contain blocks;
-  - inline output at the end of the line of sites that contain output;
+  - inline output as a tinted chip right after the code of the line whose sites
+    contain output; long or multi-line output expands into a panel below it;
   - the exception marker on the origin statement.
     Title bar: kind + name (`function fact`, `iteration 3`), has-output marker.
     A window is either expanded or collapsed to its title bar.
