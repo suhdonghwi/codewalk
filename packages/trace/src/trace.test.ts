@@ -5,7 +5,6 @@ import { describe, expect, test } from "vitest";
 import {
   blockSites,
   exceptionOrigin,
-  hasOutput,
   parseTrace,
   pathTo,
   statementStates,
@@ -91,8 +90,6 @@ test("the fact fixture builds the documented execution tree and output ownership
     { node: 25, stream: "stdout", text: "fact 1\n" },
     { node: 14, stream: "stdout", text: "2\n" },
   ]);
-  expect(hasOutput(trace, 0)).toBe(true);
-  expect(hasOutput(trace, 1)).toBe(false);
 });
 
 test("the fact fixture produces the documented paths, sites, and statement states", async () => {

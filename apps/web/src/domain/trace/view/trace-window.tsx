@@ -36,19 +36,13 @@ function blockSource(trace: Trace, block: NodeId): string {
   return source.text;
 }
 
-export function titleIndicator(hasException: boolean, hasOutput: boolean) {
-  const color = hasException
-    ? "bg-exception"
-    : hasOutput
-      ? "bg-neutral-400"
-      : null;
-
-  return color === null ? null : (
+export function titleIndicator(hasException: boolean) {
+  return hasException ? (
     <span
       aria-hidden
-      className={cn("size-1.5 flex-none rounded-full", color)}
+      className="size-1.5 flex-none rounded-full bg-exception"
     />
-  );
+  ) : null;
 }
 
 interface ExpandedBodyProps {
@@ -140,7 +134,7 @@ export function TraceWindow({
       )}
       style={{ width: width ?? undefined, height: height ?? undefined }}
       title={title.text}
-      titleIndicator={titleIndicator(title.hasException, title.hasOutput)}
+      titleIndicator={titleIndicator(title.hasException)}
       titlebarClassName={titlebarClassName}
       titlebarProps={titlebarProps}
     >

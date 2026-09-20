@@ -24,8 +24,17 @@ const STATE_CLASSES: Record<Span["state"], string> = {
   inert: "opacity-55",
 };
 
-const OUTPUT_CHIP_CLASSES =
-  "ml-[2ch] rounded-sm bg-inline-output-surface px-[0.75ch] text-inline-output";
+const CHIP_CLASSES = "ml-[2ch] rounded-sm px-[0.75ch]";
+
+const OUTPUT_CHIP_CLASSES = cn(
+  CHIP_CLASSES,
+  "bg-inline-output-surface text-inline-output",
+);
+
+const EXCEPTION_CHIP_CLASSES = cn(
+  CHIP_CLASSES,
+  "bg-exception/15 text-exception",
+);
 
 function siteBackground(span: Span): string | undefined {
   if (span.state !== "lit" || span.sites.length === 0) return undefined;
@@ -50,15 +59,17 @@ export function TraceLine({
   return (
     <div className="min-w-max">
       <div
-        className="flex min-h-code-line w-max min-w-full items-baseline pr-4 whitespace-pre"
+        className={cn(
+          "flex min-h-code-line w-max min-w-full items-baseline pr-4 whitespace-pre",
+          line.exception !== null && "bg-exception/8",
+        )}
         data-site-anchor={anchor || undefined}
       >
         <span
           aria-hidden
           className={cn(
-            "relative w-gutter flex-none pr-2 pl-1.5 text-right text-line-number select-none",
-            line.exception !== null &&
-              "before:absolute before:top-[0.58em] before:left-1 before:size-1 before:rounded-full before:bg-exception",
+            "w-gutter flex-none pr-2 pl-1.5 text-right select-none",
+            line.exception === null ? "text-line-number" : "text-exception",
           )}
         >
           {line.number}
@@ -163,9 +174,7 @@ export function TraceLine({
           </span>
         )}
         {line.exception === null ? null : (
-          <span className="ml-[2ch] rounded-sm bg-exception/10 px-[0.75ch] text-code-error">
-            {line.exception}
-          </span>
+          <span className={EXCEPTION_CHIP_CLASSES}>{line.exception}</span>
         )}
       </div>
       {expanded && line.output !== null ? (

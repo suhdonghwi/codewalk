@@ -202,9 +202,16 @@ held at the window's top or bottom edge once the line scrolls out of view.
   - clickable ranges for sites that contain blocks;
   - inline output as a tinted chip right after the code of the line whose sites
     contain output; long or multi-line output expands into a panel below it;
-  - the exception marker on the origin statement.
-    Title bar: kind + name (`function fact`, `iteration 3`), has-output marker.
-    A window is either expanded or collapsed to its title bar.
+  - the exception on the origin statement: the line is faintly tinted, its line
+    number turns red, and the one-line summary follows the code as a chip of the
+    same shape as inline output, in the exception colour.
+
+  Title bar: the file name for the module, `iteration 3` (zero-based) for an
+  iteration, otherwise the function name — with ` · 1` appended when the site
+  ran several blocks (a callback, a call in a comprehension). A red dot marks a
+  block that was left by an exception; it is the only title indicator, output is
+  not marked. Sibling-list rows use the same text and dot. A window is either
+  expanded or collapsed to its title bar.
 
 Running replaces the previous trace (the tree keeps its position).
 

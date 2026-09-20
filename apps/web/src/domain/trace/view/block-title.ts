@@ -1,10 +1,9 @@
-import { blockSites, hasOutput } from "@codewalk/trace";
+import { blockSites } from "@codewalk/trace";
 
 import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
 export interface BlockTitle {
   text: string;
-  hasOutput: boolean;
   hasException: boolean;
 }
 
@@ -94,7 +93,6 @@ export function buildBlockTitle(
 
   return {
     text,
-    hasOutput: hasOutput(trace, block),
     hasException: node.exc !== null,
   };
 }

@@ -201,10 +201,6 @@ export function statementStates(
   return states;
 }
 
-export function hasOutput(trace: Trace, node: NodeId): boolean {
-  return trace.nodes[node]?.hasOutput ?? false;
-}
-
 function lastStatementChild(trace: Trace, block: NodeId): NodeId | null {
   const children = trace.nodes[block]?.children ?? [];
 

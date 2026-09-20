@@ -126,7 +126,7 @@ export function SiblingList({
                 type="button"
               >
                 <span className="truncate">{title.text}</span>
-                {titleIndicator(title.hasException, title.hasOutput)}
+                {titleIndicator(title.hasException)}
               </button>
             );
           })}

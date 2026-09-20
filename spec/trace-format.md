@@ -180,9 +180,6 @@ belongs to the parent block only.
 has it; the origin is that block's last `stmt` node. A chain that stops before
 the root means the exception was caught there.
 
-**Has-output marker** — a block's title bar is marked if any `out` event lies in
-its subtree.
-
 ## Example
 
 `fixtures/fact.py`:

@@ -7,8 +7,6 @@ export interface TraceNode {
   children: NodeId[];
   outputs: number[];
   exc: string | null;
-  /** Whether any output chunk lies in this node's subtree. */
-  hasOutput: boolean;
 }
 
 export interface OutputChunk {

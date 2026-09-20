@@ -134,24 +134,6 @@ function validateSyntaxErrorEnd(
   return null;
 }
 
-// A parent's id is always smaller than its children's, so one reverse pass
-// propagates output presence from every node to all of its ancestors.
-function markSubtreeOutput(nodes: TraceNode[]): void {
-  for (let nodeId = nodes.length - 1; nodeId >= 0; nodeId -= 1) {
-    const node = nodes[nodeId];
-
-    if (node === undefined) continue;
-
-    if (node.outputs.length > 0) node.hasOutput = true;
-
-    if (node.hasOutput && node.parent !== null) {
-      const parent = nodes[node.parent];
-
-      if (parent !== undefined) parent.hasOutput = true;
-    }
-  }
-}
-
 export function parseTrace(jsonl: string): ParseResult {
   if (jsonl.length === 0) return parseError("empty", 1, "trace is empty");
 
@@ -268,7 +250,6 @@ export function parseTrace(jsonl: string): ParseResult {
           children: [],
           outputs: [],
           exc: null,
-          hasOutput: false,
         });
 
         if (parentId !== null) nodes[parentId]?.children.push(id);
@@ -342,8 +323,6 @@ export function parseTrace(jsonl: string): ParseResult {
 
     if (eventError !== null) return { ok: false, error: eventError };
   }
-
-  markSubtreeOutput(nodes);
 
   const trace: Trace = {
     header,

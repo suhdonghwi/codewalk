@@ -163,7 +163,6 @@ describe("buildBlockView", () => {
           children: [1],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
         {
           id: 1,
@@ -172,7 +171,6 @@ describe("buildBlockView", () => {
           children: [2],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
         {
           id: 2,
@@ -181,7 +179,6 @@ describe("buildBlockView", () => {
           children: [4, 3],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
         {
           id: 3,
@@ -190,7 +187,6 @@ describe("buildBlockView", () => {
           children: [5],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
         {
           id: 4,
@@ -199,7 +195,6 @@ describe("buildBlockView", () => {
           children: [],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
         {
           id: 5,
@@ -208,7 +203,6 @@ describe("buildBlockView", () => {
           children: [],
           outputs: [],
           exc: null,
-          hasOutput: false,
         },
       ],
       outputs: [],
@@ -272,7 +266,6 @@ describe("buildBlockView", () => {
 
     expect(buildBlockTitle(fact, 0)).toEqual({
       text: "fact.py",
-      hasOutput: true,
       hasException: false,
     });
     expect(
