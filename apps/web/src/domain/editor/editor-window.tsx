@@ -17,7 +17,7 @@ import { setSyntaxError } from "./syntax-error.ts";
 
 const MINIMUM_SIZE = { width: 320, height: 160 };
 
-const RESIZE_HANDLE = "absolute z-[4] touch-none";
+const RESIZE_HANDLE = "absolute z-4 touch-none";
 
 interface EditorWindowProps {
   onRun: () => void;
@@ -94,7 +94,7 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
       <TooltipTrigger asChild>
         <Button
           aria-label="Run"
-          className="size-5 rounded-[5px]"
+          className="size-5 rounded-sm"
           data-window-control
           disabled={running}
           onClick={onRun}
@@ -122,7 +122,7 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
     >
       <div className="min-h-0 flex-1" ref={editorHost} />
       <div
-        className={`${RESIZE_HANDLE} top-7 right-0 bottom-3 w-1.5 cursor-ew-resize`}
+        className={`${RESIZE_HANDLE} top-titlebar right-0 bottom-3 w-1.5 cursor-ew-resize`}
         {...resizeRight}
       />
       <div

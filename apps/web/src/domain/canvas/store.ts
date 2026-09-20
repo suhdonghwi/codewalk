@@ -28,7 +28,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   windows: {
     editor: { x: 0, y: 0, z: 3 },
     stdin: { x: -336, y: 0, z: 2 },
-    output: { x: -336, y: 177, z: 1 },
+    output: { x: -336, y: 174, z: 1 },
     trace: { x: 576, y: 0, z: 4 },
   },
   editorSize: { width: 560, height: 320 },

@@ -74,7 +74,7 @@ function TreeBlockRow({
 
   return (
     <div
-      className="absolute z-[1] animate-tree-fade-in"
+      className="absolute z-1 animate-tree-fade-in"
       data-block={block}
       data-expanded={expanded}
       style={{
@@ -126,7 +126,7 @@ function OmittedTreeRow({
 }) {
   return (
     <div
-      className="absolute z-[1] animate-tree-fade-in"
+      className="absolute z-1 animate-tree-fade-in"
       style={{
         left: layout?.x ?? 0,
         top,
@@ -135,7 +135,7 @@ function OmittedTreeRow({
       }}
     >
       <WindowChrome
-        className="w-full max-w-[720px]"
+        className="w-full max-w-trace"
         title="⋯"
         titlebarClassName="justify-center p-0 text-neutral-400"
       />

@@ -9,13 +9,34 @@
   --color-site-accent: #3b82f6;
   --color-code-foreground: #30343b;
   --color-code-error: #a14f4f;
+  --color-canvas-dot: #dedede;
   --color-exception: #b65b5b;
   --color-inline-output: #858585;
   --color-window-border: #e5e5e5;
+  --spacing-gutter: 2.5rem;
+  --spacing-titlebar: 1.75rem;
+  --container-trace: 45rem;
+  --shadow-window: 0 1px 2px rgb(0 0 0 / 4%), 0 6px 18px rgb(0 0 0 / 5%);
   --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --text-code: 13px;
   --text-code--line-height: 1.5;
   --animate-tree-fade-in: tree-fade-in 120ms ease-out;
+}
+
+@utility code-surface {
+  background-color: var(--color-white);
+  color: var(--color-code-foreground);
+  font-family: var(--font-code);
+  font-size: var(--text-code);
+  line-height: var(--text-code--line-height);
+}
+
+@utility canvas-dots {
+  background-image: radial-gradient(
+    circle,
+    var(--color-canvas-dot) 0.75px,
+    transparent 0.85px
+  );
 }
 
 :root {

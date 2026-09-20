@@ -21,7 +21,7 @@ interface TraceLineProps {
 const STATE_CLASSES: Record<Span["state"], string> = {
   lit: "",
   dimmed: "!text-neutral-400 !not-italic !no-underline",
-  inert: "opacity-[0.55]",
+  inert: "opacity-55",
 };
 
 const FOCUS_LINE_CLASSES: Record<Focus["kind"], string> = {
@@ -69,12 +69,12 @@ export function TraceLine({
         <span
           aria-hidden
           className={cn(
-            "relative w-[38px] flex-none pr-[7px] pl-1.5 text-right text-neutral-400 select-none",
+            "relative w-gutter flex-none pr-2 pl-1.5 text-right text-neutral-400 select-none",
             focusKind !== null &&
-              "after:absolute after:inset-y-0 after:left-0 after:w-0.5 after:content-['']",
+              "after:absolute after:inset-y-0 after:left-0 after:w-0.5",
             focusKind !== null && FOCUS_GUTTER_CLASSES[focusKind],
             line.exception !== null &&
-              "before:absolute before:top-[0.58em] before:left-[5px] before:size-1 before:rounded-full before:bg-exception before:content-['']",
+              "before:absolute before:top-[0.58em] before:left-1 before:size-1 before:rounded-full before:bg-exception",
           )}
         >
           {line.number}
@@ -171,7 +171,7 @@ export function TraceLine({
         )}
       </div>
       {expanded && line.output !== null ? (
-        <pre className="mt-0 mr-0 mb-0 ml-[38px] w-[calc(100%-38px)] pt-0.5 pr-0 pb-[3px] pl-[2ch] text-inline-output whitespace-pre-wrap [font:inherit]">
+        <pre className="m-0 ml-gutter w-[calc(100%-var(--spacing-gutter))] pt-0.5 pb-1 pl-[2ch] text-inline-output whitespace-pre-wrap [font:inherit]">
           {line.output.segments.map((segment, index) => (
             <span
               className={

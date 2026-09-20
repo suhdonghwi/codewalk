@@ -41,7 +41,7 @@ export function WindowChrome({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-[6px] bg-white shadow-[0_1px_2px_rgb(0_0_0_/_4%),0_6px_18px_rgb(0_0_0_/_5%)] after:pointer-events-none after:absolute after:inset-0 after:z-[3] after:rounded-[inherit] after:border after:border-window-border after:content-['']",
+        "relative overflow-hidden rounded-md bg-white shadow-window after:pointer-events-none after:absolute after:inset-0 after:z-3 after:rounded-[inherit] after:border after:border-window-border",
         className,
       )}
       data-window-chrome
@@ -51,7 +51,7 @@ export function WindowChrome({
       <div
         {...titlebarProps}
         className={cn(
-          "flex h-7 cursor-default items-center justify-between border-b border-[#eeeeee] pt-px pr-[5px] pl-[9px] text-xs leading-none font-medium text-neutral-500 select-none",
+          "flex h-titlebar cursor-default items-center justify-between border-b border-window-border pt-px pr-1 pl-2 text-xs leading-none font-medium text-neutral-500 select-none",
           titlebarClassName,
           titlebarProps?.className,
         )}

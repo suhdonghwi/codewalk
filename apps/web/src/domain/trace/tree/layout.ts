@@ -1,3 +1,4 @@
+// Mirrors --spacing-titlebar in index.css for trace layout calculations.
 export const TITLE_BAR = 28;
 
 const COLUMN_GAP = 64;

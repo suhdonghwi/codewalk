@@ -17,8 +17,8 @@ export function OutputWindow({
   const segments = outputSegments(outcome);
 
   return (
-    <CanvasWindow className="w-[320px]" id="output" title="output">
-      <pre className="m-0 block max-h-[480px] w-full overflow-auto rounded-none border-0 bg-white px-[9px] py-[7px] font-code text-code text-code-foreground whitespace-pre outline-none">
+    <CanvasWindow className="w-80" id="output" title="output">
+      <pre className="code-surface m-0 block max-h-120 w-full overflow-auto rounded-none border-0 px-2 py-2 whitespace-pre outline-none">
         {segments.map((segment) => {
           if (segment.kind === "notice") {
             return (
@@ -39,7 +39,7 @@ export function OutputWindow({
           return (
             <span
               className={cn(
-                "cursor-pointer hover:bg-neutral-100 focus-visible:[outline:1px_solid_var(--color-site-accent)] focus-visible:outline-offset-1",
+                "cursor-pointer hover:bg-neutral-100 focus-visible:outline focus-visible:outline-site-accent focus-visible:outline-offset-1",
                 segment.kind === "stderr" && "text-code-error",
                 focused && "bg-site-accent/12",
               )}

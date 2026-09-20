@@ -42,7 +42,7 @@ export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
 
         return (
           <path
-            className="animate-tree-fade-in fill-none stroke-site-accent stroke-[1.5px] [stroke-opacity:0.6]"
+            className="animate-tree-fade-in fill-none stroke-site-accent/60 stroke-[1.5]"
             d={`M ${startX} ${startY} C ${controlX} ${startY}, ${controlX} ${endY}, ${endX} ${endY}`}
             key={`${column}:${child}`}
           />

@@ -181,7 +181,7 @@ export function Canvas({ children }: CanvasProps) {
 
   return (
     <main
-      className="relative size-full touch-none overflow-hidden bg-neutral-50 bg-[radial-gradient(circle,#dedede_0.75px,transparent_0.85px)]"
+      className="canvas-dots relative size-full touch-none overflow-hidden bg-neutral-50"
       data-canvas
       onPointerCancel={endPan}
       onPointerDown={startPan}

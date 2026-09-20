@@ -85,8 +85,8 @@ function ExpandedBody({
         )?.number ?? null);
 
   return (
-    <div className="max-w-[718px] overflow-x-auto bg-white font-code text-code text-code-foreground">
-      <div className="w-max min-w-full py-[7px]">
+    <div className="code-surface max-w-trace overflow-x-auto">
+      <div className="w-max min-w-full py-2">
         {view.lines.map((line) => (
           <TraceLine
             anchor={line.number === anchorLine}
@@ -121,7 +121,7 @@ export function TraceWindow({
   return (
     <WindowChrome
       chromeRef={chromeRef}
-      className={cn("w-max max-w-[720px]", className)}
+      className={cn("w-max max-w-trace", className)}
       title={title.text}
       titleIndicator={titleIndicator(title.hasException, title.hasOutput)}
       titlebarClassName={titlebarClassName}

@@ -19,7 +19,7 @@ export const editorTheme = EditorView.theme({
   },
   ".cm-content": {
     minWidth: "max-content",
-    padding: "7px 0",
+    padding: "8px 0",
     caretColor: "#262626",
   },
   ".cm-line": {
@@ -31,8 +31,8 @@ export const editorTheme = EditorView.theme({
     borderRight: "0",
   },
   ".cm-lineNumbers .cm-gutterElement": {
-    minWidth: "34px",
-    padding: "0 7px 0 6px",
+    minWidth: "36px",
+    padding: "0 8px 0 6px",
   },
   ".cm-activeLine, .cm-activeLineGutter": {
     backgroundColor: "transparent",
