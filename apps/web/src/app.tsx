@@ -42,7 +42,6 @@ export function App({ runner: injectedRunner }: AppProps) {
   );
 
   const outcome = useRunStore((state) => state.outcome);
-  const focus = useTraceStore((state) => state.focus);
 
   const run = useCallback(() => {
     const state = useRunStore.getState();
@@ -70,7 +69,7 @@ export function App({ runner: injectedRunner }: AppProps) {
     const current = useRunStore.getState().outcome;
 
     if (current?.kind !== "trace") return;
-    useTraceStore.getState().focusOutput(current.trace, chunk);
+    useTraceStore.getState().openOutput(current.trace, chunk);
   }, []);
 
   useEffect(() => {
@@ -95,10 +94,7 @@ export function App({ runner: injectedRunner }: AppProps) {
       <Canvas>
         <EditorWindow onRun={run} shortcut={runShortcut()} />
         <StdinWindow />
-        <OutputWindow
-          focusedChunk={focus?.kind === "output" ? focus.chunk : null}
-          onSelectChunk={selectOutputChunk}
-        />
+        <OutputWindow onSelectChunk={selectOutputChunk} />
         {traceTree}
       </Canvas>
     </TooltipProvider>

@@ -6,13 +6,11 @@ import { cn } from "@/ui/utils.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 
 import type { Line, Span } from "./block-view.ts";
-import type { Focus } from "../tree/navigation.ts";
 import type { LocId } from "@codewalk/trace";
 
 interface TraceLineProps {
   line: Line;
   anchor: boolean;
-  focusKind: Focus["kind"] | null;
   hoveredSite: LocId | null;
   openSite: LocId | null;
   onHoverSite: (site: LocId | null) => void;
@@ -28,16 +26,6 @@ const STATE_CLASSES: Record<Span["state"], string> = {
 const OUTPUT_CHIP_CLASSES =
   "ml-[2ch] rounded-sm bg-inline-output-surface px-[0.75ch] text-inline-output";
 
-const FOCUS_LINE_CLASSES: Record<Focus["kind"], string> = {
-  output: "bg-site-accent/8",
-  exception: "bg-exception/8",
-};
-
-const FOCUS_GUTTER_CLASSES: Record<Focus["kind"], string> = {
-  output: "after:bg-site-accent",
-  exception: "after:bg-exception",
-};
-
 function siteBackground(span: Span): string | undefined {
   if (span.state !== "lit" || span.sites.length === 0) return undefined;
   const strength = Math.min(14, 8 + (span.sites.length - 1) * 2);
@@ -48,7 +36,6 @@ function siteBackground(span: Span): string | undefined {
 export function TraceLine({
   line,
   anchor,
-  focusKind,
   hoveredSite,
   openSite,
   onHoverSite,
@@ -62,21 +49,14 @@ export function TraceLine({
   return (
     <div className="min-w-max">
       <div
-        className={cn(
-          "flex min-h-[1.5em] w-max min-w-full items-baseline pr-4 whitespace-pre",
-          focusKind !== null && FOCUS_LINE_CLASSES[focusKind],
-        )}
-        data-focus-kind={focusKind ?? undefined}
-        data-focused-line={focusKind ?? undefined}
+        className="flex min-h-[1.5em] w-max min-w-full items-baseline pr-4 whitespace-pre"
+        data-line={line.number}
         data-site-anchor={anchor || undefined}
       >
         <span
           aria-hidden
           className={cn(
             "relative w-gutter flex-none pr-2 pl-1.5 text-right text-neutral-400 select-none",
-            focusKind !== null &&
-              "after:absolute after:inset-y-0 after:left-0 after:w-0.5",
-            focusKind !== null && FOCUS_GUTTER_CLASSES[focusKind],
             line.exception !== null &&
               "before:absolute before:top-[0.58em] before:left-1 before:size-1 before:rounded-full before:bg-exception",
           )}

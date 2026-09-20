@@ -220,7 +220,8 @@ path: NodeId[]      // expanded block windows, root → deepest
   child. **Click a row** in a sibling list (or ↑/↓ inside it) → replace that
   column's entry.
 - **Reverse navigation** (click output) and **exception auto-open** (on a failed
-  run) are both just `path = pathTo(node)`, plus a highlight on the target site.
+  run) are both just `path = pathTo(node)`: they leave no state or styling
+  behind. Clicking output also pans the target line into view.
 - `path` is serializable (URL → "look at this exact moment").
 
 ## Server and sandbox

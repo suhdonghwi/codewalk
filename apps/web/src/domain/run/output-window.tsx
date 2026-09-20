@@ -5,14 +5,10 @@ import { outputSegments } from "./output-segments.ts";
 import { useRunStore } from "./store.ts";
 
 interface OutputWindowProps {
-  focusedChunk: number | null;
   onSelectChunk: (chunk: number) => void;
 }
 
-export function OutputWindow({
-  focusedChunk,
-  onSelectChunk,
-}: OutputWindowProps) {
+export function OutputWindow({ onSelectChunk }: OutputWindowProps) {
   const outcome = useRunStore((state) => state.outcome);
   const segments = outputSegments(outcome);
 
@@ -28,8 +24,6 @@ export function OutputWindow({
             );
           }
 
-          const focused = focusedChunk === segment.chunk;
-
           const open = (): void => {
             onSelectChunk(segment.chunk);
           };
@@ -41,7 +35,6 @@ export function OutputWindow({
               className={cn(
                 "cursor-pointer hover:bg-neutral-100 focus-visible:outline focus-visible:outline-site-accent focus-visible:outline-offset-1",
                 segment.kind === "stderr" && "text-code-error",
-                focused && "bg-site-accent/12",
               )}
               data-output-chunk={segment.chunk}
               key={segment.chunk}

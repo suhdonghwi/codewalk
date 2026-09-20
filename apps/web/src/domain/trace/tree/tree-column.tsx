@@ -7,7 +7,6 @@ import {
 import { SiblingList } from "./sibling-list.tsx";
 
 import type { ColumnLayout } from "./layout.ts";
-import type { Focus } from "./navigation.ts";
 import type { PathColumn } from "./path.ts";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -16,7 +15,6 @@ interface TreeColumnProps {
   column: PathColumn;
   columnIndex: number;
   expandedBlock: NodeId;
-  focus: Focus | null;
   layout: ColumnLayout | undefined;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (column: number, site: LocId) => void;
@@ -29,7 +27,6 @@ export function TreeColumn({
   column,
   columnIndex,
   expandedBlock,
-  focus,
   layout,
   onMeasure,
   onToggleSite,
@@ -68,7 +65,6 @@ export function TreeColumn({
           block={expandedBlock}
           className=""
           column={columnIndex}
-          focus={focus?.block === expandedBlock ? focus : null}
           onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(columnIndex, site)}
           openSite={column.openSite}
