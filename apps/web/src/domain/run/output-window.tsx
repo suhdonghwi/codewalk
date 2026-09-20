@@ -4,6 +4,8 @@ import { cn } from "@/ui/utils.ts";
 import { outputSegments } from "./output-segments.ts";
 import { useRunStore } from "./store.ts";
 
+const MINIMUM_SIZE = { width: 200, height: 96 };
+
 interface OutputWindowProps {
   onSelectChunk: (chunk: number) => void;
 }
@@ -13,8 +15,8 @@ export function OutputWindow({ onSelectChunk }: OutputWindowProps) {
   const segments = outputSegments(outcome);
 
   return (
-    <CanvasWindow className="w-80" id="output" title="output">
-      <pre className="code-surface m-0 block max-h-120 w-full overflow-auto rounded-none border-0 px-2 py-2 whitespace-pre outline-none">
+    <CanvasWindow id="output" minimumSize={MINIMUM_SIZE} title="output">
+      <pre className="code-surface m-0 block min-h-0 w-full flex-1 overflow-auto rounded-none border-0 px-2 py-2 whitespace-pre outline-none">
         {segments.map((segment) => {
           if (segment.kind === "notice") {
             return (

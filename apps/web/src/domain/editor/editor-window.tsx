@@ -3,11 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { LoaderCircle, Play } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import {
-  CanvasWindow,
-  useCanvasStore,
-  useWindowResize,
-} from "@/domain/canvas/index.ts";
+import { CanvasWindow } from "@/domain/canvas/index.ts";
 import { useRunStore } from "@/domain/run/index.ts";
 import { Button } from "@/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip.tsx";
@@ -17,8 +13,6 @@ import { setSyntaxError } from "./syntax-error.ts";
 
 const MINIMUM_SIZE = { width: 320, height: 160 };
 
-const RESIZE_HANDLE = "absolute z-4 touch-none";
-
 interface EditorWindowProps {
   onRun: () => void;
   shortcut: string;
@@ -27,31 +21,6 @@ interface EditorWindowProps {
 export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
   const editorHost = useRef<HTMLDivElement>(null);
   const running = useRunStore((state) => state.running);
-  const size = useCanvasStore((state) => state.editorSize);
-
-  const currentSize = () => useCanvasStore.getState().editorSize;
-  const resize = useCanvasStore.getState().resizeEditor;
-
-  const resizeRight = useWindowResize(
-    { x: true, y: false },
-    MINIMUM_SIZE,
-    currentSize,
-    resize,
-  );
-
-  const resizeBottom = useWindowResize(
-    { x: false, y: true },
-    MINIMUM_SIZE,
-    currentSize,
-    resize,
-  );
-
-  const resizeCorner = useWindowResize(
-    { x: true, y: true },
-    MINIMUM_SIZE,
-    currentSize,
-    resize,
-  );
 
   useEffect(() => {
     const parent = editorHost.current;
@@ -114,25 +83,12 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
 
   return (
     <CanvasWindow
-      className="flex flex-col"
       id="editor"
-      style={{ width: size.width, height: size.height }}
+      minimumSize={MINIMUM_SIZE}
       title="main.py"
       titleAction={runButton}
     >
       <div className="min-h-0 flex-1" ref={editorHost} />
-      <div
-        className={`${RESIZE_HANDLE} top-titlebar right-0 bottom-3 w-1.5 cursor-ew-resize`}
-        {...resizeRight}
-      />
-      <div
-        className={`${RESIZE_HANDLE} right-3 bottom-0 left-0 h-1.5 cursor-ns-resize`}
-        {...resizeBottom}
-      />
-      <div
-        className={`${RESIZE_HANDLE} right-0 bottom-0 size-3 cursor-nwse-resize`}
-        {...resizeCorner}
-      />
     </CanvasWindow>
   );
 }

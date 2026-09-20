@@ -2,16 +2,20 @@ import type { CSSProperties, HTMLAttributes, ReactNode, Ref } from "react";
 
 import { cn } from "@/ui/utils.ts";
 
-import { useCanvasStore, type WindowId } from "./store.ts";
+import { useCanvasStore, type ResizableWindowId } from "./store.ts";
 import { useWindowDrag } from "./use-window-drag.ts";
+import { useWindowResize } from "./use-window-resize.ts";
+
+import type { Size } from "./view.ts";
+
+const RESIZE_HANDLE = "absolute z-4 touch-none";
 
 interface CanvasWindowProps {
-  id: WindowId;
+  id: ResizableWindowId;
   title: string;
   titleIndicator?: ReactNode;
   titleAction?: ReactNode;
-  className: string;
-  style?: CSSProperties | undefined;
+  minimumSize: Size;
   children: ReactNode;
 }
 
@@ -67,16 +71,68 @@ export function WindowChrome({
   );
 }
 
+function ResizeHandles({
+  id,
+  minimumSize,
+}: {
+  id: ResizableWindowId;
+  minimumSize: Size;
+}) {
+  const currentSize = () => useCanvasStore.getState().sizes[id];
+
+  const resize = (size: Size): void => {
+    useCanvasStore.getState().resizeWindow(id, size);
+  };
+
+  const right = useWindowResize(
+    { x: true, y: false },
+    minimumSize,
+    currentSize,
+    resize,
+  );
+
+  const bottom = useWindowResize(
+    { x: false, y: true },
+    minimumSize,
+    currentSize,
+    resize,
+  );
+
+  const corner = useWindowResize(
+    { x: true, y: true },
+    minimumSize,
+    currentSize,
+    resize,
+  );
+
+  return (
+    <>
+      <div
+        className={`${RESIZE_HANDLE} top-titlebar right-0 bottom-3 w-1.5 cursor-ew-resize`}
+        {...right}
+      />
+      <div
+        className={`${RESIZE_HANDLE} right-3 bottom-0 left-0 h-1.5 cursor-ns-resize`}
+        {...bottom}
+      />
+      <div
+        className={`${RESIZE_HANDLE} right-0 bottom-0 size-3 cursor-nwse-resize`}
+        {...corner}
+      />
+    </>
+  );
+}
+
 export function CanvasWindow({
   id,
   title,
   titleIndicator,
   titleAction,
-  className,
-  style,
+  minimumSize,
   children,
 }: CanvasWindowProps) {
   const windowState = useCanvasStore((state) => state.windows[id]);
+  const size = useCanvasStore((state) => state.sizes[id]);
   const titlebarProps = useWindowDrag(id);
 
   return (
@@ -90,8 +146,8 @@ export function CanvasWindow({
       }}
     >
       <WindowChrome
-        className={className}
-        style={style}
+        className="flex flex-col"
+        style={{ width: size.width, height: size.height }}
         title={title}
         titleAction={titleAction}
         titleIndicator={titleIndicator}
@@ -99,6 +155,7 @@ export function CanvasWindow({
         titlebarProps={titlebarProps}
       >
         {children}
+        <ResizeHandles id={id} minimumSize={minimumSize} />
       </WindowChrome>
     </div>
   );

@@ -6,6 +6,8 @@ const WINDOW_GAP = 16;
 
 export type WindowId = "editor" | "stdin" | "output" | "trace";
 
+export type ResizableWindowId = Exclude<WindowId, "trace">;
+
 interface WindowState {
   x: number;
   y: number;
@@ -15,11 +17,11 @@ interface WindowState {
 interface CanvasState {
   view: ViewTransform;
   windows: Record<WindowId, WindowState>;
-  editorSize: Size;
+  sizes: Record<ResizableWindowId, Size>;
   nextZ: number;
   setView: (view: ViewTransform) => void;
   moveWindow: (id: WindowId, x: number, y: number) => void;
-  resizeEditor: (size: Size) => void;
+  resizeWindow: (id: ResizableWindowId, size: Size) => void;
   bringToFront: (id: WindowId) => void;
 }
 
@@ -29,30 +31,38 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     editor: { x: 0, y: 0, z: 3 },
     stdin: { x: -336, y: 0, z: 2 },
     output: { x: -336, y: 174, z: 1 },
-    trace: { x: 576, y: 0, z: 4 },
+    trace: { x: 464, y: 0, z: 4 },
   },
-  editorSize: { width: 560, height: 320 },
+  sizes: {
+    editor: { width: 448, height: 320 },
+    stdin: { width: 320, height: 158 },
+    output: { width: 320, height: 240 },
+  },
   nextZ: 5,
   setView: (view) => {
     set({ view });
   },
-  resizeEditor: (editorSize) => {
+  resizeWindow: (id, size) => {
     set((state) => {
+      const sizes = { ...state.sizes, [id]: size };
+
+      if (id !== "editor") return { sizes };
+
       // While the trace tree still sits at its default spot beside the editor it
       // stays docked to the editor's right edge; once either was dragged, it is
       // the user's layout and is left alone.
       const { editor, trace } = state.windows;
 
       const docked =
-        trace.x === editor.x + state.editorSize.width + WINDOW_GAP &&
+        trace.x === editor.x + state.sizes.editor.width + WINDOW_GAP &&
         trace.y === editor.y;
 
       return {
-        editorSize,
+        sizes,
         windows: docked
           ? {
               ...state.windows,
-              trace: { ...trace, x: editor.x + editorSize.width + WINDOW_GAP },
+              trace: { ...trace, x: editor.x + size.width + WINDOW_GAP },
             }
           : state.windows,
       };
