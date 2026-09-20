@@ -103,7 +103,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
     const next = selectSibling(current, column, block);
 
     if (next === current) return;
-    // The list and the window it fills stay where they are: nothing to reveal.
     useTraceStore.getState().setPath(next, null);
   }
 

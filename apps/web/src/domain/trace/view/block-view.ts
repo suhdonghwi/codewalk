@@ -148,10 +148,6 @@ function blockTitle(
   };
 }
 
-/**
- * `position` lets a caller that already knows where the block sits among its
- * siblings (the sibling list) skip the site lookup, which is linear in them.
- */
 export function buildBlockTitle(
   trace: Trace,
   block: NodeId,

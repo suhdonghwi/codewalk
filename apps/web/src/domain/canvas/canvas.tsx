@@ -20,12 +20,6 @@ interface PanDrag {
 
 type WheelRoute = "scroll" | "hold" | "pan";
 
-/**
- * Who gets a wheel event. The nearest ancestor with overflowing content along
- * the wheel's dominant axis owns it: it scrolls natively while it can, and once
- * it reaches its end the event is held — scrolling inside a window never spills
- * over into panning the canvas. Only a wheel over nothing scrollable pans.
- */
 function routeWheel(
   target: EventTarget | null,
   root: HTMLElement,

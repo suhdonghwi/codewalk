@@ -57,7 +57,6 @@ export function usePendingReveal(
       ? (measurement.focusCenterY ?? 0) - REVEAL_HEIGHT / 2
       : 0;
 
-    // A focused line is in the window; an opened site also brings its list.
     const x = pending.focusLine ? layout.windowX : layout.x;
     const width = layout.windowX - x + measurement.width;
 

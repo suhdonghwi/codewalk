@@ -3,8 +3,6 @@ export const TITLE_BAR = 28;
 
 const COLUMN_GAP = 64;
 
-// A site with several child blocks shows them as a sibling list between the
-// parent window and the expanded child.
 export const SIBLING_LIST_WIDTH = 168;
 
 const SIBLING_LIST_GAP = 8;
@@ -16,7 +14,7 @@ export interface ColumnInput {
 }
 
 export interface ColumnLayout {
-  x: number; // left edge of the column: the sibling list if any, else the window
+  x: number;
   windowX: number;
   top: number;
 }

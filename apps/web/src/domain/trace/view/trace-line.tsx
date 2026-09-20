@@ -20,8 +20,6 @@ interface TraceLineProps {
 
 const STATE_CLASSES: Record<Span["state"], string> = {
   lit: "",
-  // Did not run: colour drained as well as faded. Inert code (it runs in a child
-  // window) only fades and keeps its syntax colours.
   dimmed: "!text-neutral-500 !not-italic opacity-55",
   inert: "opacity-55",
 };

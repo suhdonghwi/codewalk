@@ -36,7 +36,6 @@ export function TreeColumn({
   onChoose,
   rootTitlebarProps,
 }: TreeColumnProps) {
-  // Unplaced columns still render, hidden, so their window can be measured.
   const visibility = layout === undefined ? "hidden" : "visible";
 
   return (

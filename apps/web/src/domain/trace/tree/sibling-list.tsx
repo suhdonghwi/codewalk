@@ -23,12 +23,6 @@ interface SiblingListProps {
   onChoose: (block: NodeId) => void;
 }
 
-/**
- * All child blocks of one site, the selected one highlighted. The list has a
- * fixed position and a bounded height and scrolls inside, so choosing a sibling
- * never moves anything on the canvas. Rows are windowed: a loop can have
- * thousands of iterations.
- */
 export function SiblingList({
   trace,
   blocks,
@@ -47,7 +41,6 @@ export function SiblingList({
     const rowTop = selectedIndex * ROW_HEIGHT;
 
     if (!positioned.current) {
-      // First show (site opened, or navigated here from output): centre it.
       element.scrollTop = rowTop - (viewportHeight - ROW_HEIGHT) / 2;
       positioned.current = true;
     } else if (rowTop < element.scrollTop) {
