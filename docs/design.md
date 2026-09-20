@@ -160,7 +160,9 @@ also validated against `spec/trace.schema.json`.
 ### Canvas
 
 Hand-made infinite canvas (pan/zoom) and window components — no React Flow; the
-layout and interaction logic is too custom.
+layout and interaction logic is too custom. A wheel over content that
+scrolls (editor, sibling list) belongs to that content, also once it has reached
+its end; only a wheel over nothing scrollable pans.
 
 Movable objects on the canvas: the **editor** window, the **stdin** window, the
 **output** window, and the **trace tree** (dragged by its root window). Windows
@@ -186,9 +188,12 @@ is still at its default spot it stays docked to the editor's right edge.
   same engine as the editor: Lezer (`@lezer/python` + `@lezer/highlight`) with
   the shared `HighlightStyle`. Tokens are split at loc boundaries so highlight
   spans and interactive ranges are one flat span list. Shows:
-  - lit / dimmed / inert statements (see spec, "Statement state");
+  - statement state (see spec, "Statement state"): lit at full strength; inert
+    (runs in a child window) faded but still syntax-coloured; dimmed (did not
+    run) faded and grey;
   - clickable ranges for sites that contain blocks;
-  - inline output at the end of the line of sites that contain output;
+  - inline output as a tinted chip right after the code of the line whose sites
+    contain output; long or multi-line output expands into a panel below it;
   - the exception marker on the origin statement.
     Title bar: kind + name (`function fact`, `iteration 3`), has-output marker.
     A window is either expanded or collapsed to its title bar.
@@ -204,12 +209,16 @@ view is derived from
 path: NodeId[]      // expanded block windows, root → deepest
 ```
 
-- Column _k_ of the tree holds the child stack of the site selected in column
-  _k−1_: all child blocks as title bars, one of them expanded. (Finder column
-  view, on a canvas.) The expanded child is vertically aligned to the clicked
-  range where possible; an edge connects range → stack.
+- Column _k_ of the tree holds the children of the site selected in column
+  _k−1_: the expanded child window, preceded — when the site has several child
+  blocks — by a **sibling list** of all of them with the expanded one
+  highlighted. (Finder column view, on a canvas.) The list has a bounded height
+  and scrolls inside; both it and the window are top-aligned to the clicked
+  range, and an edge connects range → column. Choosing a sibling therefore moves
+  nothing on the canvas, however long the loop.
 - **Click a site** → truncate `path` at that window, append the site's first
-  child. **Click a title bar** in a stack → replace that column's entry.
+  child. **Click a row** in a sibling list (or ↑/↓ inside it) → replace that
+  column's entry.
 - **Reverse navigation** (click output) and **exception auto-open** (on a failed
   run) are both just `path = pathTo(node)`, plus a highlight on the target site.
 - `path` is serializable (URL → "look at this exact moment").
@@ -297,7 +306,7 @@ Follow the `writing-tests` skill. Project-specific designations it refers to:
 - **Core end-to-end journeys** — none are automated yet; when an end-to-end suite
   is added, this is the complete list it may cover:
   1. Run a program → click a call site → the callee window opens.
-  2. Click a loop → iteration stack opens → switch iteration.
+  2. Click a loop → sibling list opens → switch iteration.
   3. Click an output line → the path to its site opens.
   4. A run that raises → the path to the exception origin opens automatically.
   5. A syntax error is shown and no trace tree appears.

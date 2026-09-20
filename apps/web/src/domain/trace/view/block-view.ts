@@ -100,7 +100,26 @@ function blockSite(trace: Trace, block: NodeId): Site | null {
   );
 }
 
-function blockTitle(trace: Trace, block: NodeId, node: TraceNode, loc: Loc) {
+export interface SiblingPosition {
+  index: number;
+  count: number;
+}
+
+function siblingPosition(trace: Trace, block: NodeId): SiblingPosition | null {
+  const site = blockSite(trace, block);
+
+  return site === null
+    ? null
+    : { index: site.blocks.indexOf(block), count: site.blocks.length };
+}
+
+function blockTitle(
+  trace: Trace,
+  block: NodeId,
+  node: TraceNode,
+  loc: Loc,
+  knownPosition: SiblingPosition | null,
+) {
   const source = trace.header.sources[loc.file];
 
   if (source === undefined) throw new Error(`Block ${block} has no source`);
@@ -110,15 +129,15 @@ function blockTitle(trace: Trace, block: NodeId, node: TraceNode, loc: Loc) {
   if (loc.kind === "module") {
     text = source.file;
   } else {
-    const site = blockSite(trace, block);
-    const index = site?.blocks.indexOf(block) ?? 0;
+    const position = knownPosition ?? siblingPosition(trace, block);
+    const index = position?.index ?? 0;
 
     if (loc.kind === "iteration") {
       text = `iteration ${index}`;
     } else {
       const name = loc.name ?? loc.kind;
       text =
-        site !== null && site.blocks.length > 1 ? `${name} · ${index}` : name;
+        position !== null && position.count > 1 ? `${name} · ${index}` : name;
     }
   }
 
@@ -129,10 +148,21 @@ function blockTitle(trace: Trace, block: NodeId, node: TraceNode, loc: Loc) {
   };
 }
 
-export function buildBlockTitle(trace: Trace, block: NodeId): BlockTitle {
+export function buildBlockTitle(
+  trace: Trace,
+  block: NodeId,
+  position: SiblingPosition | null = null,
+): BlockTitle {
   const { node, loc } = requireBlock(trace, block);
 
-  return blockTitle(trace, block, node, loc);
+  return blockTitle(trace, block, node, loc, position);
+}
+
+export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {
+  const first = blocks[0];
+  const kind = first === undefined ? null : requireBlock(trace, first).loc.kind;
+
+  return `${blocks.length} ${kind === "iteration" ? "iterations" : "calls"}`;
 }
 
 function countLineBreaks(text: string, end: number): number {
@@ -421,7 +451,7 @@ export function buildBlockView(
   const exceptions = exceptionByLine(trace, block, node, lines, source.text);
 
   return {
-    title: blockTitle(trace, block, node, loc),
+    title: blockTitle(trace, block, node, loc, null),
     lines: lines.map((line) => ({
       number: line.number,
       spans: spansForLine(

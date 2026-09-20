@@ -18,61 +18,39 @@ interface PanDrag {
   viewY: number;
 }
 
-function canScrollAxis(
-  delta: number,
-  position: number,
-  scrollSize: number,
-  clientSize: number,
-): boolean {
-  if (delta < 0) return position > 0;
+type WheelRoute = "scroll" | "hold" | "pan";
 
-  if (delta > 0) return position < scrollSize - clientSize;
-
-  return false;
-}
-
-function scrollableAncestorCanConsume(
+function routeWheel(
   target: EventTarget | null,
   root: HTMLElement,
   deltaX: number,
   deltaY: number,
-): boolean {
+): WheelRoute {
+  const vertical = Math.abs(deltaY) >= Math.abs(deltaX);
+  const delta = vertical ? deltaY : deltaX;
   let element = target instanceof Element ? target : null;
 
   while (element !== null && element !== root) {
     if (element instanceof HTMLElement) {
       const style = getComputedStyle(element);
+      const overflow = vertical ? style.overflowY : style.overflowX;
+      const position = vertical ? element.scrollTop : element.scrollLeft;
 
-      const scrollsX =
-        style.overflowX === "auto" || style.overflowX === "scroll";
+      const limit = vertical
+        ? element.scrollHeight - element.clientHeight
+        : element.scrollWidth - element.clientWidth;
 
-      const scrollsY =
-        style.overflowY === "auto" || style.overflowY === "scroll";
+      if ((overflow === "auto" || overflow === "scroll") && limit > 0) {
+        const canScroll = delta < 0 ? position > 0 : position < limit;
 
-      if (
-        (scrollsX &&
-          canScrollAxis(
-            deltaX,
-            element.scrollLeft,
-            element.scrollWidth,
-            element.clientWidth,
-          )) ||
-        (scrollsY &&
-          canScrollAxis(
-            deltaY,
-            element.scrollTop,
-            element.scrollHeight,
-            element.clientHeight,
-          ))
-      ) {
-        return true;
+        return canScroll ? "scroll" : "hold";
       }
     }
 
     element = element.parentElement;
   }
 
-  return false;
+  return "pan";
 }
 
 export function Canvas({ children }: CanvasProps) {
@@ -114,18 +92,19 @@ export function Canvas({ children }: CanvasProps) {
         return;
       }
 
-      if (
-        scrollableAncestorCanConsume(
-          event.target,
-          canvasElement,
-          event.deltaX,
-          event.deltaY,
-        )
-      ) {
-        return;
-      }
+      const route = routeWheel(
+        event.target,
+        canvasElement,
+        event.deltaX,
+        event.deltaY,
+      );
+
+      if (route === "scroll") return;
 
       event.preventDefault();
+
+      if (route === "hold") return;
+
       const view = useCanvasStore.getState().view;
       useCanvasStore.getState().setView({
         ...view,

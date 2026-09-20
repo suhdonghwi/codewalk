@@ -8,7 +8,8 @@ cd "$(git rev-parse --show-toplevel)"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-git diff --cached --name-only --diff-filter=ACMR | sort > "$tmp/staged"
+git diff --cached --name-only --diff-filter=ACMR | sort |
+  while IFS= read -r file; do [ -L "$file" ] || printf '%s\n' "$file"; done > "$tmp/staged"
 git diff --name-only | sort > "$tmp/unstaged"
 comm -23 "$tmp/staged" "$tmp/unstaged" > "$tmp/write"
 comm -12 "$tmp/staged" "$tmp/unstaged" > "$tmp/check"
