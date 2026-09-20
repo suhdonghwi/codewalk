@@ -63,17 +63,17 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
       <TooltipTrigger asChild>
         <Button
           aria-label="Run"
-          className="size-5 rounded-sm"
+          className="size-5 rounded-sm text-run hover:text-run disabled:pointer-events-auto"
           data-window-control
           disabled={running}
           onClick={onRun}
           size="icon"
-          variant="run"
+          variant="ghost"
         >
           {running ? (
-            <LoaderCircle aria-hidden className="size-3 animate-spin" />
+            <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
           ) : (
-            <Play aria-hidden className="size-3 fill-current" />
+            <Play aria-hidden className="size-3.5 fill-current" />
           )}
         </Button>
       </TooltipTrigger>

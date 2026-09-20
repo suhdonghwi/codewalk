@@ -4,12 +4,11 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/ui/utils.ts";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
   {
     variants: {
       variant: {
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        run: "bg-run text-white hover:bg-run/85",
       },
       size: {
         icon: "size-7",
