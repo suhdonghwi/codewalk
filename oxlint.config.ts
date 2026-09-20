@@ -4,7 +4,7 @@ export default defineConfig({
   ignorePatterns: [
     ".agents/**",
     ".claude/**",
-    "apps/web/src/components/ui/**",
+    "apps/web/src/ui/**",
     "tools/oxlint/anti-slop/**",
     "apps/tracer-python/**",
   ],
@@ -17,6 +17,17 @@ export default defineConfig({
   ],
   rules: {
     "oxc/no-accumulating-spread": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            group: ["@/domain/*/**", "!@/domain/*/index.ts"],
+            message: "Import domains through their index.ts public API.",
+          },
+        ],
+      },
+    ],
     "unicorn/filename-case": ["error", { case: "kebabCase" }],
     "anti-slop/no-array-filter-map": "error",
     "anti-slop/no-reduce-accumulator-copy": "error",
@@ -37,4 +48,46 @@ export default defineConfig({
     "anti-slop/require-readable-spacing": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
   },
+  overrides: [
+    {
+      files: ["apps/web/src/domain/*/*.{ts,tsx}"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                group: ["@/domain/*/**", "!@/domain/*/index.ts"],
+                message: "Import domains through their index.ts public API.",
+              },
+              {
+                group: ["../**"],
+                message: "Do not use relative imports that leave a domain.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      files: ["apps/web/src/domain/*/*/*.{ts,tsx}"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                group: ["@/domain/*/**", "!@/domain/*/index.ts"],
+                message: "Import domains through their index.ts public API.",
+              },
+              {
+                group: ["../../**"],
+                message: "Do not use relative imports that leave a domain.",
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
 });

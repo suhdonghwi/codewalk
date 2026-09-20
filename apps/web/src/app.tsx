@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo } from "react";
 
-import { Canvas } from "@/canvas/canvas.tsx";
-import { TooltipProvider } from "@/components/ui/tooltip.tsx";
-import { createFixtureRunner, createHttpRunner } from "@/run/runners.ts";
-import type { TraceRunner } from "@/run/types.ts";
-import { useAppStore } from "@/state/store.ts";
-import { TraceTree } from "@/trace-tree/trace-tree.tsx";
-import { EditorWindow } from "@/windows/editor-window.tsx";
-import { OutputWindow } from "@/windows/output-window.tsx";
-import { StdinWindow } from "@/windows/stdin-window.tsx";
+import { Canvas } from "@/domain/canvas/index.ts";
+import { EditorWindow } from "@/domain/editor/index.ts";
+import {
+  createFixtureRunner,
+  createHttpRunner,
+  OutputWindow,
+  StdinWindow,
+  useRunStore,
+} from "@/domain/run/index.ts";
+import { TraceTree, useTraceStore } from "@/domain/trace/index.ts";
+import { TooltipProvider } from "@/ui/tooltip.tsx";
+
+import type { RunOutcome, TraceRunner } from "@/domain/run/index.ts";
 
 interface AppProps {
   runner?: TraceRunner;
@@ -24,37 +28,50 @@ function runShortcut(): string {
   return /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl↵";
 }
 
+function finishRun(outcome: RunOutcome): void {
+  useRunStore.getState().setOutcome(outcome);
+  useTraceStore
+    .getState()
+    .resetForTrace(outcome.kind === "trace" ? outcome.trace : null);
+}
+
 export function App({ runner: injectedRunner }: AppProps) {
   const runner = useMemo(
     () => injectedRunner ?? defaultRunner(),
     [injectedRunner],
   );
 
-  const outcome = useAppStore((state) => state.outcome);
+  const outcome = useRunStore((state) => state.outcome);
+  const focus = useTraceStore((state) => state.focus);
 
   const run = useCallback(() => {
-    const state = useAppStore.getState();
+    const state = useRunStore.getState();
 
     if (state.running) return;
 
     // The previous result stays on screen until the new one replaces it, so the
     // output window and the trace tree do not collapse and re-expand.
-    useAppStore.getState().setRunning(true);
+    useRunStore.getState().setRunning(true);
     void runner
       .run({ source: state.source, stdin: state.stdin })
-      .then((outcome) => {
-        useAppStore.getState().setOutcome(outcome);
-      })
+      .then(finishRun)
       .catch(() => {
-        useAppStore.getState().setOutcome({
+        finishRun({
           kind: "unreachable",
           message: "Runner failed",
         });
       })
       .finally(() => {
-        useAppStore.getState().setRunning(false);
+        useRunStore.getState().setRunning(false);
       });
   }, [runner]);
+
+  const selectOutputChunk = useCallback((chunk: number): void => {
+    const current = useRunStore.getState().outcome;
+
+    if (current?.kind !== "trace") return;
+    useTraceStore.getState().focusOutput(current.trace, chunk);
+  }, []);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -78,7 +95,10 @@ export function App({ runner: injectedRunner }: AppProps) {
       <Canvas>
         <EditorWindow onRun={run} shortcut={runShortcut()} />
         <StdinWindow />
-        <OutputWindow />
+        <OutputWindow
+          focusedChunk={focus?.kind === "output" ? focus.chunk : null}
+          onSelectChunk={selectOutputChunk}
+        />
         {traceTree}
       </Canvas>
     </TooltipProvider>
