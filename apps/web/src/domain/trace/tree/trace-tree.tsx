@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
@@ -22,10 +22,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   const rootTitlebarProps = useWindowDrag("trace");
 
-  const columns = useMemo(
-    () => path.map((_, column) => pathColumn(trace, path, column)),
-    [path, trace],
-  );
+  const columns = path.map((_, column) => pathColumn(trace, path, column));
 
   // A measurement stays usable for its own column while the open site changes;
   // only the anchor it carries goes stale (see `layoutableColumns`).
@@ -71,18 +68,15 @@ export function TraceTree({ trace }: { trace: Trace }) {
     }),
   );
 
-  const onMeasure = useCallback(
-    (column: number, measurement: Measurement): void => {
-      setMeasurements((current) => {
-        if (sameMeasurement(current[column], measurement)) return current;
-        const next = [...current];
-        next[column] = measurement;
+  function onMeasure(column: number, measurement: Measurement): void {
+    setMeasurements((current) => {
+      if (sameMeasurement(current[column], measurement)) return current;
+      const next = [...current];
+      next[column] = measurement;
 
-        return next;
-      });
-    },
-    [],
-  );
+      return next;
+    });
+  }
 
   function openSite(column: number, site: LocId): void {
     const current = useTraceStore.getState().path;
