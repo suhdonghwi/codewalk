@@ -48,6 +48,10 @@ uv run --project apps/tracer-python ty check --project apps/tracer-python
 description = "Check for unused JavaScript and TypeScript code"
 run = "pnpm run knip"
 
+[tasks.fonts]
+description = "Regenerate the subset web fonts from the font packages"
+run = "uv run tools/subset-fonts.py"
+
 [tasks.schema]
 description = "Regenerate the trace JSON Schema"
 run = "node packages/trace/scripts/generate-schema.ts"
