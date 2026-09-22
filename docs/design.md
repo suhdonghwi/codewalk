@@ -71,8 +71,8 @@ A **site** is a stmt/expr node that directly contains blocks (→ clickable rang
 or output (→ inline output). A call and a loop are the same thing to the viewer;
 so are a function activation and an iteration.
 
-v1 records **no values** — only structure, statement coverage, output and
-exceptions.
+v1 records structure, statement coverage, output and exceptions. It also
+records block inputs — function parameters and loop targets — at block entry.
 
 ## Tracer (Python)
 
@@ -82,17 +82,17 @@ explicit blocks for functions and iterations (reliable structure).
 
 ```python
 def fact(n):
-    with _cw.block(2):                                  # function activation
-        _cw.stmt(3); _cw_e(_cw_b(4), print("fact", n))
-        _cw.stmt(5)
-        if _cw_e(_cw_b(6), n <= 1):
-            _cw.stmt(7); return 1
-        _cw.stmt(8); return _cw_e(_cw_b(9), n * _cw_e(_cw_b(10), fact(_cw_e(_cw_b(11), n - 1))))
+    with _cw.block(2, (3, n)):
+        _cw.stmt(4); _cw_e(_cw_b(5), print("fact", n))
+        _cw.stmt(6)
+        if _cw_e(_cw_b(7), n <= 1):
+            _cw.stmt(8); return 1
+        _cw.stmt(9); return _cw_e(_cw_b(10), n * _cw_e(_cw_b(11), fact(_cw_e(_cw_b(12), n - 1))))
 
-_cw.stmt(12)                                            # loop statement stays open …
-for i in _cw_e(_cw_b(13), range(2)):
-    with _cw.iteration(14):                             # … and contains the iterations
-        _cw.stmt(15); _cw_e(_cw_b(16), print(_cw_e(_cw_b(17), fact(_cw_e(_cw_b(18), i + 1)))))
+_cw.stmt(13)
+for i in _cw_e(_cw_b(15), range(2)):
+    with _cw.iteration(16, (14, i)):
+        _cw.stmt(17); _cw_e(_cw_b(18), print(_cw_e(_cw_b(19), fact(_cw_e(_cw_b(20), i + 1)))))
 ```
 
 - **Injected names.** `_cw` (the runtime), `_cw_b`, `_cw_e` — prefixed so that a
@@ -103,7 +103,7 @@ for i in _cw_e(_cw_b(13), range(2)):
   frame inspection, recursion depth and tracebacks are unaffected.
 - **Selective bracketing.** Bracket expressions that can run code: `Call`,
   binary/unary operators, `Compare`, `Attribute`, `Subscript`, `Await`. Skip
-  `Name`/`Constant` leaves — without value capture they carry no information.
+  `Name`/`Constant` leaves — on their own they carry no structural information.
   Widening this set later changes neither the format nor the viewer.
 - **Statements: a point marker.** `_cw.stmt(id)` before each statement. It needs
   no end marker: the next sibling's marker (or the block's exit) closes it.
@@ -120,7 +120,7 @@ for i in _cw_e(_cw_b(13), range(2)):
   parent is whatever is open). Block exit pops down to the block. Repair never
   pops a block — if it would have to, something is wrong and it stops.
 - **Lazy emission.** `_cw_b` pushes a _pending_ node and writes nothing. The first
-  thing that happens inside it (output, block entry) writes the pending chain's
+  thing that happens inside it (output or block entry) writes the pending chain's
   `enter` events first. A pending node that closes untouched is dropped. So the
   trace contains only meaningful expr nodes, however much is bracketed; the
   remaining cost is CPU only.
@@ -130,6 +130,11 @@ for i in _cw_e(_cw_b(13), range(2)):
 - **Output.** `sys.stdout`/`sys.stderr` are replaced by writers that emit `out`
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
+- **Values.** Function parameters and loop targets are captured at block entry.
+  Values use a bounded, one-line `repr`. Recording and output capture are muted
+  while formatting so an instrumented user `__repr__` cannot change the trace.
+  Objects without a custom `__repr__` render as `<ClassName>`, including inside
+  containers.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits.** After N events the runtime writes `end: truncated` and stops
   recording (the program may be killed).
@@ -202,16 +207,26 @@ held at the window's top or bottom edge once the line scrolls out of view.
   - clickable ranges for sites that contain blocks;
   - inline output as a tinted chip right after the code of the line whose sites
     contain output; long or multi-line output expands into a panel below it;
+  - values as chips of the same shape in the value colour, inserted in the
+    code right after the name they belong to, reading `= 3`: a parameter's
+    value follows its name on the `def` line, a loop target's value follows
+    its name on the `for` line. Only the window's own block contributes values, so a `for` line
+    in the parent window carries none. Long values expand like output;
   - the exception on the origin statement: the line is faintly tinted, its line
     number turns red, and the one-line summary follows the code as a chip of the
     same shape as inline output, in the exception colour.
 
-  Title bar: the file name for the module, `iteration 3` (zero-based) for an
-  iteration, otherwise the function name — with ` · 1` appended when the site
-  ran several blocks (a callback, a call in a comprehension). A red dot marks a
-  block that was left by an exception; it is the only title indicator, output is
-  not marked. Sibling-list rows use the same text and dot. A window is either
-  expanded or collapsed to its title bar.
+  Chips are one primitive with three tints: value, output and exception. A
+  chip sits immediately after the range it annotates; output and the exception
+  annotate the whole statement, so they sit at the end of the line.
+
+  Title bar: the trace's `title`, with ` N` appended by the viewer when the site
+  ran several blocks (a callback, a call in a comprehension). Iteration windows
+  therefore read `iteration 2`. The block's entry values follow in parentheses
+  (`fact 2 (n = 3)`), which is how one iteration is told from the next in a
+  sibling list. A red dot marks a block that was left by an exception; it is the
+  only title indicator, output is not marked. Sibling-list rows use the same
+  text and dot. A window is either expanded or collapsed to its title bar.
 
 Running replaces the previous trace (the tree keeps its position).
 
@@ -343,8 +358,8 @@ The MVP is built: tracer, run server, canvas, trace tree, navigation. Not built:
 
 Further out:
 
-- Values: call arguments in window titles first, then expression values
-  (`_cw_e` already sees them), then variable/heap state.
+- Expression values in general (`_cw_e` already sees them), then return values,
+  then variable/heap state. Block inputs are the completed first step.
 - Instrumenting lambdas, generator expressions, generators, `async`; iteration
   blocks for comprehensions.
 - Convenience views over repetition (iteration tables, scrubbers, abbreviation).

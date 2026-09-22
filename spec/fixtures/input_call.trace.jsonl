@@ -1,4 +1,4 @@
-{"codewalk":1,"sources":[{"file":"input_call.py","text":"name = input()\nprint(\"hello\", name)\n"}],"locs":[{"role":"block","kind":"module","file":0,"start":0,"end":35,"parent":null},{"role":"stmt","kind":"assign","file":0,"start":0,"end":14,"parent":0},{"role":"expr","kind":"call","file":0,"start":7,"end":14,"parent":1},{"role":"stmt","kind":"expr","file":0,"start":15,"end":35,"parent":0},{"role":"expr","kind":"call","file":0,"start":15,"end":35,"parent":3}]}
+{"codewalk":1,"sources":[{"file":"input_call.py","text":"name = input()\nprint(\"hello\", name)\n"}],"locs":[{"role":"block","file":0,"start":0,"end":35,"parent":null,"title":"input_call.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":14,"parent":0},{"role":"expr","file":0,"start":7,"end":14,"parent":1},{"role":"stmt","file":0,"start":15,"end":35,"parent":0},{"role":"expr","file":0,"start":15,"end":35,"parent":3}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"exit"}

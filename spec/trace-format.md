@@ -31,11 +31,11 @@ Nesting rules:
   function's activation).
 - An `expr` contains `expr` nodes (syntactic nesting) and `block` nodes (a call
   expression contains the callee's activation).
-- Output attaches to the innermost open node.
+- Output and values attach to the innermost open node.
 
-The viewer's logic depends only on `role`. `kind` and `name` are display labels
-(`function fact`, `iteration`, `call`), so a new language maps its constructs
-onto the three roles and the viewer does not change.
+The viewer uses `role` for structure and the `title` and `unit` supplied on
+block locs for display. It does not interpret their text, so a new language maps
+its constructs onto the three roles and chooses its own block labels.
 
 The same loc may be entered more than once within one block node (a call inside
 a comprehension, a callback invoked repeatedly from native code). The viewer groups nodes by loc within a block and merges their child
@@ -56,7 +56,8 @@ killed mid-way.
   "locs": [
     {
       "role": "block",
-      "kind": "module",
+      "title": "main.py",
+      "unit": "module",
       "file": 0,
       "start": 0,
       "end": 135,
@@ -64,7 +65,6 @@ killed mid-way.
     },
     {
       "role": "stmt",
-      "kind": "def",
       "file": 0,
       "start": 0,
       "end": 12,
@@ -72,11 +72,18 @@ killed mid-way.
     },
     {
       "role": "block",
-      "kind": "function",
-      "name": "fact",
+      "title": "fact",
+      "unit": "call",
       "file": 0,
       "start": 0,
       "end": 92,
+      "parent": 1
+    },
+    {
+      "role": "expr",
+      "file": 0,
+      "start": 9,
+      "end": 10,
       "parent": 1
     }
   ]
@@ -88,15 +95,20 @@ killed mid-way.
   text, never from the editor, which may have changed since the run.
 - `locs` — table of source ranges, referenced by index.
   - `role` — `block` | `stmt` | `expr`.
-  - `kind` — free-form display label. Suggested: `module`, `function`,
-    `iteration`; `loop`, `if`, `return`, …; `call`, `binop`, `compare`, ….
-  - `name` — optional display name (function name).
+  - `title` — required on `block` locs and absent from other locs. What the
+    viewer calls the window and its sibling-list row. The tracer never includes
+    an execution index; the viewer adds one when a site ran several blocks.
+  - `unit` — required on `block` locs and absent from other locs. The singular
+    noun used when the viewer counts siblings; it pluralises by appending `s`.
   - `file` — index into `sources`.
   - `start`, `end` — half-open range, as absolute offsets into `text` in
     **UTF-16 code units** (what JS strings and Lezer use; tracers convert).
   - `parent` — index of the static (lexical) parent loc, `null` for the root.
     Used by the tracer runtime for stack repair and by the viewer to decide
     which statements belong to which block.
+
+Python uses the file name and `module` for module blocks, the function name and
+`call` for function blocks, and `iteration` for both fields on iteration blocks.
 
 Range conventions:
 
@@ -121,6 +133,7 @@ Range conventions:
 {"op": "exit"}
 {"op": "exit", "exc": "ZeroDivisionError: division by zero"}
 {"op": "out", "stream": "stdout", "text": "fact 1\n"}
+{"op": "value", "loc": 16, "text": "3"}
 {"op": "end", "status": "ok"}
 ```
 
@@ -130,6 +143,13 @@ Range conventions:
   block was left by a propagating exception; the value is a one-line summary.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
+- `value` — the value of the range given by `loc`, which must refer to an
+  `expr` loc. `text` is a bounded, one-line rendering; Python renders objects
+  without a custom `__repr__` as `<ClassName>`. It attaches to the innermost
+  open node like `out`. Tracers emit values only immediately after entering a
+  block: a function's parameters and a loop's targets. A value therefore always
+  belongs to a block node. The viewer places it immediately after the source
+  range of `loc` and includes it in titles and sibling rows too.
 - `end` — last line. `status`:
   - `ok` — program finished.
   - `exception` — uncaught exception; `traceback` holds the user-facing text.
@@ -144,18 +164,25 @@ file has no `end` line the viewer treats it as `timeout`. A final line that has
 no terminating newline and is not valid JSON is ignored: the process was killed
 mid-write. Any other unparseable line makes the whole trace invalid.
 
+A `value` event whose `loc` is out of range or not an `expr` loc is malformed,
+as is a `value` event with no open block node.
+
 ### What is _not_ recorded
 
 - `expr` nodes with nothing inside them (no block, no output, no non-empty
   descendant) are never written. Absence of an `expr` node says nothing about
   whether the expression ran; use `stmt` nodes for that.
-- No values, variables or heap state (v1). A later version can add a `value`
-  field to `exit` without changing the structure.
+  Locs are a static table, however, so an `expr` loc may exist only as an anchor
+  for values and never be entered as a node.
+- Values are recorded for block inputs only. Expression values, variables and
+  heap state are not recorded.
 
 ## Derived views
 
 **Output window** — all `out` events concatenated in file order. Each chunk
 remembers its node, so clicking output resolves to a path from the root.
+
+**Block values** — all values attached directly to a block, in file order.
 
 **Path to a node** — the chain of `block` ancestors of a node is the list of
 windows to open; the chain of sites between them is the list of ranges to
@@ -195,27 +222,31 @@ for i in range(2):
     print(fact(i + 1))
 ```
 
-Its trace, drawn as a tree (`B` block, `S` stmt, `E` expr):
+Its trace, drawn as a tree (`B` block, `S` stmt, `E` expr, `V` value):
 
 ```
 B module
   S def fact(n):
   S for i in range(2):
     B iteration
+      V i=0
       S print(fact(i + 1))
         E print(fact(i + 1))
           E fact(i + 1)
             B function fact
+              V n=1
               S print("fact", n)
                 E print("fact", n)          out "fact 1\n"
               S if n <= 1:
               S return 1
           out "1\n"
     B iteration
+      V i=1
       S print(fact(i + 1))
         E print(fact(i + 1))
           E fact(i + 1)
             B function fact
+              V n=2
               S print("fact", n)
                 E print("fact", n)          out "fact 2\n"
               S if n <= 1:
@@ -223,6 +254,7 @@ B module
                 E n * fact(n - 1)
                   E fact(n - 1)
                     B function fact
+                      V n=1
                       S print("fact", n)
                         E print("fact", n)  out "fact 1\n"
                       S if n <= 1:

@@ -9,6 +9,7 @@ import type {
   Trace,
   TraceNode,
   TraceParseError,
+  ValueChunk,
 } from "./model.ts";
 
 function parseError(
@@ -173,6 +174,7 @@ export function parseTrace(jsonl: string): ParseResult {
   const header = headerResult.data;
   const nodes: TraceNode[] = [];
   const outputs: OutputChunk[] = [];
+  const values: ValueChunk[] = [];
   const open: number[] = [];
   let end: End | null = null;
 
@@ -249,6 +251,7 @@ export function parseTrace(jsonl: string): ParseResult {
           parent: parentId,
           children: [],
           outputs: [],
+          values: [],
           exc: null,
         });
 
@@ -293,6 +296,36 @@ export function parseTrace(jsonl: string): ParseResult {
 
         return null;
       })
+      .with({ op: "value" }, ({ loc, text }) => {
+        const valueLoc = header.locs[loc];
+
+        if (valueLoc === undefined) {
+          return structureError(index + 1, `value has out-of-range loc ${loc}`);
+        }
+
+        if (valueLoc.role !== "expr") {
+          return structureError(index + 1, "value loc is not an expr");
+        }
+
+        const nodeId = open.at(-1);
+
+        if (nodeId === undefined) {
+          return structureError(index + 1, "value has no open node");
+        }
+
+        const node = nodes[nodeId];
+        const ownerLoc = node === undefined ? undefined : header.locs[node.loc];
+
+        if (!isBlockRole(ownerLoc?.role)) {
+          return structureError(index + 1, "value is not attached to a block");
+        }
+
+        const valueId = values.length;
+        values.push({ node: nodeId, loc, text });
+        nodes[nodeId]?.values.push(valueId);
+
+        return null;
+      })
       .with({ op: "end" }, (endEvent) => {
         const parsedEnd = endFromEvent(endEvent);
 
@@ -328,6 +361,7 @@ export function parseTrace(jsonl: string): ParseResult {
     header,
     nodes,
     outputs,
+    values,
     root: nodes.length === 0 ? null : 0,
     end: end ?? { status: "timeout" },
   };

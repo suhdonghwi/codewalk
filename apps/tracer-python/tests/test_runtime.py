@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from codewalk.runtime import ExecutionStopped, Runtime
+from codewalk.runtime import ExecutionStopped, Runtime, _format_value
 from codewalk.sink import JsonlSink
 
 
@@ -16,6 +16,98 @@ class ListSink:
 
     def write(self, event: Mapping[str, object]) -> None:
         self.events.append(dict(event))
+
+
+def test_value_formatting_is_bounded_single_line_and_survives_broken_repr() -> None:
+    class Broken:
+        def __repr__(self) -> str:
+            raise ValueError("broken")
+
+    class Multiline:
+        def __repr__(self) -> str:
+            return "first\r\nsecond\nthird\rfourth"
+
+    rendered = _format_value(["line one\nline two"] * 20)
+
+    assert len(rendered) == 80
+    assert rendered.endswith("…")
+    assert _format_value(Multiline()) == "first second third fourth"
+    assert _format_value(Broken()) == "<Broken>"
+    assert _format_value([Broken()]) == "[<Broken>]"
+
+
+def test_default_object_reprs_use_class_names_even_inside_containers() -> None:
+    class Plain:
+        pass
+
+    value = Plain()
+
+    assert _format_value(value) == "<Plain>"
+    assert _format_value([value]) == "[<Plain>]"
+
+
+def test_entry_values_mute_repr_stack_changes() -> None:
+    sink = ListSink()
+    runtime = Runtime([None, 0, 1, 0, 1], sink, max_events=100)
+
+    class Loud:
+        def __repr__(self) -> str:
+            with runtime.block(3, (4, "nested")), runtime.iteration(3, (4, "nested")):
+                runtime.stmt(1)
+                runtime.end(runtime.begin(2), print("hidden"))
+                runtime.finish("ok")
+            return "visible"
+
+    with runtime.capture_output(), runtime.block(0, (4, Loud())):
+        print("after")
+    runtime.finish("ok")
+
+    assert sink.events == [
+        {"op": "enter", "loc": 0},
+        {"op": "value", "loc": 4, "text": "visible"},
+        {"op": "out", "stream": "stdout", "text": "after\n"},
+        {"op": "exit"},
+        {"op": "end", "status": "ok"},
+    ]
+
+
+def test_a_stop_requested_during_formatting_still_stops_muted_statements() -> None:
+    sink = ListSink()
+    runtime = Runtime([None, 0], sink, max_events=100)
+
+    class Stopping:
+        def __repr__(self) -> str:
+            runtime.request_stop("timeout")
+            runtime.stmt(1)
+            return "unreachable"
+
+    with pytest.raises(ExecutionStopped), runtime.block(0, (1, Stopping())):
+        raise AssertionError("unreachable")
+    runtime.finish("timeout")
+
+    assert sink.events == [
+        {"op": "enter", "loc": 0},
+        {"op": "exit"},
+        {"op": "end", "status": "timeout"},
+    ]
+
+
+def test_entry_values_count_toward_the_event_limit() -> None:
+    sink = ListSink()
+    runtime = Runtime([None, 0, 0], sink, max_events=2)
+
+    with (
+        runtime.block(0, (1, "first"), (2, "second")),
+        pytest.raises(ExecutionStopped),
+    ):
+        runtime.stmt(1)
+    runtime.finish("ok")
+
+    assert sink.events == [
+        {"op": "enter", "loc": 0},
+        {"op": "value", "loc": 1, "text": "'first'"},
+        {"op": "end", "status": "truncated"},
+    ]
 
 
 def test_hand_instrumented_factorial_matches_the_golden_trace() -> None:
@@ -33,24 +125,24 @@ def test_hand_instrumented_factorial_matches_the_golden_trace() -> None:
         runtime.stmt(1)
 
         def fact(n: int) -> int:
-            with runtime.block(2):
-                runtime.stmt(3)
-                end(begin(4), print("fact", n))
-                runtime.stmt(5)
-                if end(begin(6), n <= 1):
-                    runtime.stmt(7)
+            with runtime.block(2, (3, n)):
+                runtime.stmt(4)
+                end(begin(5), print("fact", n))
+                runtime.stmt(6)
+                if end(begin(7), n <= 1):
+                    runtime.stmt(8)
                     return 1
-                runtime.stmt(8)
+                runtime.stmt(9)
                 return end(
-                    begin(9),
-                    n * end(begin(10), fact(end(begin(11), n - 1))),
+                    begin(10),
+                    n * end(begin(11), fact(end(begin(12), n - 1))),
                 )
 
-        runtime.stmt(12)
-        for i in end(begin(13), range(2)):
-            with runtime.iteration(14):
-                runtime.stmt(15)
-                end(begin(16), print(end(begin(17), fact(end(begin(18), i + 1)))))
+        runtime.stmt(13)
+        for i in end(begin(15), range(2)):
+            with runtime.iteration(16, (14, i)):
+                runtime.stmt(17)
+                end(begin(18), print(end(begin(19), fact(end(begin(20), i + 1)))))
 
     runtime.finish("ok")
 

@@ -4,34 +4,36 @@ import { describe, expect, test } from "vitest";
 
 import {
   blockSites,
+  blockValues,
   exceptionOrigin,
   parseTrace,
   pathTo,
   statementStates,
 } from "./index.ts";
 
-import type { Role, Trace } from "./index.ts";
-
-interface TestLoc {
-  readonly role: Role;
-  readonly kind: string;
-  readonly file: number;
-  readonly start: number;
-  readonly end: number;
-  readonly parent: number | null;
-}
+import type { Loc, Role, Trace } from "./index.ts";
 
 interface TestHeader {
   readonly codewalk: 1;
   readonly sources: readonly { readonly file: string; readonly text: string }[];
-  readonly locs: readonly TestLoc[];
+  readonly locs: readonly Loc[];
 }
 
-function loc(role: Role, parent: number | null, start = 0, end = 1): TestLoc {
-  return { role, kind: role, file: 0, start, end, parent };
+function loc(role: Role, parent: number | null, start = 0, end = 1): Loc {
+  return role === "block"
+    ? {
+        role,
+        title: "main.py",
+        unit: "module",
+        file: 0,
+        start,
+        end,
+        parent,
+      }
+    : { role, file: 0, start, end, parent };
 }
 
-function header(locs: readonly TestLoc[], text = "x"): TestHeader {
+function header(locs: readonly Loc[], text = "x"): TestHeader {
   return { codewalk: 1, sources: [{ file: "main.py", text }], locs };
 }
 
@@ -75,7 +77,7 @@ test("every Python tracer fixture satisfies the trace parser contract", async ()
   }
 });
 
-test("the fact fixture builds the documented execution tree and output ownership", async () => {
+test("the fact fixture builds the documented execution tree and output and entry value ownership", async () => {
   const trace = parsedTrace(await readFile(factFixtureUrl, "utf8"));
 
   expect(trace.end).toEqual({ status: "ok" });
@@ -90,6 +92,14 @@ test("the fact fixture builds the documented execution tree and output ownership
     { node: 25, stream: "stdout", text: "fact 1\n" },
     { node: 14, stream: "stdout", text: "2\n" },
   ]);
+  expect(trace.values).toEqual([
+    { node: 3, loc: 14, text: "0" },
+    { node: 7, loc: 3, text: "1" },
+    { node: 12, loc: 14, text: "1" },
+    { node: 16, loc: 3, text: "2" },
+    { node: 23, loc: 3, text: "1" },
+  ]);
+  expect(trace.nodes[16]?.values).toEqual([3]);
 });
 
 test("the fact fixture produces the documented paths, sites, and statement states", async () => {
@@ -108,15 +118,16 @@ test("the fact fixture produces the documented paths, sites, and statement state
     { block: 23, site: null },
   ]);
   expect(blockSites(trace, 16)).toEqual([
-    { loc: 4, nodes: [18], blocks: [], outputs: [2] },
-    { loc: 10, nodes: [22], blocks: [23], outputs: [] },
+    { loc: 5, nodes: [18], blocks: [], outputs: [2] },
+    { loc: 11, nodes: [22], blocks: [23], outputs: [] },
   ]);
+  expect(blockValues(trace, 16)).toEqual([{ node: 16, loc: 3, text: "2" }]);
   expect(statementStates(trace, 16)).toEqual([
     { loc: 1, state: "inert" },
-    { loc: 3, state: "lit" },
-    { loc: 5, state: "lit" },
-    { loc: 7, state: "dimmed" },
-    { loc: 8, state: "lit" },
+    { loc: 4, state: "lit" },
+    { loc: 6, state: "lit" },
+    { loc: 8, state: "dimmed" },
+    { loc: 9, state: "lit" },
   ]);
   expect(exceptionOrigin(trace)).toBeNull();
 });
@@ -312,7 +323,8 @@ describe("structural validation", () => {
           locs: [
             {
               role: "block",
-              kind: "block",
+              title: "main.py",
+              unit: "module",
               file: 1,
               start: 0,
               end: 1,
@@ -379,6 +391,43 @@ describe("structural validation", () => {
           { op: "enter", loc: 0 },
           { op: "enter", loc: 1 },
           { op: "exit", exc: "wrong" },
+        ),
+        line: 4,
+      },
+      {
+        name: "value loc is not an expression",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { op: "value", loc: 0, text: "x" },
+        ),
+        line: 3,
+      },
+      {
+        name: "value loc is out of range",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { op: "value", loc: 1, text: "x" },
+        ),
+        line: 3,
+      },
+      {
+        name: "value without open node",
+        input: traceOf(header([root, loc("expr", 0)]), {
+          op: "value",
+          loc: 1,
+          text: "x",
+        }),
+        line: 2,
+      },
+      {
+        name: "value attached outside a block",
+        input: traceOf(
+          header([root, stmt, expr]),
+          { op: "enter", loc: 0 },
+          { op: "enter", loc: 1 },
+          { op: "value", loc: 2, text: "x" },
         ),
         line: 4,
       },

@@ -6,6 +6,7 @@ export interface TraceNode {
   parent: NodeId | null;
   children: NodeId[];
   outputs: number[];
+  values: number[];
   exc: string | null;
 }
 
@@ -15,10 +16,17 @@ export interface OutputChunk {
   text: string;
 }
 
+export interface ValueChunk {
+  node: NodeId;
+  loc: LocId;
+  text: string;
+}
+
 export interface Trace {
   header: Header;
   nodes: TraceNode[];
   outputs: OutputChunk[];
+  values: ValueChunk[];
   root: NodeId | null;
   end: End;
 }

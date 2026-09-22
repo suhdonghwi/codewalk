@@ -9,8 +9,8 @@ from typing import Literal, TypedDict
 
 class Loc(TypedDict, total=False):
     role: Literal["block", "stmt", "expr"]
-    kind: str
-    name: str
+    title: str
+    unit: str
     file: int
     start: int
     end: int
@@ -78,6 +78,10 @@ class SourceMap:
             self.parser_position(line, column),
             self.parser_position(end_line, end_column),
         )
+
+    def argument_range(self, node: ast.arg) -> tuple[int, int]:
+        start = self.parser_position(node.lineno, node.col_offset)
+        return start, start + _utf16_len(node.arg)
 
     def statement_range(self, node: ast.stmt) -> tuple[int, int]:
         if not isinstance(node, _COMPOUND):

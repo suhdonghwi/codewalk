@@ -4,6 +4,7 @@ export { parseTrace } from "./parse.ts";
 
 export {
   blockSites,
+  blockValues,
   exceptionOrigin,
   pathTo,
   statementStates,
@@ -25,6 +26,7 @@ export type {
   Trace,
   TraceNode,
   TraceParseError,
+  ValueChunk,
 } from "./model.ts";
 
 export type { PathStep, Site, StatementState } from "./views.ts";

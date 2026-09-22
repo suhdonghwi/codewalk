@@ -46,7 +46,7 @@ def run(
         )
         return
 
-    result = instrument(tree, source)
+    result = instrument(tree, source, source_name)
     code = compile(result.tree, source_name, "exec")
     sink.write(_header(source_name, source, result.locs))
     sink.flush()
