@@ -39,6 +39,8 @@
   --color-run: #3c9a5f;
   --color-inline-output: #7a5426;
   --color-inline-output-surface: #fbe9cf;
+  --color-inline-value: #5b4f8a;
+  --color-inline-value-surface: #ece8f6;
   --color-window-border: #e5e5e5;
   --color-line-number: #bdbdbd;
   --color-gutter-divider: #eeeeee;

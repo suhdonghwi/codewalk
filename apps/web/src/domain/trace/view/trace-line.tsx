@@ -1,11 +1,12 @@
-import { ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { cn } from "@/ui/utils.ts";
 
-import { previewInlineOutput } from "./inline-output.ts";
+import { InlineChip } from "./inline-chip.tsx";
+import { previewInlineContent, previewInlineText } from "./inline-output.ts";
 
 import type { Line } from "./block-view.ts";
+import type { InlineSegment } from "./inline-output.ts";
 import type { Span } from "./spans.ts";
 import type { LocId } from "@codewalk/trace";
 
@@ -19,23 +20,26 @@ interface TraceLineProps {
   onToggleSite: (site: LocId) => void;
 }
 
+interface SegmentsProps {
+  segments: InlineSegment[];
+}
+
 const STATE_CLASSES: Record<Span["state"], string> = {
   lit: "",
   dimmed: "!text-neutral-500 !not-italic opacity-55",
   inert: "opacity-55",
 };
 
-const CHIP_CLASSES = "ml-[2ch] rounded-sm px-[0.75ch]";
-
-const OUTPUT_CHIP_CLASSES = cn(
-  CHIP_CLASSES,
-  "bg-inline-output-surface text-inline-output",
-);
-
-const EXCEPTION_CHIP_CLASSES = cn(
-  CHIP_CLASSES,
-  "bg-exception/15 text-exception",
-);
+function Segments({ segments }: SegmentsProps) {
+  return segments.map((segment, index) => (
+    <span
+      className={segment.stream === "stderr" ? "text-code-error" : undefined}
+      key={index}
+    >
+      {segment.text}
+    </span>
+  ));
+}
 
 function siteBackground(span: Span): string | undefined {
   if (span.state !== "lit" || span.sites.length === 0) return undefined;
@@ -53,10 +57,25 @@ export function TraceLine({
   onHoverSite,
   onToggleSite,
 }: TraceLineProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-  const preview =
-    line.output === null ? null : previewInlineOutput(line.output);
+  const valuePreviews = line.values.map((value) =>
+    previewInlineText(value.text),
+  );
+
+  const outputPreview =
+    line.output === null ? null : previewInlineContent(line.output.segments);
+
+  function toggleChip(key: string): void {
+    setExpanded((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+
+      return next;
+    });
+  }
 
   return (
     <div className="col-start-1 min-w-max" style={{ gridRowStart: row }}>
@@ -100,99 +119,93 @@ export function TraceLine({
             );
 
             return (
-              <span
-                className={className}
-                data-trace-site={interactive || undefined}
-                key={index}
-                onClick={
-                  interactive
-                    ? () => {
-                        onToggleSite(innermost);
-                      }
-                    : undefined
-                }
-                onPointerEnter={
-                  interactive
-                    ? () => {
-                        onHoverSite(innermost);
-                      }
-                    : undefined
-                }
-                onPointerLeave={
-                  interactive
-                    ? () => {
-                        onHoverSite(null);
-                      }
-                    : undefined
-                }
-                style={{ backgroundColor: siteBackground(span) }}
-              >
-                {span.text}
-              </span>
+              <Fragment key={index}>
+                <span
+                  className={className}
+                  data-trace-site={interactive || undefined}
+                  onClick={
+                    interactive
+                      ? () => {
+                          onToggleSite(innermost);
+                        }
+                      : undefined
+                  }
+                  onPointerEnter={
+                    interactive
+                      ? () => {
+                          onHoverSite(innermost);
+                        }
+                      : undefined
+                  }
+                  onPointerLeave={
+                    interactive
+                      ? () => {
+                          onHoverSite(null);
+                        }
+                      : undefined
+                  }
+                  style={{ backgroundColor: siteBackground(span) }}
+                >
+                  {span.text}
+                </span>
+                {line.values.map((value, valueIndex) => {
+                  if (value.afterSpan !== index) return null;
+                  const preview = valuePreviews[valueIndex];
+
+                  if (preview === undefined) return null;
+                  const key = `value-${valueIndex}`;
+
+                  return (
+                    <InlineChip
+                      className="mx-[0.5ch]"
+                      expandable={preview.expandable}
+                      expanded={expanded.has(key)}
+                      key={key}
+                      onToggle={() => {
+                        toggleChip(key);
+                      }}
+                      tone="value"
+                    >
+                      = <Segments segments={preview.segments} />
+                    </InlineChip>
+                  );
+                })}
+              </Fragment>
             );
           })}
         </code>
-        {preview === null ? null : preview.expandable ? (
-          <button
-            className={cn(
-              OUTPUT_CHIP_CLASSES,
-              "cursor-pointer border-0 py-0 pl-[0.25ch] [font:inherit] hover:brightness-95",
-            )}
-            aria-expanded={expanded}
-            onClick={() => {
-              setExpanded((current) => !current);
+        {outputPreview === null ? null : (
+          <InlineChip
+            className="ml-[2ch]"
+            expandable={outputPreview.expandable}
+            expanded={expanded.has("output")}
+            onToggle={() => {
+              toggleChip("output");
             }}
-            type="button"
+            tone="output"
           >
-            <ChevronRight
-              aria-hidden
-              className={cn(
-                "mr-[0.25ch] inline-block size-[1em] align-[-0.125em] transition-transform",
-                expanded && "rotate-90",
-              )}
-              strokeWidth={2.25}
-            />
-            {preview.segments.map((segment, index) => (
-              <span
-                className={
-                  segment.stream === "stderr" ? "text-code-error" : undefined
-                }
-                key={index}
-              >
-                {segment.text}
-              </span>
-            ))}
-          </button>
-        ) : (
-          <span className={OUTPUT_CHIP_CLASSES}>
-            {preview.segments.map((segment, index) => (
-              <span
-                className={
-                  segment.stream === "stderr" ? "text-code-error" : undefined
-                }
-                key={index}
-              >
-                {segment.text}
-              </span>
-            ))}
-          </span>
+            <Segments segments={outputPreview.segments} />
+          </InlineChip>
         )}
         {line.exception === null ? null : (
-          <span className={EXCEPTION_CHIP_CLASSES}>{line.exception}</span>
+          <InlineChip className="ml-[2ch]" tone="exception">
+            {line.exception}
+          </InlineChip>
         )}
       </div>
-      {expanded && line.output !== null ? (
+      {line.values.map((value, index) =>
+        expanded.has(`value-${index}`) ? (
+          <pre
+            className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-value-surface/60 px-[1ch] py-0.5 text-inline-value whitespace-pre-wrap [font:inherit]"
+            key={`value-${index}`}
+          >
+            {value.text}
+          </pre>
+        ) : null,
+      )}
+      {expanded.has("output") && line.output !== null ? (
         <pre className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
-          {line.output.segments.map((segment, index) => (
-            <span
-              className={
-                segment.stream === "stderr" ? "text-code-error" : undefined
-              }
-              key={index}
-            >
-              {segment.text}
-            </span>
-          ))}
+          <Segments segments={line.output.segments} />
         </pre>
       ) : null}
     </div>

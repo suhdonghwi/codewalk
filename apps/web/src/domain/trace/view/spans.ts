@@ -87,6 +87,7 @@ export function spansForLine(
   states: LocatedState[],
   nestedBlocks: Loc[],
   sites: SiteLoc[],
+  valueAnchors: Loc[],
 ): Span[] {
   if (line.from === line.to) return [];
 
@@ -111,6 +112,12 @@ export function spansForLine(
   }
 
   for (const { loc } of sites) {
+    if (rangeOverlaps(loc, line.from, line.to)) {
+      addRangeBoundaries(boundaries, loc.start, loc.end, line);
+    }
+  }
+
+  for (const loc of valueAnchors) {
     if (rangeOverlaps(loc, line.from, line.to)) {
       addRangeBoundaries(boundaries, loc.start, loc.end, line);
     }

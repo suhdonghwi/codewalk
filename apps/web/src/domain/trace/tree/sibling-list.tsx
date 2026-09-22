@@ -112,7 +112,7 @@ export function SiblingList({
               <button
                 aria-current={selected || undefined}
                 className={cn(
-                  "absolute inset-x-0 flex cursor-pointer items-center gap-1.5 border-0 bg-transparent px-2 text-left text-xs font-medium text-neutral-500 outline-none",
+                  "absolute inset-x-0 flex cursor-pointer items-center gap-1.5 overflow-hidden border-0 bg-transparent px-2 text-left font-code text-xs font-medium text-neutral-500 outline-none",
                   selected
                     ? "bg-site-accent/12 text-neutral-800"
                     : "hover:bg-neutral-50 focus-visible:bg-neutral-50",

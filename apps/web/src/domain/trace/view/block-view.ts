@@ -1,4 +1,9 @@
-import { blockSites, exceptionOrigin, statementStates } from "@codewalk/trace";
+import {
+  blockSites,
+  blockValues,
+  exceptionOrigin,
+  statementStates,
+} from "@codewalk/trace";
 
 import { requireBlock } from "./block-title.ts";
 import { lineContaining, sourceLines } from "./source-lines.ts";
@@ -7,21 +12,85 @@ import { siteLocs, spansForLine } from "./spans.ts";
 import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span } from "./spans.ts";
 import type { Token } from "./tokens.ts";
-import type { NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
+import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
-export interface InlineOutput {
+interface InlineOutput {
   segments: { stream: "stdout" | "stderr"; text: string }[];
+}
+
+interface InlineValue {
+  afterSpan: number;
+  text: string;
 }
 
 export interface Line {
   number: number;
   spans: Span[];
+  values: InlineValue[];
   output: InlineOutput | null;
   exception: string | null;
 }
 
 export interface BlockView {
   lines: Line[];
+}
+
+interface AnchoredValue {
+  loc: Loc;
+  text: string;
+}
+
+function valuesByLine(
+  trace: Trace,
+  block: NodeId,
+  blockLoc: Loc,
+  lines: SourceLine[],
+  source: string,
+): Map<number, AnchoredValue[]> {
+  const result = new Map<number, AnchoredValue[]>();
+
+  for (const value of blockValues(trace, block)) {
+    const loc = trace.header.locs[value.loc];
+
+    if (
+      loc === undefined ||
+      loc.role !== "expr" ||
+      loc.file !== blockLoc.file ||
+      loc.start < blockLoc.start ||
+      loc.end > blockLoc.end
+    ) {
+      continue;
+    }
+
+    const line = lineContaining(source, lines, loc.end);
+
+    if (line === null) continue;
+    const values = result.get(line) ?? [];
+    values.push({ loc, text: value.text });
+    result.set(line, values);
+  }
+
+  return result;
+}
+
+function inlineValues(
+  line: SourceLine,
+  spans: Span[],
+  values: AnchoredValue[],
+): InlineValue[] {
+  const ends: number[] = [];
+  let end = line.from;
+
+  for (const span of spans) {
+    end += span.text.length;
+    ends.push(end);
+  }
+
+  return values.flatMap((value) => {
+    const afterSpan = ends.indexOf(value.loc.end);
+
+    return afterSpan === -1 ? [] : [{ afterSpan, text: value.text }];
+  });
 }
 
 function outputsByLine(
@@ -131,20 +200,29 @@ export function buildBlockView(
 
   const outputs = outputsByLine(trace, sites, lines, source.text);
   const exceptions = exceptionByLine(trace, block, node, lines, source.text);
+  const values = valuesByLine(trace, block, loc, lines, source.text);
 
   return {
-    lines: lines.map((line) => ({
-      number: line.number,
-      spans: spansForLine(
+    lines: lines.map((line) => {
+      const lineValues = values.get(line.number) ?? [];
+
+      const spans = spansForLine(
         source.text,
         line,
         tokens,
         states,
         nestedBlocks,
         clickableSites,
-      ),
-      output: outputs.get(line.number) ?? null,
-      exception: exceptions.get(line.number) ?? null,
-    })),
+        lineValues.map((value) => value.loc),
+      );
+
+      return {
+        number: line.number,
+        spans,
+        values: inlineValues(line, spans, lineValues),
+        output: outputs.get(line.number) ?? null,
+        exception: exceptions.get(line.number) ?? null,
+      };
+    }),
   };
 }
