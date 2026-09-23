@@ -1,5 +1,3 @@
-import { cn } from "@/ui/utils.ts";
-
 import { InlineChip } from "./inline-chip.tsx";
 import { PreviewText } from "./preview-text.tsx";
 import { PREVIEW_BUDGET, previewPieces, valueChildren } from "./values.ts";
@@ -11,7 +9,6 @@ interface ValueChipProps {
   label?: string;
   entry: ValueChunk;
   expanded: boolean;
-  faded?: boolean;
   className?: string;
   onToggle: () => void;
 }
@@ -21,7 +18,6 @@ export function ValueChip({
   label,
   entry,
   expanded,
-  faded = false,
   className,
   onToggle,
 }: ValueChipProps) {
@@ -29,7 +25,7 @@ export function ValueChip({
 
   return (
     <InlineChip
-      className={cn(className, faded && "opacity-40")}
+      className={className}
       expandable={expandable}
       expanded={expanded}
       onToggle={onToggle}

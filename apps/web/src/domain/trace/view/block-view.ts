@@ -16,7 +16,13 @@ import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span, SpanContext } from "./spans.ts";
 import type { Token } from "./tokens.ts";
 import type { Site } from "../views.ts";
-import type { NodeId, Trace, TraceNode, ValueChunk } from "@codewalk/trace";
+import type {
+  LocId,
+  NodeId,
+  Trace,
+  TraceNode,
+  ValueChunk,
+} from "@codewalk/trace";
 
 export interface InlineSegment {
   stream: "stdout" | "stderr";
@@ -26,14 +32,20 @@ export interface InlineSegment {
 export interface Line {
   number: number;
   spans: Span[];
-  values: ValueChunk[];
+  start: ValueChunk[];
   changes: ValueChunk[];
   output: InlineSegment[] | null;
   exception: string | null;
+  loopEnd: LoopEnd | null;
+}
+
+interface LoopEnd {
+  indent: string;
+  changes: ValueChunk[];
 }
 
 export interface BlockView {
-  lines: Line[];
+  groups: Line[][];
 }
 
 function outputsByLine(
@@ -82,12 +94,52 @@ function outputsByLine(
   return outputs;
 }
 
-function changesByLine(
+interface PlacedChanges {
+  changes: Map<number, ValueChunk[]>;
+  loopEnds: Map<number, LoopEnd>;
+}
+
+function iterationLoc(trace: Trace, statement: TraceNode): LocId | null {
+  for (const child of statement.children) {
+    const loc = trace.nodes[child]?.loc;
+
+    if (loc !== undefined && trace.header.locs[loc]?.role === "block") {
+      return loc;
+    }
+  }
+
+  return null;
+}
+
+function descendsFrom(trace: Trace, locId: LocId, root: LocId): boolean {
+  let current: LocId | null = locId;
+
+  while (current !== null) {
+    if (current === root) return true;
+    current = trace.header.locs[current]?.parent ?? null;
+  }
+
+  return false;
+}
+
+function bodyEnd(trace: Trace, iteration: LocId): number {
+  return trace.header.locs.reduce(
+    (end, loc) =>
+      loc.parent !== null && descendsFrom(trace, loc.parent, iteration)
+        ? Math.max(end, loc.end)
+        : end,
+    0,
+  );
+}
+
+function placeChanges(
   trace: Trace,
   node: TraceNode,
+  source: string,
   lines: SourceLine[],
-): Map<number, ValueChunk[]> {
+): PlacedChanges {
   const changes = new Map<number, ValueChunk[]>();
+  const loopEnds = new Map<number, LoopEnd>();
 
   for (const child of node.children) {
     const statement = trace.nodes[child];
@@ -96,13 +148,33 @@ function changesByLine(
       statement === undefined ? undefined : trace.header.locs[statement.loc];
 
     if (statement === undefined || loc?.role !== "stmt") continue;
-    const line = lineContaining(lines, loc.end);
 
-    if (line === null || statement.values.length === 0) continue;
-    changes.set(line, [...(changes.get(line) ?? []), ...statement.values]);
+    if (statement.values.length === 0) continue;
+    const iteration = iterationLoc(trace, statement);
+
+    if (iteration === null) {
+      const line = lineContaining(lines, loc.end);
+
+      if (line === null) continue;
+      changes.set(line, [...(changes.get(line) ?? []), ...statement.values]);
+      continue;
+    }
+
+    const header = lines.find(
+      (line) => line.from <= loc.start && loc.start <= line.to,
+    );
+
+    const line = lineContaining(lines, bodyEnd(trace, iteration));
+
+    if (header === undefined || line === null) continue;
+
+    loopEnds.set(line, {
+      indent: source.slice(header.from, loc.start),
+      changes: [...(loopEnds.get(line)?.changes ?? []), ...statement.values],
+    });
   }
 
-  return changes;
+  return { changes, loopEnds };
 }
 
 function exceptionByLine(
@@ -128,6 +200,34 @@ function exceptionByLine(
   if (line !== null) result.set(line, node.exc);
 
   return result;
+}
+
+export function hasChips(line: Line): boolean {
+  return (
+    line.changes.length > 0 || line.output !== null || line.exception !== null
+  );
+}
+
+function runs(lines: Line[]): Line[][] {
+  const groups: Line[][] = [];
+
+  for (const [index, line] of lines.entries()) {
+    const previous = lines[index - 1];
+    const current = groups.at(-1);
+
+    if (
+      current !== undefined &&
+      previous !== undefined &&
+      previous.loopEnd === null &&
+      hasChips(previous) === hasChips(line)
+    ) {
+      current.push(line);
+    } else {
+      groups.push([line]);
+    }
+  }
+
+  return groups;
 }
 
 export function buildBlockView(
@@ -163,7 +263,7 @@ export function buildBlockView(
 
   const outputs = outputsByLine(trace, sites, lines);
   const exceptions = exceptionByLine(trace, block, node, lines);
-  const changes = changesByLine(trace, node, lines);
+  const { changes, loopEnds } = placeChanges(trace, node, source, lines);
 
   const context: SpanContext = {
     source,
@@ -179,16 +279,19 @@ export function buildBlockView(
     }),
   };
 
-  const blockValues = node.values.filter(({ loc }) => loc === null);
+  const inputs = node.values.filter(({ loc }) => loc === null);
 
   return {
-    lines: lines.map((line, index) => ({
-      number: line.number,
-      spans: spansForLine(context, line),
-      values: index === 0 ? blockValues : [],
-      changes: changes.get(line.number) ?? [],
-      output: outputs.get(line.number) ?? null,
-      exception: exceptions.get(line.number) ?? null,
-    })),
+    groups: runs(
+      lines.map((line, index) => ({
+        number: line.number,
+        spans: spansForLine(context, line),
+        start: index === 0 ? inputs : [],
+        changes: changes.get(line.number) ?? [],
+        output: outputs.get(line.number) ?? null,
+        exception: exceptions.get(line.number) ?? null,
+        loopEnd: loopEnds.get(line.number) ?? null,
+      })),
+    ),
   };
 }

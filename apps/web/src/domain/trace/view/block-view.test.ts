@@ -51,7 +51,9 @@ function titleAmong(trace: Trace, blocks: NodeId[], block: NodeId) {
 }
 
 function line(view: BlockView, number: number) {
-  const found = view.lines.find((candidate) => candidate.number === number);
+  const found = view.groups
+    .flat()
+    .find((candidate) => candidate.number === number);
 
   if (found === undefined) throw new Error(`Missing line ${number}`);
 
@@ -305,7 +307,7 @@ describe("buildBlockView", () => {
       buildBlockView(trace, 0, [
         { from: 0, to: 3, classes: "first" },
         { from: 3, to: 8, classes: "second" },
-      ]).lines[0]?.spans,
+      ]).groups[0]?.[0]?.spans,
     ).toEqual([
       { text: "a", classes: "first", state: "lit", sites: [], value: null },
       { text: "b", classes: "first", state: "lit", sites: [2], value: null },
@@ -377,22 +379,84 @@ describe("buildBlockView", () => {
     const search = buildBlockView(trace, secondSearch, []);
     const words = buildBlockView(trace, firstWord, []);
 
-    expect(line(search, 3).values.map(({ name }) => name)).toEqual([
+    expect(line(search, 3).start.map(({ name }) => name)).toEqual([
       "lo",
       "hi",
       "items",
       "target",
     ]);
     expect(
-      search.lines.flatMap(({ number, changes }) =>
-        changes.map(
-          (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+      search.groups
+        .flat()
+        .flatMap(({ number, changes }) =>
+          changes.map(
+            (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+          ),
         ),
-      ),
     ).toEqual(["4: mid → 1", "6: lo → 2"]);
     expect(
       line(words, 21).changes.map((change) => shown(trace, change)),
     ).toEqual(["['a']"]);
+  });
+
+  test("a loop's end state follows its body at the header's indent, before any else clause", () => {
+    const whileLoop = fixture("while_loop");
+    const loopState = fixture("loop_state");
+    const [search] = blockNodes(loopState, "search");
+
+    if (whileLoop.root === null || search === undefined) {
+      throw new Error("Missing loop fixtures");
+    }
+
+    const moduleView = buildBlockView(whileLoop, whileLoop.root, []);
+    const searchView = buildBlockView(loopState, search, []);
+
+    const loopEnds = (trace: Trace, view: BlockView) =>
+      view.groups
+        .flat()
+        .flatMap(({ number, changes, loopEnd }) => [
+          ...changes.map((change) => `${number}: ${change.name}`),
+          ...(loopEnd?.changes.map(
+            (change) =>
+              `after ${number}: ${JSON.stringify(loopEnd.indent)} ${change.name} → ${shown(trace, change)}`,
+          ) ?? []),
+        ]);
+
+    expect(loopEnds(whileLoop, moduleView)).toEqual([
+      "1: i",
+      'after 4: "" i → 2',
+    ]);
+    expect(loopEnds(loopState, searchView)).toEqual([
+      "2: lo",
+      "2: hi",
+      'after 8: "    " lo → 2',
+      'after 8: "    " hi → 2',
+      'after 8: "    " mid → 1',
+    ]);
+  });
+
+  test("chip lines group only with adjacent chip lines, and a loop's end row ends the group", () => {
+    const trace = fixture("loop_state");
+
+    if (trace.root === null) throw new Error("Missing fixture root");
+
+    expect(
+      buildBlockView(trace, trace.root, []).groups.map((group) =>
+        group.length === 1
+          ? String(group[0]?.number)
+          : `${group[0]?.number}-${group.at(-1)?.number}`,
+      ),
+    ).toEqual([
+      "1-15",
+      "16",
+      "17",
+      "18",
+      "19-21",
+      "22-27",
+      "28",
+      "29-30",
+      "31-35",
+    ]);
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {
@@ -411,9 +475,9 @@ describe("buildBlockView", () => {
     if (root === null) throw new Error("Missing fixture root");
 
     expect(
-      buildBlockView(caught, root, []).lines.map(
-        (candidate) => candidate.exception,
-      ),
+      buildBlockView(caught, root, [])
+        .groups.flat()
+        .map((candidate) => candidate.exception),
     ).not.toContain("ValueError: caught");
   });
 

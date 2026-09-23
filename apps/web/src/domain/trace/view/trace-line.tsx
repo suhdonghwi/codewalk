@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 
 import { cn } from "@/ui/utils.ts";
 
+import { hasChips } from "./block-view.ts";
 import { InlineChip } from "./inline-chip.tsx";
 import { previewInlineOutput } from "./inline-output.ts";
 import { ValueChip } from "./value-chip.tsx";
@@ -14,7 +15,6 @@ import type { LocId, Trace, ValueChunk } from "@codewalk/trace";
 interface TraceLineProps {
   trace: Trace;
   line: Line;
-  row: number;
   anchor: boolean;
   hoveredSite: LocId | null;
   openSite: LocId | null;
@@ -56,10 +56,39 @@ interface OpenValue {
   entry: ValueChunk;
 }
 
+interface ValuePanelProps {
+  trace: Trace;
+  values: OpenValue[];
+}
+
+function ValuePanel({ trace, values }: ValuePanelProps) {
+  if (values.length === 0) return null;
+
+  return (
+    <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
+      {values.map(({ key, entry }) => (
+        <ValueInspector
+          at={entry.at}
+          key={key}
+          name={entry.name}
+          trace={trace}
+          value={entry.value}
+        />
+      ))}
+    </div>
+  );
+}
+
+function rowClasses(aligned: boolean): string {
+  return cn(
+    "col-span-full min-h-code-line items-baseline whitespace-pre",
+    aligned ? "grid grid-cols-subgrid" : "flex",
+  );
+}
+
 export function TraceLine({
   trace,
   line,
-  row,
   anchor,
   hoveredSite,
   openSite,
@@ -78,29 +107,76 @@ export function TraceLine({
     );
   }
 
+  const startEntries: OpenValue[] = line.start
+    .filter(({ name }) => varyingNames.includes(name))
+    .map((entry) => ({ key: `start:${entry.name}`, entry }));
+
+  const changeEntries: OpenValue[] = line.changes.map((entry, index) => ({
+    key: `change:${index}`,
+    entry,
+  }));
+
   const valueEntries: OpenValue[] = [
     ...line.spans.flatMap((span, index) =>
       span.value === null
         ? []
         : [{ key: `anchor:${index}`, entry: span.value }],
     ),
-    ...line.values.map((entry) => ({ key: `value:${entry.name}`, entry })),
-    ...line.changes.map((entry, index) => ({ key: `change:${index}`, entry })),
+    ...changeEntries,
   ];
 
-  const openValues = valueEntries.filter(({ key }) => openKeys.includes(key));
+  const loopEndEntries: OpenValue[] = (line.loopEnd?.changes ?? []).map(
+    (entry, index) => ({ key: `loop-end:${index}`, entry }),
+  );
+
+  const isExpanded = ({ key }: OpenValue) => openKeys.includes(key);
+
+  function namedChip({ key, entry }: OpenValue, operator: string) {
+    return (
+      <ValueChip
+        entry={entry}
+        expanded={openKeys.includes(key)}
+        key={key}
+        label={`${entry.name} ${operator}`}
+        onToggle={() => {
+          toggleValue(key);
+        }}
+        trace={trace}
+      />
+    );
+  }
+
+  function stateRow(label: string, entries: OpenValue[], operator: string) {
+    return (
+      <>
+        <div className={cn(rowClasses(false), "hover:bg-neutral-50")}>
+          <div className="flex items-baseline pr-[2ch]">
+            <span
+              aria-hidden
+              className="sticky left-0 z-2 w-gutter flex-none"
+            />
+            <span className="pl-2.5 text-neutral-400">{label}</span>
+          </div>
+          <div className="flex items-baseline gap-[0.5ch] pr-4">
+            {entries.map((entry) => namedChip(entry, operator))}
+          </div>
+        </div>
+        <ValuePanel trace={trace} values={entries.filter(isExpanded)} />
+      </>
+    );
+  }
 
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
 
   return (
-    <div
-      className="col-span-full grid grid-cols-subgrid"
-      style={{ gridRowStart: row }}
-    >
+    <div className="col-span-full grid grid-cols-subgrid">
+      {startEntries.length === 0
+        ? null
+        : stateRow("(before)", startEntries, "=")}
       <div
         className={cn(
-          "col-span-full grid min-h-code-line grid-cols-subgrid items-baseline whitespace-pre",
+          rowClasses(hasChips(line)),
           line.exception === null ? "hover:bg-neutral-50" : "bg-exception/8",
         )}
         data-site-anchor={anchor || undefined}
@@ -185,32 +261,8 @@ export function TraceLine({
             })}
           </code>
         </div>
-        <div className="flex items-baseline gap-[1ch] pr-4">
-          {line.values.map((entry) => (
-            <ValueChip
-              entry={entry}
-              expanded={openKeys.includes(`value:${entry.name}`)}
-              faded={!varyingNames.includes(entry.name)}
-              key={entry.name}
-              label={`${entry.name} =`}
-              onToggle={() => {
-                toggleValue(`value:${entry.name}`);
-              }}
-              trace={trace}
-            />
-          ))}
-          {line.changes.map((entry, index) => (
-            <ValueChip
-              entry={entry}
-              expanded={openKeys.includes(`change:${index}`)}
-              key={index}
-              label={`${entry.name} →`}
-              onToggle={() => {
-                toggleValue(`change:${index}`);
-              }}
-              trace={trace}
-            />
-          ))}
+        <div className="flex items-baseline gap-[0.5ch] pr-4">
+          {changeEntries.map((entry) => namedChip(entry, "→"))}
           {outputPreview === null ? null : (
             <InlineChip
               expandable={outputPreview.expandable}
@@ -228,24 +280,15 @@ export function TraceLine({
           )}
         </div>
       </div>
-      {openValues.length === 0 ? null : (
-        <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
-          {openValues.map(({ key, entry }) => (
-            <ValueInspector
-              at={entry.at}
-              key={key}
-              name={entry.name}
-              trace={trace}
-              value={entry.value}
-            />
-          ))}
-        </div>
-      )}
+      <ValuePanel trace={trace} values={valueEntries.filter(isExpanded)} />
       {expanded && line.output !== null ? (
         <pre className="col-span-full m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output} />
         </pre>
       ) : null}
+      {line.loopEnd === null
+        ? null
+        : stateRow(`${line.loopEnd.indent}(after loop)`, loopEndEntries, "→")}
     </div>
   );
 }
