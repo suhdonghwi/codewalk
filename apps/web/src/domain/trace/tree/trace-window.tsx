@@ -1,13 +1,14 @@
-import type { HTMLAttributes, ReactNode, Ref } from "react";
-import { useEffect, useMemo, useState } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { WindowChrome } from "@/domain/canvas/index.ts";
+import { useCanvasStore, WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { buildBlockTitle, type SiblingPosition } from "./block-title.ts";
-import { buildBlockView } from "./block-view.ts";
-import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
-import { TraceLine } from "./trace-line.tsx";
+import { TITLE_BAR, type Measurement } from "./layout.ts";
+import { buildBlockTitle, type SiblingPosition } from "../view/block-title.ts";
+import { buildBlockView } from "../view/block-view.ts";
+import { tokenizePython } from "../view/tokens.ts";
+import { TraceLine } from "../view/trace-line.tsx";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -15,16 +16,14 @@ interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   position: SiblingPosition;
-  expanded: boolean;
-  width?: number | null;
-  height?: number | null;
-  resizeHandles?: ReactNode;
-  openSite?: LocId | null;
-  onToggleSite?: (site: LocId) => void;
-  chromeRef?: Ref<HTMLElement> | undefined;
-  titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
-  titlebarClassName?: string | undefined;
-  className?: string | undefined;
+  openSite: LocId | null;
+  column: number;
+  width: number | null;
+  height: number | null;
+  resizeHandles: ReactNode;
+  titlebarProps: HTMLAttributes<HTMLDivElement> | undefined;
+  onMeasure: (column: number, measurement: Measurement) => void;
+  onToggleSite: (site: LocId) => void;
 }
 
 function blockSource(trace: Trace, block: NodeId): string {
@@ -37,6 +36,32 @@ function blockSource(trace: Trace, block: NodeId): string {
   return source.text;
 }
 
+function measureWindow(
+  element: HTMLElement,
+): Omit<Measurement, "block" | "openSite"> {
+  const bounds = element.getBoundingClientRect();
+  const scale = useCanvasStore.getState().view.scale;
+  const anchor = element.querySelector<HTMLElement>("[data-site-anchor]");
+  const anchorBounds = anchor?.getBoundingClientRect();
+
+  const height = bounds.height / scale;
+
+  return {
+    width: bounds.width / scale,
+    height,
+    anchorCenterY:
+      anchorBounds === undefined
+        ? null
+        : Math.min(
+            height,
+            Math.max(
+              TITLE_BAR,
+              (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
+            ),
+          ),
+  };
+}
+
 export function titleIndicator(hasException: boolean) {
   return hasException ? (
     <span
@@ -46,7 +71,7 @@ export function titleIndicator(hasException: boolean) {
   ) : null;
 }
 
-interface ExpandedBodyProps {
+interface WindowBodyProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
@@ -54,13 +79,13 @@ interface ExpandedBodyProps {
   onToggleSite: (site: LocId) => void;
 }
 
-function ExpandedBody({
+function WindowBody({
   trace,
   block,
   openSite,
   fitsContent,
   onToggleSite,
-}: ExpandedBodyProps) {
+}: WindowBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
   const source = blockSource(trace, block);
   const tokens = useMemo(() => tokenizePython(source), [source]);
@@ -69,10 +94,6 @@ function ExpandedBody({
     () => buildBlockView(trace, block, tokens),
     [trace, block, tokens],
   );
-
-  useEffect(() => {
-    mountCodeHighlightStyle(document);
-  }, []);
 
   const anchorLine =
     openSite === null
@@ -115,42 +136,60 @@ export function TraceWindow({
   trace,
   block,
   position,
-  expanded,
-  width = null,
-  height = null,
+  openSite,
+  column,
+  width,
+  height,
   resizeHandles,
-  openSite = null,
-  onToggleSite = () => undefined,
-  chromeRef,
   titlebarProps,
-  titlebarClassName,
-  className = "",
+  onMeasure,
+  onToggleSite,
 }: TraceWindowProps) {
+  const windowRef = useRef<HTMLElement>(null);
   const title = buildBlockTitle(trace, block, position);
+
+  useLayoutEffect(() => {
+    const element = windowRef.current;
+
+    if (element === null) return;
+
+    const report = (): void => {
+      onMeasure(column, { block, openSite, ...measureWindow(element) });
+    };
+
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    element.addEventListener("scroll", report, {
+      capture: true,
+      passive: true,
+    });
+
+    return () => {
+      observer.disconnect();
+      element.removeEventListener("scroll", report, { capture: true });
+    };
+  }, [block, column, onMeasure, openSite]);
 
   return (
     <WindowChrome
-      chromeRef={chromeRef}
+      chromeRef={windowRef}
       className={cn(
         "flex max-h-max flex-col",
         width === null && "w-max max-w-trace",
-        className,
       )}
       style={{ width: width ?? undefined, height: height ?? undefined }}
       title={title.text}
       titleIndicator={titleIndicator(title.hasException)}
-      titlebarClassName={titlebarClassName}
       titlebarProps={titlebarProps}
     >
-      {expanded ? (
-        <ExpandedBody
-          block={block}
-          fitsContent={width === null}
-          onToggleSite={onToggleSite}
-          openSite={openSite}
-          trace={trace}
-        />
-      ) : null}
+      <WindowBody
+        block={block}
+        fitsContent={width === null}
+        onToggleSite={onToggleSite}
+        openSite={openSite}
+        trace={trace}
+      />
       {resizeHandles}
     </WindowChrome>
   );

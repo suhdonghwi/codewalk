@@ -28,7 +28,6 @@ interface WindowChromeProps {
   style?: CSSProperties | undefined;
   chromeRef?: Ref<HTMLElement> | undefined;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
-  titlebarClassName?: string | undefined;
 }
 
 export function WindowChrome({
@@ -40,7 +39,6 @@ export function WindowChrome({
   style,
   chromeRef,
   titlebarProps,
-  titlebarClassName,
 }: WindowChromeProps) {
   return (
     <section
@@ -56,8 +54,7 @@ export function WindowChrome({
         {...titlebarProps}
         className={cn(
           "flex h-titlebar flex-none cursor-default items-center justify-between border-b border-window-border pt-px pr-1 pl-2 text-xs leading-none font-medium text-neutral-500 select-none",
-          titlebarClassName,
-          titlebarProps?.className,
+          titlebarProps !== undefined && "cursor-grab active:cursor-grabbing",
         )}
       >
         <span className="inline-flex items-center gap-1.5">
@@ -149,7 +146,6 @@ export function CanvasWindow({
         title={title}
         titleAction={titleAction}
         titleIndicator={titleIndicator}
-        titlebarClassName="cursor-grab active:cursor-grabbing"
         titlebarProps={titlebarProps}
       >
         {children}

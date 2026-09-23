@@ -2,12 +2,9 @@ import type { HTMLAttributes } from "react";
 
 import { ResizeHandles, type Size } from "@/domain/canvas/index.ts";
 
-import {
-  MeasuredTraceWindow,
-  type Measurement,
-} from "./measured-trace-window.tsx";
 import { SiblingList } from "./sibling-list.tsx";
-import { SIBLING_LIST_WIDTH } from "./layout.ts";
+import { SIBLING_LIST_WIDTH, type Measurement } from "./layout.ts";
+import { TraceWindow } from "./trace-window.tsx";
 import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
 
 import type { ColumnLayout } from "./layout.ts";
@@ -95,9 +92,8 @@ export function TreeColumn({
           visibility,
         }}
       >
-        <MeasuredTraceWindow
+        <TraceWindow
           block={column.block}
-          className=""
           column={columnIndex}
           height={windowSize.height}
           resizeHandles={columnResizeHandles(columnIndex, "window")}
@@ -109,9 +105,6 @@ export function TreeColumn({
             index: column.expandedIndex,
             count: column.blocks.length,
           }}
-          titlebarClassName={
-            columnIndex === 0 ? "cursor-grab active:cursor-grabbing" : undefined
-          }
           titlebarProps={columnIndex === 0 ? rootTitlebarProps : undefined}
           trace={trace}
         />

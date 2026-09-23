@@ -1,6 +1,4 @@
-import { TITLE_BAR, type ColumnLayout } from "./layout.ts";
-
-import type { Measurement } from "./measured-trace-window.tsx";
+import { TITLE_BAR, type ColumnLayout, type Measurement } from "./layout.ts";
 import type { NodeId } from "@codewalk/trace";
 
 interface TreeEdgesProps {

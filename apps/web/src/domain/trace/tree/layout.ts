@@ -1,3 +1,5 @@
+import type { LocId, NodeId } from "@codewalk/trace";
+
 // Mirrors --spacing-titlebar in index.css for trace layout calculations.
 export const TITLE_BAR = 28;
 
@@ -6,6 +8,27 @@ const COLUMN_GAP = 64;
 export const SIBLING_LIST_WIDTH = 168;
 
 const SIBLING_LIST_GAP = 8;
+
+export interface Measurement {
+  block: NodeId;
+  openSite: LocId | null;
+  width: number;
+  height: number;
+  anchorCenterY: number | null;
+}
+
+export function sameMeasurement(
+  left: Measurement | undefined,
+  right: Measurement,
+): boolean {
+  return (
+    left?.block === right.block &&
+    left.openSite === right.openSite &&
+    left.width === right.width &&
+    left.height === right.height &&
+    left.anchorCenterY === right.anchorCenterY
+  );
+}
 
 export interface ColumnInput {
   siblingListWidth: number | null;

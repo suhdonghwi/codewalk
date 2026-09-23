@@ -1,13 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
-import { layoutableColumns, layoutTree, SIBLING_LIST_WIDTH } from "./layout.ts";
-import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
+import {
+  layoutableColumns,
+  layoutTree,
+  sameMeasurement,
+  SIBLING_LIST_WIDTH,
+  type Measurement,
+} from "./layout.ts";
 import { pathColumns, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
 import { partSize, useTraceStore } from "../store.ts";
+import { mountCodeHighlightStyle } from "../view/tokens.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -21,6 +27,10 @@ export function TraceTree({ trace }: { trace: Trace }) {
   );
 
   const rootTitlebarProps = useWindowDrag("trace");
+
+  useEffect(() => {
+    mountCodeHighlightStyle(document);
+  }, []);
 
   const columns = pathColumns(trace, path);
 
