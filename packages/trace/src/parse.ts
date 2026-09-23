@@ -1,6 +1,6 @@
 import { match, P } from "ts-pattern";
 
-import { EventSchema, HeaderSchema, isBlockRole } from "./schema.ts";
+import { EventSchema, HeaderSchema } from "./schema.ts";
 
 import type { End, Header, Role, TraceEvent } from "./schema.ts";
 import type {
@@ -29,18 +29,30 @@ function schemaMessage(error: {
   return error.issues.map((issue) => issue.message).join("; ");
 }
 
+function rangeProblem(
+  header: Header,
+  range: { file: number; start: number; end: number },
+): string | null {
+  if (range.file >= header.sources.length) {
+    return `has out-of-range file ${range.file}`;
+  }
+
+  if (range.start > range.end) return "starts after it ends";
+
+  const source = header.sources[range.file];
+
+  if (source !== undefined && range.end > source.text.length) {
+    return "ends beyond its source text";
+  }
+
+  return null;
+}
+
 function validateHeader(header: Header): TraceParseError | null {
   for (let locId = 0; locId < header.locs.length; locId += 1) {
     const loc = header.locs[locId];
 
     if (loc === undefined) continue;
-
-    if (loc.file >= header.sources.length) {
-      return structureError(
-        1,
-        `loc ${locId} has out-of-range file ${loc.file}`,
-      );
-    }
 
     if (loc.parent !== null && loc.parent >= header.locs.length) {
       return structureError(
@@ -49,15 +61,9 @@ function validateHeader(header: Header): TraceParseError | null {
       );
     }
 
-    if (loc.start > loc.end) {
-      return structureError(1, `loc ${locId} starts after it ends`);
-    }
+    const problem = rangeProblem(header, loc);
 
-    const source = header.sources[loc.file];
-
-    if (source !== undefined && loc.end > source.text.length) {
-      return structureError(1, `loc ${locId} ends beyond its source text`);
-    }
+    if (problem !== null) return structureError(1, `loc ${locId} ${problem}`);
   }
 
   for (let locId = 0; locId < header.locs.length; locId += 1) {
@@ -91,22 +97,9 @@ function roleCanContain(parent: Role, child: Role): boolean {
 }
 
 function endFromEvent(event: Extract<TraceEvent, { op: "end" }>): End {
-  return match(event)
-    .with({ status: "ok" }, (): End => ({ status: "ok" }))
-    .with({ status: "truncated" }, (): End => ({ status: "truncated" }))
-    .with({ status: "timeout" }, (): End => ({ status: "timeout" }))
-    .with({ status: "exception" }, ({ traceback }): End => ({
-      status: "exception",
-      traceback,
-    }))
-    .with({ status: "syntax_error" }, ({ message, file, start, end }): End => ({
-      status: "syntax_error",
-      message,
-      file,
-      start,
-      end,
-    }))
-    .exhaustive();
+  const { op: _op, ...end } = event;
+
+  return end;
 }
 
 function validateSyntaxErrorEnd(
@@ -114,24 +107,11 @@ function validateSyntaxErrorEnd(
   header: Header,
   line: number,
 ): TraceParseError | null {
-  if (end.file >= header.sources.length) {
-    return structureError(
-      line,
-      `syntax error has out-of-range file ${end.file}`,
-    );
-  }
+  const problem = rangeProblem(header, end);
 
-  if (end.start > end.end) {
-    return structureError(line, "syntax error starts after it ends");
-  }
-
-  const source = header.sources[end.file];
-
-  if (source !== undefined && end.end > source.text.length) {
-    return structureError(line, "syntax error ends beyond its source text");
-  }
-
-  return null;
+  return problem === null
+    ? null
+    : structureError(line, `syntax error ${problem}`);
 }
 
 export function parseTrace(jsonl: string): ParseResult {
@@ -140,11 +120,7 @@ export function parseTrace(jsonl: string): ParseResult {
   const lines = jsonl.split("\n");
   const hasTerminatingNewline = jsonl.endsWith("\n");
 
-  const headerLine = lines[0]?.endsWith("\r")
-    ? lines[0].slice(0, -1)
-    : lines[0];
-
-  if (headerLine === undefined) return parseError("empty", 1, "trace is empty");
+  const [headerLine = ""] = lines;
 
   let headerResult: ReturnType<typeof HeaderSchema.safeParse>;
 
@@ -177,12 +153,9 @@ export function parseTrace(jsonl: string): ParseResult {
   let end: End | null = null;
 
   for (let index = 1; index < lines.length; index += 1) {
-    const rawLine = lines[index];
+    const line = lines[index];
 
-    if (rawLine === undefined) continue;
-    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-
-    if (line.length === 0) continue;
+    if (line === undefined || line.length === 0) continue;
 
     let eventResult: ReturnType<typeof EventSchema.safeParse>;
 
@@ -215,7 +188,7 @@ export function parseTrace(jsonl: string): ParseResult {
           return structureError(index + 1, `enter has out-of-range loc ${loc}`);
         }
 
-        if (nodes.length === 0 && !isBlockRole(enteredLoc.role)) {
+        if (nodes.length === 0 && enteredLoc.role !== "block") {
           return structureError(index + 1, "the first enter is not a block");
         }
 
@@ -268,7 +241,7 @@ export function parseTrace(jsonl: string): ParseResult {
         const node = nodes[nodeId];
         const loc = node === undefined ? undefined : header.locs[node.loc];
 
-        if (exc !== undefined && !isBlockRole(loc?.role)) {
+        if (exc !== undefined && loc?.role !== "block") {
           return structureError(
             index + 1,
             "exit.exc is only valid on a block node",
@@ -313,7 +286,7 @@ export function parseTrace(jsonl: string): ParseResult {
 
         const node = nodes[nodeId];
 
-        if (node === undefined || !isBlockRole(header.locs[node.loc]?.role)) {
+        if (node === undefined || header.locs[node.loc]?.role !== "block") {
           return structureError(index + 1, "value is not attached to a block");
         }
 
