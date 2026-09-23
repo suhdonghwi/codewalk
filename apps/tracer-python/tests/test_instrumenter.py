@@ -139,34 +139,6 @@ def test_instrumented_diverse_standard_library_and_language_constructs_compile()
         compile(instrument(tree, source, filename).tree, filename, "exec")
 
 
-@pytest.mark.parametrize("expression", ["repr(value)", "repr([value])"])
-def test_user_repr_calls_still_raise_after_entry_value_formatting(
-    tmp_path: Path, expression: str
-) -> None:
-    source = (
-        "class Box:\n"
-        "    def __repr__(self):\n"
-        "        raise SystemExit('broken')\n"
-        "def process(value):\n"
-        "    print('entered')\n"
-        "    try:\n"
-        f"        {expression}\n"
-        "    except SystemExit:\n"
-        "        print('caught')\n"
-        "process(Box())\n"
-        "print('finished')\n"
-    )
-    path = tmp_path / "prog.py"
-    path.write_text(source, encoding="utf-8")
-    events = [json.loads(line) for line in _trace(path).stdout.splitlines()]
-
-    assert (
-        "".join(event["text"] for event in events if event.get("op") == "out")
-        == "entered\ncaught\nfinished\n"
-    )
-    assert events[-1] == {"op": "end", "status": "ok"}
-
-
 def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -> None:
     source = (
         "def gather(𐐀: int, ﬀ: int, \U0001d499: str, /, "

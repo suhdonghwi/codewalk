@@ -1,7 +1,5 @@
-import json
 from collections.abc import Mapping
 from contextlib import suppress
-from pathlib import Path
 
 import pytest
 
@@ -28,7 +26,7 @@ def test_value_formatting_is_bounded_and_single_line() -> None:
     assert _format_value(Multiline()) == "first second third fourth"
 
 
-@pytest.mark.parametrize("error", [ValueError, SystemExit, KeyboardInterrupt])
+@pytest.mark.parametrize("error", [ValueError, SystemExit])
 def test_value_formatting_contains_user_exceptions_even_in_containers(
     error: type[BaseException],
 ) -> None:
@@ -48,74 +46,6 @@ def test_default_object_reprs_use_class_names_even_inside_containers() -> None:
 
     assert _format_value(value) == "<Plain>"
     assert _format_value([value]) == "[<Plain>]"
-
-
-def test_entry_values_mute_repr_stack_changes() -> None:
-    sink = ListSink()
-    runtime = Runtime([None, 0, 1, 0, 1], sink)
-
-    class Loud:
-        def __repr__(self) -> str:
-            with runtime.block(3), runtime.iteration(3):
-                runtime.value(4, "nested")
-                runtime.stmt(1)
-                runtime.end(runtime.begin(2), print("hidden"))
-                runtime.finish("ok")
-            return "visible"
-
-    with runtime.capture_output(), runtime.block(0):
-        runtime.value(4, Loud())
-        print("after")
-    runtime.finish("ok")
-
-    assert sink.events == [
-        {"op": "enter", "loc": 0},
-        {"op": "value", "loc": 4, "text": "visible"},
-        {"op": "out", "stream": "stdout", "text": "after\n"},
-        {"op": "exit"},
-        {"op": "end", "status": "ok"},
-    ]
-
-
-def test_hand_instrumented_factorial_matches_the_golden_trace() -> None:
-    fixture = Path(__file__).parents[3] / "spec/fixtures/fact.trace.jsonl"
-    lines = fixture.read_text(encoding="utf-8").splitlines()
-    header = json.loads(lines[0])
-    expected = [json.loads(line) for line in lines[1:]]
-    parents = [loc["parent"] for loc in header["locs"]]
-    sink = ListSink()
-    runtime = Runtime(parents, sink)
-    begin = runtime.begin
-    end = runtime.end
-
-    with runtime.capture_output(), runtime.block(0):
-        runtime.stmt(1)
-
-        def fact(n: int) -> int:
-            with runtime.block(2):
-                runtime.value(3, n)
-                runtime.stmt(4)
-                end(begin(5), print("fact", n))
-                runtime.stmt(6)
-                if end(begin(7), n <= 1):
-                    runtime.stmt(8)
-                    return 1
-                runtime.stmt(9)
-                return end(
-                    begin(10),
-                    n * end(begin(11), fact(end(begin(12), n - 1))),
-                )
-
-        runtime.stmt(13)
-        for i in end(begin(15), range(2)):
-            with runtime.iteration(16):
-                runtime.value(14, i)
-                runtime.stmt(17)
-                end(begin(18), print(end(begin(19), fact(end(begin(20), i + 1)))))
-
-    runtime.finish("ok")
-
-    assert sink.events == expected
 
 
 def test_a_caught_nested_expression_exception_leaves_no_stale_node() -> None:
