@@ -86,8 +86,11 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
                 output.append(event["text"])
         elif event["op"] == "value":
             assert stack
-            assert locs[event["loc"]]["role"] == "expr"
-            assert locs[stack[-1]]["role"] == "block"
+            if "loc" in event:
+                assert locs[event["loc"]]["role"] == "expr"
+                assert locs[stack[-1]]["role"] == "block"
+            else:
+                assert locs[stack[-1]]["role"] in {"block", "stmt"}
     assert not stack
 
     plain = subprocess.run(
@@ -188,7 +191,7 @@ def test_loop_entry_values_capture_only_destructured_names_in_source_order(
         index for index, loc in enumerate(locs) if loc.get("unit") == "iteration"
     )
     entered = events.index({"op": "enter", "loc": iteration})
-    values = [event for event in events if event["op"] == "value"]
+    values = [event for event in events if event["op"] == "value" and "loc" in event]
 
     assert [
         (source[locs[event["loc"]]["start"] : locs[event["loc"]]["end"]], event["text"])
@@ -198,6 +201,22 @@ def test_loop_entry_values_capture_only_destructured_names_in_source_order(
     assert all(
         locs[event["loc"]]["parent"] == locs[iteration]["parent"] for event in values
     )
+
+
+def test_a_function_records_changes_for_its_first_thousand_calls_only(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "prog.py"
+    path.write_text(
+        "def square(x):\n    y = x * x\n\nfor i in range(1001):\n    square(i)\n",
+        encoding="utf-8",
+    )
+    events = [json.loads(line) for line in _trace(path).stdout.splitlines()[1:]]
+
+    squares = [event["text"] for event in events if event.get("name") == "y"]
+
+    assert len(squares) == 1000
+    assert squares[-1] == "998001"
 
 
 def test_syntax_and_runtime_failures_have_source_only_diagnostics(

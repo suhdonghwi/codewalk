@@ -44,7 +44,13 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
     sink.write(_header(source_name, source, result.locs))
     sink.flush()
 
-    runtime = Runtime([loc["parent"] for loc in result.locs], sink)
+    runtime = Runtime(
+        [loc["parent"] for loc in result.locs],
+        sink,
+        result.watched,
+        result.inputs,
+        result.statements,
+    )
     globals_: dict[str, object] = {
         "__name__": "__main__",
         "__file__": str(path),

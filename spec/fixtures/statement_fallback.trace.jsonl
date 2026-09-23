@@ -5,6 +5,7 @@
 {"op":"enter","loc":2}
 {"op":"exit"}
 {"op":"enter","loc":9}
+{"op":"value","name":"bag","text":"<Bag>"}
 {"op":"exit"}
 {"op":"enter","loc":11}
 {"op":"enter","loc":3}

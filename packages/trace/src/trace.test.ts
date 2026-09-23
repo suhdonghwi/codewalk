@@ -87,11 +87,11 @@ test("the fact fixture builds the documented execution tree and output and entry
   ]);
   expect([3, 7, 12, 16, 23].map((block) => trace.nodes[block]?.values)).toEqual(
     [
-      [{ loc: 14, text: "0" }],
-      [{ loc: 3, text: "1" }],
-      [{ loc: 14, text: "1" }],
-      [{ loc: 3, text: "2" }],
-      [{ loc: 3, text: "1" }],
+      [{ loc: 14, name: "i", text: "0" }],
+      [{ loc: 3, name: "n", text: "1" }],
+      [{ loc: 14, name: "i", text: "1" }],
+      [{ loc: 3, name: "n", text: "2" }],
+      [{ loc: 3, name: "n", text: "1" }],
     ],
   );
 });
@@ -304,6 +304,17 @@ describe("structural validation", () => {
           { op: "value", loc: 2, text: "x" },
         ),
         line: 4,
+      },
+      {
+        name: "named value inside an expression",
+        input: traceOf(
+          header([root, stmt, expr]),
+          { op: "enter", loc: 0 },
+          { op: "enter", loc: 1 },
+          { op: "enter", loc: 2 },
+          { op: "value", name: "x", text: "1" },
+        ),
+        line: 5,
       },
       {
         name: "event after end",

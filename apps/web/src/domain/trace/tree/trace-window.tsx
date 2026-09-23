@@ -1,11 +1,14 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { useCanvasStore, WindowChrome } from "@/domain/canvas/index.ts";
+import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { TITLE_BAR, type Measurement } from "./layout.ts";
-import { buildBlockTitle, type SiblingPosition } from "../view/block-title.ts";
+import {
+  buildBlockTitle,
+  type SiblingColumn,
+  type SiblingPosition,
+} from "../view/block-title.ts";
 import { buildBlockView } from "../view/block-view.ts";
 import { tokenizePython } from "../view/tokens.ts";
 import { TraceLine } from "../view/trace-line.tsx";
@@ -17,39 +20,13 @@ interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   position: SiblingPosition;
+  columns: SiblingColumn[];
   openSite: LocId | null;
-  column: number;
   width: number | null;
   height: number | null;
   resizeHandles: ReactNode;
   titlebarProps: HTMLAttributes<HTMLDivElement> | undefined;
-  onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (site: LocId) => void;
-}
-
-function measureWindow(
-  element: HTMLElement,
-): Omit<Measurement, "block" | "openSite"> {
-  const bounds = element.getBoundingClientRect();
-  const scale = useCanvasStore.getState().view.scale;
-  const anchor = element.querySelector<HTMLElement>("[data-site-anchor]");
-  const anchorBounds = anchor?.getBoundingClientRect();
-
-  const height = bounds.height / scale;
-
-  return {
-    width: bounds.width / scale,
-    anchorCenterY:
-      anchorBounds === undefined
-        ? null
-        : Math.min(
-            height,
-            Math.max(
-              TITLE_BAR,
-              (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
-            ),
-          ),
-  };
 }
 
 export function titleIndicator(hasException: boolean) {
@@ -65,6 +42,7 @@ interface WindowBodyProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
+  columns: SiblingColumn[];
   fitsContent: boolean;
   onToggleSite: (site: LocId) => void;
 }
@@ -73,6 +51,7 @@ function WindowBody({
   trace,
   block,
   openSite,
+  columns,
   fitsContent,
   onToggleSite,
 }: WindowBodyProps) {
@@ -99,7 +78,7 @@ function WindowBody({
         fitsContent && "max-w-trace",
       )}
     >
-      <div className="grid w-max min-w-full py-2">
+      <div className="grid w-max min-w-full grid-cols-[max-content_minmax(max-content,1fr)] py-2">
         <div
           aria-hidden
           className="sticky left-0 z-1 col-start-1 row-start-1 -my-2 box-content w-gutter border-r border-gutter-divider bg-white"
@@ -112,6 +91,7 @@ function WindowBody({
             key={line.number}
             line={line}
             row={index + 1}
+            varyingNames={columns.map(({ name }) => name)}
             onHoverSite={setHoveredSite}
             onToggleSite={onToggleSite}
             openSite={openSite}
@@ -126,44 +106,18 @@ export function TraceWindow({
   trace,
   block,
   position,
+  columns,
   openSite,
-  column,
   width,
   height,
   resizeHandles,
   titlebarProps,
-  onMeasure,
   onToggleSite,
 }: TraceWindowProps) {
-  const windowRef = useRef<HTMLElement>(null);
   const title = buildBlockTitle(trace, block, position);
-
-  useLayoutEffect(() => {
-    const element = windowRef.current;
-
-    if (element === null) return;
-
-    const report = (): void => {
-      onMeasure(column, { block, openSite, ...measureWindow(element) });
-    };
-
-    report();
-    const observer = new ResizeObserver(report);
-    observer.observe(element);
-    element.addEventListener("scroll", report, {
-      capture: true,
-      passive: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      element.removeEventListener("scroll", report, { capture: true });
-    };
-  }, [block, column, onMeasure, openSite]);
 
   return (
     <WindowChrome
-      chromeRef={windowRef}
       className={cn(
         "flex max-h-max flex-col",
         width === null && "w-max max-w-trace",
@@ -175,6 +129,7 @@ export function TraceWindow({
     >
       <WindowBody
         block={block}
+        columns={columns}
         fitsContent={width === null}
         onToggleSite={onToggleSite}
         openSite={openSite}

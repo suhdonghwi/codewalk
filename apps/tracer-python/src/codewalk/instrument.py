@@ -4,6 +4,7 @@ import ast
 from dataclasses import dataclass
 from typing import Literal
 
+from codewalk.liveness import loop_state, statement_bindings, target_names
 from codewalk.locs import Loc, SourceMap
 
 _BRACKETED = (
@@ -17,14 +18,32 @@ _BRACKETED = (
 
 
 @dataclass(frozen=True)
+class StatementNames:
+    """Names a statement binds itself, and names whose changes it leaves out."""
+
+    binds: tuple[str, ...]
+    quiet: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Instrumented:
     tree: ast.Module
     locs: list[Loc]
+    watched: dict[int, tuple[str, ...]]
+    inputs: dict[int, tuple[str, ...]]
+    statements: dict[int, StatementNames]
 
 
 def instrument(tree: ast.Module, source: str, source_name: str) -> Instrumented:
     transformer = _Instrumenter(source, source_name)
-    return Instrumented(transformer.module(tree), transformer.locs)
+    module = transformer.module(tree)
+    return Instrumented(
+        module,
+        transformer.locs,
+        transformer.watched,
+        transformer.inputs,
+        transformer.statements,
+    )
 
 
 class _Instrumenter:
@@ -32,6 +51,9 @@ class _Instrumenter:
         self.source = SourceMap(source)
         self.source_name = source_name
         self.locs: list[Loc] = []
+        self.watched: dict[int, tuple[str, ...]] = {}
+        self.inputs: dict[int, tuple[str, ...]] = {}
+        self.statements: dict[int, StatementNames] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -40,6 +62,7 @@ class _Instrumenter:
         )
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
+        self.watched[module_loc] = _mentioned(node)
         body = self._body(node.body[prefix_count:], module_loc)
         wrapper = self._block_wrapper("block", module_loc, body, node)
         node.body = [*prefix, wrapper]
@@ -56,10 +79,12 @@ class _Instrumenter:
         start, end = self.source.statement_range(node)
         statement = self._loc("stmt", start, end, block)
         marker = self._marker(statement, node)
+        self._bind(statement, node)
 
         if isinstance(node, ast.FunctionDef):
             if _is_generator(node):
                 return [marker, node]
+            mentioned = _mentioned(node)
             self._definition_expressions(node, statement)
             block_start, block_end = self._function_range(node)
             function = self._loc(
@@ -70,6 +95,7 @@ class _Instrumenter:
                 title=node.name,
                 unit="call",
             )
+            self.watched[function] = mentioned
             values = self._parameter_values(node.args, statement)
             doc, rest = _split_docstring(node.body)
             body = self._body(rest, function)
@@ -91,6 +117,7 @@ class _Instrumenter:
         elif isinstance(node, ast.While):
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
+            mentioned = _mentioned(node)
             self._target(node.target, statement)
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
@@ -103,11 +130,16 @@ class _Instrumenter:
                 title="iteration",
                 unit="iteration",
             )
+            self.watched[iteration] = mentioned
             node.body = [
                 self._block_wrapper(
                     "iteration",
                     iteration,
-                    [*values, *self._body(node.body, iteration)],
+                    [
+                        *values,
+                        *self._track(node, iteration),
+                        *self._body(node.body, iteration),
+                    ],
                     node,
                 )
             ]
@@ -178,7 +210,9 @@ class _Instrumenter:
             title="iteration",
             unit="iteration",
         )
+        self.watched[iteration] = _mentioned(node)
         test = self._loc("stmt", *header, iteration)
+        self._bind(test, node)
         leave: list[ast.stmt] = [ast.Break()]
         if node.orelse:
             leave.insert(0, ast.Expr(value=_runtime_call("mark_exhausted")))
@@ -188,6 +222,7 @@ class _Instrumenter:
             orelse=[],
         )
         body = [
+            *self._track(node, iteration),
             self._marker(test, node),
             ast.copy_location(check, node),
             *self._body(node.body, iteration),
@@ -232,6 +267,20 @@ class _Instrumenter:
             )
             for parameter in parameters
         ]
+
+    def _bind(self, statement: int, node: ast.stmt) -> None:
+        binds = statement_bindings(node)
+        quiet = target_names(node.target) if isinstance(node, ast.For) else []
+        if binds or quiet:
+            self.statements[statement] = StatementNames(tuple(binds), tuple(quiet))
+
+    def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
+        inputs = loop_state(node)
+        if not inputs:
+            return []
+        self.inputs[iteration] = tuple(inputs)
+        call = ast.Expr(value=_runtime_call("state", ast.Constant(iteration)))
+        return [ast.copy_location(call, node)]
 
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
         if isinstance(node, (ast.GeneratorExp, ast.Lambda)):
@@ -401,6 +450,18 @@ def _module_prefix_length(body: list[ast.stmt]) -> int:
             break
         index += 1
     return index
+
+
+def _mentioned(node: ast.AST) -> tuple[str, ...]:
+    names = [
+        child for child in ast.walk(node) if isinstance(child, (ast.Name, ast.arg))
+    ]
+    names.sort(key=lambda child: (child.lineno, child.col_offset))
+    return tuple(
+        dict.fromkeys(
+            child.id if isinstance(child, ast.Name) else child.arg for child in names
+        )
+    )
 
 
 def _is_generator(node: ast.FunctionDef) -> bool:

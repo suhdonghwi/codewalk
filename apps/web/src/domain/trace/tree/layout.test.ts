@@ -5,7 +5,7 @@ import { layoutTree, type ColumnInput } from "./layout.ts";
 function column(
   width: number | null,
   anchorCenterY: number | null,
-  options: { siblingListWidth?: number; stale?: boolean } = {},
+  options: { stale?: boolean } = {},
 ): ColumnInput {
   return {
     measurement:
@@ -18,21 +18,16 @@ function column(
             anchorCenterY,
           },
     openSite: 1,
-    siblingListWidth: options.siblingListWidth ?? null,
   };
 }
 
-test("columns accumulate parent widths, make room for sibling lists at their own width and align to measured anchors", () => {
+test("columns accumulate parent widths and align to measured anchors", () => {
   expect(
-    layoutTree([
-      column(300, 90),
-      column(180, 50, { siblingListWidth: 200 }),
-      column(120, null),
-    ]),
+    layoutTree([column(300, 90), column(388, 50), column(120, null)]),
   ).toEqual([
-    { x: 0, windowX: 0, top: 0, edge: null },
-    { x: 364, windowX: 572, top: 76, edge: { fromX: 300, toX: 364, y: 90 } },
-    { x: 816, windowX: 816, top: 112, edge: { fromX: 752, toX: 816, y: 126 } },
+    { x: 0, top: 0, edge: null },
+    { x: 364, top: 76, edge: { fromX: 300, toX: 364, y: 90 } },
+    { x: 816, top: 112, edge: { fromX: 752, toX: 816, y: 126 } },
   ]);
 });
 

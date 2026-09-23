@@ -16,8 +16,9 @@ export interface OutputChunk {
   text: string;
 }
 
-interface ValueChunk {
-  loc: LocId;
+export interface ValueChunk {
+  loc: LocId | null;
+  name: string;
   text: string;
 }
 

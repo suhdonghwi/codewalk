@@ -25,7 +25,8 @@ it, so debug prints carry their context.
 1. **One UI language.** No special-case widgets. Everything is: _a window shows
    one execution of a source range; ranges in it that spawned child executions
    are clickable; clicking opens the child windows._ Calls, loops, callbacks and
-   navigation jumps all use this. Convenience abstractions (tables, scrubbers,
+   navigation jumps all use this. The sibling list reads as a table of the
+   siblings' entry values; further views over repetition (scrubbers,
    abbreviation of repetition) come later, once real repetition patterns show up.
 2. **Language-agnostic trace.** The tracer is per-language; the trace format and
    the viewer are not. The viewer only knows source ranges and three roles.
@@ -72,7 +73,9 @@ or output (→ inline output). A call and a loop are the same thing to the viewe
 so are a function activation and an iteration.
 
 v1 records structure, statement coverage, output and exceptions. It also
-records block inputs — function parameters and loop targets — at block entry.
+records block inputs — function parameters, loop targets and loop state — at
+block entry, and in every block the value each statement gave to the variables
+it assigned or changed.
 
 ## Tracer (Python)
 
@@ -133,11 +136,41 @@ for i in _cw_e(_cw_b(15), range(2)):
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
 - **Values.** `_cw.value(id, name)` opens a function or iteration block, once
-  per parameter or loop target. Values use a one-line `repr` of at most 48
+  per parameter or loop target; `_cw.state(id)` then records the iteration's
+  loop state (see below). Values use a one-line `repr` of at most 48
   characters, the length an inline chip shows. Recording and output capture
   are muted while formatting so an instrumented user `__repr__` cannot change
   the trace. Objects without a custom `__repr__` render as `<ClassName>`,
-  including inside containers.
+  including inside containers, and memory addresses are dropped from built-in
+  reprs (`<function <lambda>>`) so traces stay deterministic.
+- **Loop state.** An iteration's inputs beyond its targets are the variables it
+  may read before assigning them: a definite-assignment walk over the body (for
+  `while`, the condition first) that intersects at branch joins and drops paths
+  that `break`, `continue`, `return` or `raise`. Only names bound in the frame
+  to something other than a function, class or module count (see below), so
+  builtins, functions, classes and imported modules are not state. Mutation needs no
+  special case: a list the body appends to is read before it is assigned, and
+  its value differs between iterations. A variable not bound yet (typically in
+  the first iteration) is left out.
+- **Changes.** Every block watches the variables its code mentions: the
+  instrumenter hands the runtime, per block loc, every name in the block's
+  source (a function's parameters, a loop's target and condition included),
+  and per statement loc the names the statement binds itself and, for a `for`,
+  its targets, which that statement does not report. Entering a block looks
+  those names up in its frame (`f_locals`, then `f_globals`), keeps the ones
+  bound to something other than a function, class or module, and remembers
+  each rendering; `_cw.state(id)` then emits an iteration's inputs from that
+  snapshot. At every statement boundary in the block, and at its exit, the
+  runtime renders them again and emits a named value on the statement that
+  just ran for each name it binds or whose rendering changed. So
+  `mid = (lo + hi) // 2` is recorded even when it repeats last iteration's
+  value, `remember(seen, w)` is recorded because `seen` rendered differently
+  after it, and a function that appends to a global it names records the
+  change on its own line. Statements of a called function belong to that
+  function's block and are not settled against the iteration. A loop is one
+  statement of its parent block, so what the parent records on it is the
+  loop's end state. Only the first 1000 calls of each function watch their
+  variables, so heavy recursion does not spend its time limit on renderings.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits** belong to the runner, not the tracer. The runner kills the process
   at its time limit or once the trace reaches its byte cap. The tracer flushes
@@ -210,29 +243,39 @@ held at the window's top or bottom edge once the line scrolls out of view.
     (runs in a child window) faded but still syntax-coloured; dimmed (did not
     run) faded and grey;
   - clickable ranges for sites that contain blocks;
-  - inline output as a tinted chip right after the code of the line whose sites
-    contain output; long or multi-line output expands into a panel below it;
+  - inline output as a tinted chip on the line whose sites contain output; long
+    or multi-line output expands into a panel below it;
   - values as chips of the same shape in the value colour, inserted in the
     code right after the name they belong to, reading `= 3`: a parameter's
     value follows its name on the `def` line, a loop target's value follows
-    its name on the `for` line. Only the window's own block contributes
-    values, so a `for` line in the parent window carries none. Values are
-    already short, so their chips never expand;
+    its name on the `for` line. Loop state is bound nowhere in the window, so
+    its values are a group of chips on the loop's first line, the iteration's
+    inputs. A value that is the same in every sibling is faded there, the way
+    the sibling table leaves it out. Only the window's own block contributes values, so a `for` line in
+    the parent window carries none. Values are already short, so their chips
+    never expand;
   - the exception on the origin statement: the line is faintly tinted, its line
-    number turns red, and the one-line summary follows the code as a chip of the
-    same shape as inline output, in the exception colour.
+    number turns red, and the one-line summary is a chip of the same shape as
+    inline output, in the exception colour.
 
   Chips are one primitive with three tints: value, output and exception. A
-  chip sits immediately after the range it annotates; output and the exception
-  annotate the whole statement, so they sit at the end of the line.
+  chip about a name sits immediately after the name, where it is bound. A chip
+  about a whole line — output, the exception, loop state, and the changes a
+  statement made (`lo → 8`) — sits in a column to
+  the right of the code: the window body is a grid whose first column is as
+  wide as the longest line, so these chips line up and read top to bottom as
+  the block's data beside its code. Chips are a little shorter than a code
+  line, so chips on consecutive lines keep a gap. Hovering any line highlights
+  its whole row.
 
   Title bar: the trace's `title`, with ` N` appended by the viewer when the site
   ran several blocks (a callback, a call in a comprehension). Iteration windows
-  therefore read `iteration 2`. The block's entry values follow in parentheses
-  (`fact 2 (n = 3)`), which is how one iteration is told from the next in a
-  sibling list. A red dot marks a block that was left by an exception; it is the
-  only title indicator, output is not marked. Sibling-list rows use the same
-  text and dot. A window is either expanded or collapsed to its title bar.
+  therefore read `iteration 2`. Entry values are not repeated in the title:
+  the window shows them on its lines and the sibling list in its columns. A
+  red dot
+  marks a block that was left by an exception; it is the only title indicator,
+  output is not marked. A window is either expanded or collapsed to its title
+  bar.
 
 Running replaces the previous trace (the tree keeps its position).
 
@@ -248,8 +291,22 @@ path: NodeId[]      // expanded block windows, root → deepest
 - Column _k_ of the tree holds the children of the site selected in column
   _k−1_: the expanded child window, preceded — when the site has several child
   blocks — by a **sibling list** of all of them with the expanded one
-  highlighted. (Finder column view, on a canvas.) The list has a bounded height
-  and scrolls inside; both it and the window are top-aligned to the clicked
+  highlighted. (Finder column view, on a canvas.) The list is a table: a row
+  per sibling (its indexed title and red dot) and a column per entry value
+  that differs between siblings, with an empty cell where a sibling has none
+  (a loop-state variable not bound yet). Reading down a column shows how the
+  state moves from one iteration to the next; a value that repeats the row
+  above it is faded, so the rows where a variable changes stand out. When the
+  last sibling changed its loop state, an `after` row closes the table with the
+  end state: the last sibling's inputs with its statements' changes applied.
+  It stays pinned to the bottom of the list, as the header stays at the top,
+  so the end state is visible however the list is scrolled. It has cells only
+  for loop state (loop targets and parameters have no
+  "after"), and is left out when it would repeat the last row, as after a
+  `while` loop's final failed check. The list
+  sizes to its columns, and the window sits right after it in the same row,
+  so the column is measured as a whole. It has a bounded height
+  and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
   range, and an edge connects range → column. Choosing a sibling therefore moves
   nothing on the canvas, however long the loop.
 - **Click a site** → truncate `path` at that window, append the site's first
@@ -371,7 +428,7 @@ Further out:
   then variable/heap state. Block inputs are the completed first step.
 - Instrumenting lambdas, generator expressions, generators, `async`; iteration
   blocks for comprehensions.
-- Convenience views over repetition (iteration tables, scrubbers, abbreviation).
+- Further views over repetition (scrubbers, abbreviation).
 - Skeleton-first recording with on-demand deterministic re-execution for large
   runs; compact event encoding.
 - Multi-file programs, more languages (the second language is the real test of

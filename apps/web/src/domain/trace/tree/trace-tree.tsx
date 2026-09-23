@@ -6,14 +6,13 @@ import { layoutTree, sameMeasurement, type Measurement } from "./layout.ts";
 import { pathColumns, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
-import { siblingListWidth, useTraceStore } from "../store.ts";
+import { useTraceStore } from "../store.ts";
 import { mountCodeHighlightStyle } from "../view/tokens.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export function TraceTree({ trace }: { trace: Trace }) {
   const path = useTraceStore((state) => state.path);
-  const columnSizes = useTraceStore((state) => state.columnSizes);
   const treeWindow = useCanvasStore((state) => state.windows.trace);
 
   const [measurements, setMeasurements] = useState<(Measurement | undefined)[]>(
@@ -35,10 +34,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
       return {
         measurement: measurement?.block === column.block ? measurement : null,
         openSite: column.openSite,
-        siblingListWidth:
-          column.blocks.length > 1
-            ? siblingListWidth(columnSizes, index)
-            : null,
       };
     }),
   );

@@ -143,13 +143,29 @@ Range conventions:
   block was left by a propagating exception; the value is a one-line summary.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
-- `value` — the value of the range given by `loc`, which must refer to an
-  `expr` loc. `text` is a bounded, one-line rendering; Python renders objects
-  without a custom `__repr__` as `<ClassName>`. It attaches to the innermost
-  open node like `out`. Tracers emit values only immediately after entering a
-  block: a function's parameters and a loop's targets. A value therefore always
-  belongs to a block node. The viewer places it immediately after the source
-  range of `loc` and includes it in titles and sibling rows too.
+- `value` — a value, in one of two forms. `{loc, text}` is the value of the
+  range given by `loc`, which must refer to an `expr` loc: a name bound at that
+  spot. `{name, text}` is the value of a variable the block receives without
+  binding it anywhere in its range. `text` is a bounded, one-line rendering;
+  Python renders objects without a custom `__repr__` as `<ClassName>`. It
+  attaches to the innermost open node like `out`, which is a block or a
+  statement:
+  - On a `block` node, values are the block's inputs, emitted immediately after
+    entering it: a function's parameters and an iteration's loop targets
+    (anchored), and an iteration's loop state (named). Loop state is the
+    variables an iteration may read before assigning them; one that is still
+    unbound is left out. The viewer places an anchored value immediately after
+    the source range of `loc` and a named value with the block's first line,
+    and includes both in sibling rows.
+  - On a `stmt` node, a named value is the variable's value right after that
+    statement, emitted before the statement closes because the statement
+    assigned the variable or changed its rendering (a list it appended to,
+    also through a call). The viewer places it with the statement's line.
+    Python records these for the variables a block's code mentions, local or
+    global, but not functions, classes or modules. A loop statement is a
+    statement of its parent block, so the values on it are the loop's end
+    state; its own loop targets are left out. Calls of one function beyond
+    its first 1000 record none.
 - `end` — last line. `status`:
   - `ok` — program finished.
   - `exception` — uncaught exception; `traceback` holds the user-facing text.
@@ -167,7 +183,8 @@ no terminating newline and is not valid JSON is ignored: the process was killed
 mid-write. Any other unparseable line makes the whole trace invalid.
 
 A `value` event whose `loc` is out of range or not an `expr` loc is malformed,
-as is a `value` event with no open block node.
+as is an anchored `value` event with no open block node and a named one
+attached to an `expr` node.
 
 ### What is _not_ recorded
 
@@ -176,8 +193,9 @@ as is a `value` event with no open block node.
   whether the expression ran; use `stmt` nodes for that.
   Locs are a static table, however, so an `expr` loc may exist only as an anchor
   for values and never be entered as a node.
-- Values are recorded for block inputs only. Expression values, variables and
-  heap state are not recorded.
+- Values are recorded for block inputs and for the statements that change a
+  block's watched variables. Other expression values and heap state are
+  not recorded.
 
 ## Derived views
 

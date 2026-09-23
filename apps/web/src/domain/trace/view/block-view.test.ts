@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import { parseTrace } from "@codewalk/trace";
 import { describe, expect, test } from "vitest";
 
-import { buildBlockTitle, siblingListTitle } from "./block-title.ts";
+import {
+  buildBlockTitle,
+  siblingAfter,
+  siblingCells,
+  siblingColumns,
+  siblingListTitle,
+} from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 
@@ -30,6 +36,13 @@ function blockNodes(trace: Trace, title: string): NodeId[] {
     const loc = trace.header.locs[node.loc];
 
     return loc?.role === "block" && loc.title === title ? [node.id] : [];
+  });
+}
+
+function titleAmong(trace: Trace, blocks: NodeId[], block: NodeId) {
+  return buildBlockTitle(trace, block, {
+    index: blocks.indexOf(block),
+    count: blocks.length,
   });
 }
 
@@ -286,6 +299,31 @@ describe("buildBlockView", () => {
     expect(textWithValues(moduleView, 7)).toBe("for i in range(2):");
   });
 
+  test("an iteration's inputs sit on its first line and each change on the line that made it", () => {
+    const trace = fixture("loop_state");
+    const [, secondSearch, , firstWord] = blockNodes(trace, "iteration");
+
+    if (secondSearch === undefined || firstWord === undefined) {
+      throw new Error("Missing loop_state iterations");
+    }
+
+    const search = buildBlockView(trace, secondSearch, []);
+    const words = buildBlockView(trace, firstWord, []);
+
+    expect(line(search, 3).values.map(({ name }) => name)).toEqual([
+      "lo",
+      "hi",
+      "items",
+      "target",
+    ]);
+    expect(
+      search.lines.flatMap(({ number, changes }) =>
+        changes.map(({ name, text }) => `${number}: ${name} → ${text}`),
+      ),
+    ).toEqual(["4: mid → 1", "6: lo → 2"]);
+    expect(line(words, 21).changes).toEqual([{ name: "seen", text: "['a']" }]);
+  });
+
   test("only the uncaught exception's deepest block marks its origin statement", () => {
     const uncaught = fixture("uncaught_exception");
     const functionBlock = blockNodes(uncaught, "fail")[0];
@@ -308,7 +346,7 @@ describe("buildBlockView", () => {
     ).not.toContain("ValueError: caught");
   });
 
-  test("titles use trace labels, site indexes, entry values, and units", () => {
+  test("titles use trace labels, site indexes, and units", () => {
     const fact = fixture("fact");
     const iterations = blockNodes(fact, "iteration");
     const functions = blockNodes(fact, "fact");
@@ -319,22 +357,11 @@ describe("buildBlockView", () => {
       throw new Error("Missing fact fixture blocks");
     }
 
-    expect(buildBlockTitle(fact, 0, { index: 0, count: 1 })).toEqual({
-      text: "fact.py",
-      hasException: false,
-    });
-    expect(
-      buildBlockTitle(fact, secondIteration, { index: 1, count: 2 }),
-    ).toEqual({
-      text: "iteration 2 (i = 1)",
-      hasException: false,
-    });
-    expect(
-      buildBlockTitle(fact, firstFunction, { index: 0, count: 1 }),
-    ).toEqual({
-      text: "fact (n = 1)",
-      hasException: false,
-    });
+    expect(titleAmong(fact, [0], 0).text).toBe("fact.py");
+    expect(titleAmong(fact, iterations, secondIteration).text).toBe(
+      "iteration 2",
+    );
+    expect(titleAmong(fact, [firstFunction], firstFunction).text).toBe("fact");
     expect(siblingListTitle(fact, iterations)).toBe("2 iterations");
 
     const callbacks = fixture("native_callback");
@@ -342,14 +369,85 @@ describe("buildBlockView", () => {
 
     expect(
       callbackBlocks.map(
-        (block, index) =>
-          buildBlockTitle(callbacks, block, {
-            index,
-            count: callbackBlocks.length,
-          }).text,
+        (block) => titleAmong(callbacks, callbackBlocks, block).text,
       ),
-    ).toEqual(["key 1 (number = 1)", "key 2 (number = 2)"]);
+    ).toEqual(["key 1", "key 2"]);
   });
+
+  test("sibling columns keep only the values that differ between siblings, including ones some siblings lack", () => {
+    const trace = fixture("loop_state");
+    const iterations = blockNodes(trace, "iteration");
+    const searchIterations = iterations.slice(0, 3);
+    const lastIterations = iterations.slice(7, 9);
+
+    expect(
+      siblingColumns(trace, searchIterations).map(({ name }) => name),
+    ).toEqual(["lo", "hi"]);
+    expect(
+      lastIterations.map((_, index) =>
+        siblingCells(
+          trace,
+          lastIterations,
+          index,
+          siblingColumns(trace, lastIterations),
+        ),
+      ),
+    ).toEqual([
+      [
+        { text: "3", repeated: false },
+        { text: null, repeated: false },
+      ],
+      [
+        { text: "1", repeated: false },
+        { text: "3", repeated: false },
+      ],
+    ]);
+    expect(
+      siblingCells(
+        trace,
+        searchIterations,
+        2,
+        siblingColumns(trace, searchIterations),
+      ),
+    ).toEqual([
+      { text: "2", repeated: false },
+      { text: "2", repeated: true },
+    ]);
+  });
+});
+
+test("the after row shows a loop's end state only when its last iteration changed it", () => {
+  const trace = fixture("loop_state");
+  const iterations = blockNodes(trace, "iteration");
+  const searchIterations = iterations.slice(0, 3);
+  const wordIterations = iterations.slice(3, 7);
+
+  expect(
+    siblingAfter(trace, wordIterations, siblingColumns(trace, wordIterations)),
+  ).toEqual([
+    { text: null, repeated: false },
+    { text: "['a', 'b', 'c']", repeated: false },
+  ]);
+  expect(
+    siblingAfter(
+      trace,
+      searchIterations,
+      siblingColumns(trace, searchIterations),
+    ),
+  ).toBeNull();
+});
+
+test("a variable that only the last iteration changes still gets a column and an after cell", () => {
+  const trace = fixture("loop_state");
+  const splitIterations = blockNodes(trace, "iteration").slice(9);
+  const columns = siblingColumns(trace, splitIterations);
+
+  expect(columns.map(({ name }) => name)).toEqual(["i", "heads", "tail"]);
+  expect(siblingAfter(trace, splitIterations, columns)).toEqual([
+    { text: null, repeated: false },
+    { text: "[0, 1]", repeated: true },
+    { text: "[2]", repeated: false },
+  ]);
 });
 
 test.each([

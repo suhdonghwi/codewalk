@@ -3,8 +3,6 @@ import { create } from "zustand";
 
 import type { ResizeAxes, Size } from "@/domain/canvas/index.ts";
 
-import { SIBLING_LIST_WIDTH } from "./tree/layout.ts";
-
 import { exceptionPath, outputPath } from "./tree/navigation.ts";
 import { initialPath, type Path } from "./tree/path.ts";
 
@@ -39,10 +37,6 @@ export function partSize(
   part: ColumnPart,
 ): PartSize {
   return sizes[column]?.[part] ?? AUTOMATIC;
-}
-
-export function siblingListWidth(sizes: ColumnSizes, column: number): number {
-  return partSize(sizes, column, "siblings").width ?? SIBLING_LIST_WIDTH;
 }
 
 export const useTraceStore = create<TraceState>()((set) => ({
