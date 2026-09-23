@@ -13,7 +13,8 @@ import {
 import type { Loc, Role, Trace } from "@codewalk/trace";
 
 interface TestHeader {
-  readonly codewalk: 1;
+  readonly codewalk: 2;
+  readonly literals: Trace["header"]["literals"];
   readonly sources: readonly { readonly file: string; readonly text: string }[];
   readonly locs: readonly Loc[];
 }
@@ -33,7 +34,12 @@ function loc(role: Role, parent: number | null, start = 0, end = 1): Loc {
 }
 
 function header(locs: readonly Loc[], text = "x"): TestHeader {
-  return { codewalk: 1, sources: [{ file: "main.py", text }], locs };
+  return {
+    codewalk: 2,
+    sources: [{ file: "main.py", text }],
+    literals: {},
+    locs,
+  };
 }
 
 function traceOf<Event>(

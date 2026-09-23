@@ -10,6 +10,7 @@ import {
   type SiblingCell,
   type SiblingColumn,
 } from "../view/block-title.ts";
+import { PreviewText } from "../view/preview-text.tsx";
 import { requireBlock } from "../views.ts";
 import { titleIndicator } from "./trace-window.tsx";
 
@@ -43,13 +44,12 @@ function Cells({
   return cells.map((cell, column) => (
     <span
       className={cn(
-        "truncate text-inline-value",
+        "whitespace-pre text-syntax-name",
         cell.repeated && "opacity-40",
       )}
       key={columns[column]?.name}
-      title={cell.text ?? undefined}
     >
-      {cell.text}
+      {cell.pieces === null ? null : <PreviewText pieces={cell.pieces} />}
     </span>
   ));
 }

@@ -13,8 +13,11 @@ import {
 import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 import { sourceLines, trimCommonIndent } from "./source-lines.ts";
+import { pieceText, preview } from "./values.ts";
 
-import type { NodeId, Trace } from "@codewalk/trace";
+import type { SiblingCell } from "./block-title.ts";
+
+import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
 function fixture(name: string): Trace {
   const contents = readFileSync(
@@ -55,10 +58,25 @@ function line(view: BlockView, number: number) {
   return found;
 }
 
-function textWithValues(view: BlockView, number: number): string {
+function cellTexts(cells: SiblingCell[] | null) {
+  return (
+    cells?.map(({ pieces, repeated }) => ({
+      text: pieces === null ? null : pieceText(pieces),
+      repeated,
+    })) ?? null
+  );
+}
+
+function shown(trace: Trace, { value, at }: ValueChunk): string {
+  return preview(trace, value, at, 80);
+}
+
+function textWithValues(trace: Trace, view: BlockView, number: number): string {
   return line(view, number)
     .spans.map((span) =>
-      span.value === null ? span.text : `${span.text} = ${span.value}`,
+      span.value === null
+        ? span.text
+        : `${span.text} = ${shown(trace, span.value)}`,
     )
     .join("");
 }
@@ -160,7 +178,8 @@ describe("buildBlockView", () => {
   test("token, statement, and nested site boundaries all split spans without losing site order", () => {
     const trace: Trace = {
       header: {
-        codewalk: 1,
+        codewalk: 2,
+        literals: {},
         sources: [{ file: "boundaries.py", text: "abcdefgh" }],
         locs: [
           {
@@ -277,6 +296,7 @@ describe("buildBlockView", () => {
         },
       ],
       outputs: [],
+      objects: [],
       root: 0,
       end: { status: "ok" },
     };
@@ -337,11 +357,13 @@ describe("buildBlockView", () => {
     const iterationView = buildBlockView(trace, firstIteration, []);
     const moduleView = buildBlockView(trace, 0, []);
 
-    expect(textWithValues(firstFactView, 1)).toBe("def fact(n = 1):");
-    expect(textWithValues(secondFactView, 1)).toBe("def fact(n = 2):");
-    expect(textWithValues(iterationView, 7)).toBe("for i = 0 in range(2):");
-    expect(textWithValues(moduleView, 1)).toBe("def fact(n):");
-    expect(textWithValues(moduleView, 7)).toBe("for i in range(2):");
+    expect(textWithValues(trace, firstFactView, 1)).toBe("def fact(n = 1):");
+    expect(textWithValues(trace, secondFactView, 1)).toBe("def fact(n = 2):");
+    expect(textWithValues(trace, iterationView, 7)).toBe(
+      "for i = 0 in range(2):",
+    );
+    expect(textWithValues(trace, moduleView, 1)).toBe("def fact(n):");
+    expect(textWithValues(trace, moduleView, 7)).toBe("for i in range(2):");
   });
 
   test("an iteration's inputs sit on its first line and each change on the line that made it", () => {
@@ -363,10 +385,14 @@ describe("buildBlockView", () => {
     ]);
     expect(
       search.lines.flatMap(({ number, changes }) =>
-        changes.map(({ name, text }) => `${number}: ${name} → ${text}`),
+        changes.map(
+          (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+        ),
       ),
     ).toEqual(["4: mid → 1", "6: lo → 2"]);
-    expect(line(words, 21).changes).toEqual([{ name: "seen", text: "['a']" }]);
+    expect(
+      line(words, 21).changes.map((change) => shown(trace, change)),
+    ).toEqual(["['a']"]);
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {
@@ -419,6 +445,15 @@ describe("buildBlockView", () => {
     ).toEqual(["key 1", "key 2"]);
   });
 
+  test("a sibling column is as wide as its full preview, counting double-width characters twice", () => {
+    const trace = fixture("unicode_offsets");
+    const echoes = blockNodes(trace, "echo");
+
+    expect(siblingColumns(trace, echoes)).toEqual([
+      { name: "value", width: 9, carried: false },
+    ]);
+  });
+
   test("sibling columns keep only the values that differ between siblings, including ones some siblings lack", () => {
     const trace = fixture("loop_state");
     const iterations = blockNodes(trace, "iteration");
@@ -430,11 +465,13 @@ describe("buildBlockView", () => {
     ).toEqual(["lo", "hi"]);
     expect(
       lastIterations.map((_, index) =>
-        siblingCells(
-          trace,
-          lastIterations,
-          index,
-          siblingColumns(trace, lastIterations),
+        cellTexts(
+          siblingCells(
+            trace,
+            lastIterations,
+            index,
+            siblingColumns(trace, lastIterations),
+          ),
         ),
       ),
     ).toEqual([
@@ -448,11 +485,13 @@ describe("buildBlockView", () => {
       ],
     ]);
     expect(
-      siblingCells(
-        trace,
-        searchIterations,
-        2,
-        siblingColumns(trace, searchIterations),
+      cellTexts(
+        siblingCells(
+          trace,
+          searchIterations,
+          2,
+          siblingColumns(trace, searchIterations),
+        ),
       ),
     ).toEqual([
       { text: "2", repeated: false },
@@ -468,16 +507,24 @@ test("the after row shows a loop's end state only when its last iteration change
   const wordIterations = iterations.slice(3, 7);
 
   expect(
-    siblingAfter(trace, wordIterations, siblingColumns(trace, wordIterations)),
+    cellTexts(
+      siblingAfter(
+        trace,
+        wordIterations,
+        siblingColumns(trace, wordIterations),
+      ),
+    ),
   ).toEqual([
     { text: null, repeated: false },
     { text: "['a', 'b', 'c']", repeated: false },
   ]);
   expect(
-    siblingAfter(
-      trace,
-      searchIterations,
-      siblingColumns(trace, searchIterations),
+    cellTexts(
+      siblingAfter(
+        trace,
+        searchIterations,
+        siblingColumns(trace, searchIterations),
+      ),
     ),
   ).toBeNull();
 });
@@ -488,7 +535,7 @@ test("a variable that only the last iteration changes still gets a column and an
   const columns = siblingColumns(trace, splitIterations);
 
   expect(columns.map(({ name }) => name)).toEqual(["i", "heads", "tail"]);
-  expect(siblingAfter(trace, splitIterations, columns)).toEqual([
+  expect(cellTexts(siblingAfter(trace, splitIterations, columns))).toEqual([
     { text: null, repeated: false },
     { text: "[0, 1]", repeated: true },
     { text: "[2]", repeated: false },

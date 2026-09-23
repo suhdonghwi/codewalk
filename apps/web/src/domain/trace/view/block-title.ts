@@ -1,6 +1,15 @@
 import { requireBlock } from "../views.ts";
 
-import type { NodeId, Trace } from "@codewalk/trace";
+import {
+  pieceText,
+  PREVIEW_BUDGET,
+  previewPieces,
+  valueKey,
+} from "./values.ts";
+
+import type { Piece } from "./values.ts";
+
+import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
 export interface BlockTitle {
   text: string;
@@ -8,7 +17,7 @@ export interface BlockTitle {
 }
 
 export interface SiblingCell {
-  text: string | null;
+  pieces: Piece[] | null;
   repeated: boolean;
 }
 
@@ -23,18 +32,39 @@ export interface SiblingColumn {
   carried: boolean;
 }
 
-const MAX_COLUMN_WIDTH = 24;
+const DOUBLE_WIDTH =
+  /[\u2026\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6\u{1F300}-\u{1FAFF}]/u;
 
-function blockValues(trace: Trace, block: NodeId): Map<string, string> {
+function textWidth(text: string): number {
+  let width = 0;
+
+  for (const character of text) width += DOUBLE_WIDTH.test(character) ? 2 : 1;
+
+  return width;
+}
+
+type Shown = Map<string, ValueChunk>;
+
+function blockValues(trace: Trace, block: NodeId): Shown {
   return new Map(
-    requireBlock(trace, block).node.values.map(({ name, text }) => [
-      name,
-      text,
-    ]),
+    requireBlock(trace, block).node.values.map((chunk) => [chunk.name, chunk]),
   );
 }
 
-function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
+function keyOf(trace: Trace, chunk: ValueChunk | undefined): string | null {
+  return chunk === undefined ? null : valueKey(trace, chunk.value, chunk.at);
+}
+
+function cellPieces(
+  trace: Trace,
+  chunk: ValueChunk | undefined,
+): Piece[] | null {
+  return chunk === undefined
+    ? null
+    : previewPieces(trace, chunk.value, chunk.at, PREVIEW_BUDGET);
+}
+
+function blockExitValues(trace: Trace, block: NodeId): Shown {
   const values = blockValues(trace, block);
 
   for (const child of requireBlock(trace, block).node.children) {
@@ -47,7 +77,7 @@ function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
       continue;
     }
 
-    for (const { name, text } of statement.values) values.set(name, text);
+    for (const chunk of statement.values) values.set(chunk.name, chunk);
   }
 
   return values;
@@ -77,30 +107,32 @@ export function siblingColumns(
   const [first] = valuesByBlock;
   const last = blocks.at(-1);
 
-  const exit =
-    last === undefined
-      ? new Map<string, string>()
-      : blockExitValues(trace, last);
+  const exit: Shown =
+    last === undefined ? new Map() : blockExitValues(trace, last);
+
+  const firstKey = (name: string) => keyOf(trace, first?.get(name));
 
   return names.flatMap((name) => {
     const carried = isCarried(trace, blocks, name);
 
     const varies =
-      valuesByBlock.some((values) => values.get(name) !== first?.get(name)) ||
-      (carried && exit.get(name) !== first?.get(name));
+      valuesByBlock.some(
+        (values) => keyOf(trace, values.get(name)) !== firstKey(name),
+      ) ||
+      (carried && keyOf(trace, exit.get(name)) !== firstKey(name));
 
     if (blocks.length > 1 && !varies) return [];
 
-    let width = Math.max(
-      name.length,
-      carried ? (exit.get(name)?.length ?? 0) : 0,
-    );
+    const shown = (chunk: ValueChunk | undefined) =>
+      textWidth(pieceText(cellPieces(trace, chunk) ?? []));
+
+    let width = Math.max(textWidth(name), carried ? shown(exit.get(name)) : 0);
 
     for (const values of valuesByBlock) {
-      width = Math.max(width, values.get(name)?.length ?? 0);
+      width = Math.max(width, shown(values.get(name)));
     }
 
-    return [{ name, width: Math.min(width, MAX_COLUMN_WIDTH), carried }];
+    return [{ name, width, carried }];
   });
 }
 
@@ -126,18 +158,18 @@ export function siblingCells(
   const block = blocks[index];
   const previousBlock = blocks[index - 1];
 
-  const values =
-    block === undefined ? new Map<string, string>() : blockValues(trace, block);
+  const values: Shown =
+    block === undefined ? new Map() : blockValues(trace, block);
 
   const previous =
     previousBlock === undefined ? null : blockValues(trace, previousBlock);
 
   return columns.map(({ name }) => {
-    const text = values.get(name) ?? null;
+    const key = keyOf(trace, values.get(name));
 
     return {
-      text,
-      repeated: text !== null && previous?.get(name) === text,
+      pieces: cellPieces(trace, values.get(name)),
+      repeated: key !== null && keyOf(trace, previous?.get(name)) === key,
     };
   });
 }
@@ -154,12 +186,16 @@ export function siblingAfter(
   const exit = blockExitValues(trace, last);
 
   const cells = columns.map(({ name, carried }) => {
-    const text = carried ? (exit.get(name) ?? null) : null;
+    const chunk = carried ? exit.get(name) : undefined;
+    const key = keyOf(trace, chunk);
 
-    return { text, repeated: text !== null && entry.get(name) === text };
+    return {
+      pieces: cellPieces(trace, chunk),
+      repeated: key !== null && keyOf(trace, entry.get(name)) === key,
+    };
   });
 
-  return cells.some(({ text, repeated }) => text !== null && !repeated)
+  return cells.some(({ pieces, repeated }) => pieces !== null && !repeated)
     ? cells
     : null;
 }

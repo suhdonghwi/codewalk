@@ -4,12 +4,15 @@ import { cn } from "@/ui/utils.ts";
 
 import { InlineChip } from "./inline-chip.tsx";
 import { previewInlineOutput } from "./inline-output.ts";
+import { ValueChip } from "./value-chip.tsx";
+import { ValueInspector } from "./value-inspector.tsx";
 
 import type { InlineSegment, Line } from "./block-view.ts";
 import type { Span } from "./spans.ts";
-import type { LocId } from "@codewalk/trace";
+import type { LocId, Trace, ValueChunk } from "@codewalk/trace";
 
 interface TraceLineProps {
+  trace: Trace;
   line: Line;
   row: number;
   anchor: boolean;
@@ -48,7 +51,13 @@ function siteBackground(span: Span): string | undefined {
   return `color-mix(in srgb, var(--color-site-accent) ${strength}%, transparent)`;
 }
 
+interface OpenValue {
+  key: string;
+  entry: ValueChunk;
+}
+
 export function TraceLine({
+  trace,
   line,
   row,
   anchor,
@@ -59,6 +68,27 @@ export function TraceLine({
   onToggleSite,
 }: TraceLineProps) {
   const [expanded, setExpanded] = useState(false);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+
+  function toggleValue(key: string): void {
+    setOpenKeys((current) =>
+      current.includes(key)
+        ? current.filter((open) => open !== key)
+        : [...current, key],
+    );
+  }
+
+  const valueEntries: OpenValue[] = [
+    ...line.spans.flatMap((span, index) =>
+      span.value === null
+        ? []
+        : [{ key: `anchor:${index}`, entry: span.value }],
+    ),
+    ...line.values.map((entry) => ({ key: `value:${entry.name}`, entry })),
+    ...line.changes.map((entry, index) => ({ key: `change:${index}`, entry })),
+  ];
+
+  const openValues = valueEntries.filter(({ key }) => openKeys.includes(key));
 
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
@@ -140,9 +170,15 @@ export function TraceLine({
                     {span.text}
                   </span>
                   {span.value === null ? null : (
-                    <InlineChip className="mx-[0.5ch]" tone="value">
-                      = {span.value}
-                    </InlineChip>
+                    <ValueChip
+                      className="mx-[0.5ch]"
+                      entry={span.value}
+                      expanded={openKeys.includes(`anchor:${index}`)}
+                      onToggle={() => {
+                        toggleValue(`anchor:${index}`);
+                      }}
+                      trace={trace}
+                    />
                   )}
                 </Fragment>
               );
@@ -150,19 +186,30 @@ export function TraceLine({
           </code>
         </div>
         <div className="flex items-baseline gap-[1ch] pr-4">
-          {line.values.map(({ name, text }) => (
-            <InlineChip
-              className={cn(!varyingNames.includes(name) && "opacity-40")}
-              key={name}
-              tone="value"
-            >
-              {name} = {text}
-            </InlineChip>
+          {line.values.map((entry) => (
+            <ValueChip
+              entry={entry}
+              expanded={openKeys.includes(`value:${entry.name}`)}
+              faded={!varyingNames.includes(entry.name)}
+              key={entry.name}
+              label={`${entry.name} =`}
+              onToggle={() => {
+                toggleValue(`value:${entry.name}`);
+              }}
+              trace={trace}
+            />
           ))}
-          {line.changes.map(({ name, text }, index) => (
-            <InlineChip key={index} tone="value">
-              {name} → {text}
-            </InlineChip>
+          {line.changes.map((entry, index) => (
+            <ValueChip
+              entry={entry}
+              expanded={openKeys.includes(`change:${index}`)}
+              key={index}
+              label={`${entry.name} →`}
+              onToggle={() => {
+                toggleValue(`change:${index}`);
+              }}
+              trace={trace}
+            />
           ))}
           {outputPreview === null ? null : (
             <InlineChip
@@ -181,6 +228,19 @@ export function TraceLine({
           )}
         </div>
       </div>
+      {openValues.length === 0 ? null : (
+        <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
+          {openValues.map(({ key, entry }) => (
+            <ValueInspector
+              at={entry.at}
+              key={key}
+              name={entry.name}
+              trace={trace}
+              value={entry.value}
+            />
+          ))}
+        </div>
+      )}
       {expanded && line.output !== null ? (
         <pre className="col-span-full m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output} />

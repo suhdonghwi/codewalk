@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TRACE_FORMAT_VERSION = 1;
+const TRACE_FORMAT_VERSION = 2;
 
 const RoleSchema = z.enum(["block", "stmt", "expr"]);
 
@@ -42,6 +42,7 @@ export const HeaderSchema = z
   .object({
     codewalk: z.literal(TRACE_FORMAT_VERSION),
     sources: z.array(SourceSchema),
+    literals: z.record(z.string(), z.tuple([z.string(), z.string()])),
     locs: z.array(LocSchema),
   })
   .strict();
@@ -101,11 +102,96 @@ const OutEventSchema = z
   })
   .strict();
 
+const LengthSchema = z.number().int().nonnegative().optional();
+
+const PrimitiveSchema = z
+  .object({
+    kind: z.enum(["number", "string", "boolean", "null"]),
+    text: z.string(),
+    length: LengthSchema,
+  })
+  .strict();
+
+const ReferenceSchema = z
+  .object({ ref: z.number().int().nonnegative() })
+  .strict();
+
+const ValueSchema = z.union([PrimitiveSchema, ReferenceSchema]);
+
+const SequenceSchema = z
+  .object({
+    kind: z.literal("sequence"),
+    type: z.string(),
+    text: z.string().optional(),
+    items: z.array(ValueSchema),
+    length: LengthSchema,
+  })
+  .strict();
+
+const SetSchema = z
+  .object({
+    kind: z.literal("set"),
+    type: z.string(),
+    text: z.string().optional(),
+    items: z.array(ValueSchema),
+    length: LengthSchema,
+  })
+  .strict();
+
+const MappingSchema = z
+  .object({
+    kind: z.literal("mapping"),
+    type: z.string(),
+    text: z.string().optional(),
+    entries: z.array(z.tuple([ValueSchema, ValueSchema])),
+    length: LengthSchema,
+  })
+  .strict();
+
+const RecordSchema = z
+  .object({
+    kind: z.literal("record"),
+    type: z.string(),
+    text: z.string().optional(),
+    fields: z.array(z.tuple([z.string(), ValueSchema])),
+    length: LengthSchema,
+  })
+  .strict();
+
+const OpaqueSchema = z
+  .object({
+    kind: z.literal("opaque"),
+    type: z.string(),
+    text: z.string(),
+  })
+  .strict();
+
+const HeapObjectSchema = z.discriminatedUnion("kind", [
+  SequenceSchema,
+  SetSchema,
+  MappingSchema,
+  RecordSchema,
+  OpaqueSchema,
+]);
+
+const objectEventFields = {
+  op: z.literal("obj"),
+  id: z.number().int().nonnegative(),
+};
+
+const ObjectEventSchema = z.discriminatedUnion("kind", [
+  SequenceSchema.extend(objectEventFields),
+  SetSchema.extend(objectEventFields),
+  MappingSchema.extend(objectEventFields),
+  RecordSchema.extend(objectEventFields),
+  OpaqueSchema.extend(objectEventFields),
+]);
+
 const AnchoredValueEventSchema = z
   .object({
     op: z.literal("value"),
     loc: z.number().int().nonnegative(),
-    text: z.string(),
+    value: ValueSchema,
   })
   .strict();
 
@@ -113,7 +199,7 @@ const NamedValueEventSchema = z
   .object({
     op: z.literal("value"),
     name: z.string(),
-    text: z.string(),
+    value: ValueSchema,
   })
   .strict();
 
@@ -131,12 +217,19 @@ export const EventSchema = z.union([
   OutEventSchema,
   AnchoredValueEventSchema,
   NamedValueEventSchema,
+  ObjectEventSchema,
   EndEventSchema,
 ]);
 
 export type LocId = number;
 
 export type NodeId = number;
+
+export type ObjectId = number;
+
+export type Value = z.infer<typeof ValueSchema>;
+
+export type HeapObject = z.infer<typeof HeapObjectSchema>;
 
 export type Role = z.infer<typeof RoleSchema>;
 

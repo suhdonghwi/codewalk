@@ -1,9 +1,11 @@
 import { match, P } from "ts-pattern";
 
+import { objectValues } from "./objects.ts";
 import { EventSchema, HeaderSchema } from "./schema.ts";
 
 import type { End, Header, Role, TraceEvent } from "./schema.ts";
 import type {
+  ObjectVersion,
   OutputChunk,
   ParseResult,
   Trace,
@@ -150,6 +152,9 @@ export function parseTrace(jsonl: string): ParseResult {
   const header = headerResult.data;
   const nodes: TraceNode[] = [];
   const outputs: OutputChunk[] = [];
+  const objects: ObjectVersion[][] = [];
+  const undefinedReferences = new Set<number>();
+  let definitions = 0;
   const open: number[] = [];
   let end: End | null = null;
 
@@ -157,6 +162,22 @@ export function parseTrace(jsonl: string): ParseResult {
     line: number,
     value: ValueChunk,
   ): TraceParseError | null {
+    if ("ref" in value.value && value.value.ref >= objects.length) {
+      return structureError(
+        line,
+        `value refers to undefined object ${value.value.ref}`,
+      );
+    }
+
+    const [pending] = undefinedReferences;
+
+    if (pending !== undefined) {
+      return structureError(
+        line,
+        `value follows a reference to undefined object ${pending}`,
+      );
+    }
+
     const nodeId = open.at(-1);
 
     if (nodeId === undefined) {
@@ -294,7 +315,7 @@ export function parseTrace(jsonl: string): ParseResult {
 
         return null;
       })
-      .with({ op: "value", loc: P.number }, ({ loc, text }) => {
+      .with({ op: "value", loc: P.number }, ({ loc, value }) => {
         const valueLoc = header.locs[loc];
 
         if (valueLoc === undefined) {
@@ -308,11 +329,32 @@ export function parseTrace(jsonl: string): ParseResult {
         const source = header.sources[valueLoc.file]?.text ?? "";
         const name = source.slice(valueLoc.start, valueLoc.end);
 
-        return attachValue(index + 1, { loc, name, text });
+        return attachValue(index + 1, { loc, name, value, at: definitions });
       })
-      .with({ op: "value", name: P.string }, ({ name, text }) =>
-        attachValue(index + 1, { loc: null, name, text }),
+      .with({ op: "value", name: P.string }, ({ name, value }) =>
+        attachValue(index + 1, { loc: null, name, value, at: definitions }),
       )
+      .with({ op: "obj" }, ({ op: _op, id, ...object }) => {
+        if (id > objects.length) {
+          return structureError(
+            index + 1,
+            `obj ${id} skips ahead of the next new id ${objects.length}`,
+          );
+        }
+
+        if (id === objects.length) objects.push([]);
+        objects[id]?.push({ at: definitions, object });
+        definitions += 1;
+        undefinedReferences.delete(id);
+
+        for (const value of objectValues(object)) {
+          if ("ref" in value && value.ref >= objects.length) {
+            undefinedReferences.add(value.ref);
+          }
+        }
+
+        return null;
+      })
       .with({ op: "end" }, (endEvent) => {
         const parsedEnd = endFromEvent(endEvent);
 
@@ -348,6 +390,7 @@ export function parseTrace(jsonl: string): ParseResult {
     header,
     nodes,
     outputs,
+    objects,
     root: nodes.length === 0 ? null : 0,
     end: end ?? { status: "timeout" },
   };

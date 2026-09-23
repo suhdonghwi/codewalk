@@ -1,4 +1,11 @@
-import type { End, Header, LocId, NodeId } from "./schema.ts";
+import type {
+  End,
+  Header,
+  HeapObject,
+  LocId,
+  NodeId,
+  Value,
+} from "./schema.ts";
 
 export interface TraceNode {
   id: NodeId;
@@ -19,13 +26,20 @@ export interface OutputChunk {
 export interface ValueChunk {
   loc: LocId | null;
   name: string;
-  text: string;
+  value: Value;
+  at: number;
+}
+
+export interface ObjectVersion {
+  at: number;
+  object: HeapObject;
 }
 
 export interface Trace {
   header: Header;
   nodes: TraceNode[];
   outputs: OutputChunk[];
+  objects: ObjectVersion[][];
   root: NodeId | null;
   end: End;
 }

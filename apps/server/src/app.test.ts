@@ -24,7 +24,8 @@ afterEach(async () => {
 class RequestTraceRunner implements Runner {
   async run(request: RunRequest): Promise<string> {
     return `${JSON.stringify({
-      codewalk: 1,
+      codewalk: 2,
+      literals: {},
       sources: [
         {
           file: "main.py",

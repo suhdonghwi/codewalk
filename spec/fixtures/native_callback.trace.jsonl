@@ -1,4 +1,4 @@
-{"codewalk":1,"sources":[{"file":"native_callback.py","text":"def key(number):\n    print(\"key\", number)\n    return -number\n\n\nprint(sorted([1, 2], key=key))\n"}],"locs":[{"role":"block","file":0,"start":0,"end":93,"parent":null,"title":"native_callback.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":16,"parent":0},{"role":"block","file":0,"start":0,"end":60,"parent":1,"title":"key","unit":"call"},{"role":"expr","file":0,"start":8,"end":14,"parent":1},{"role":"stmt","file":0,"start":21,"end":41,"parent":2},{"role":"expr","file":0,"start":21,"end":41,"parent":4},{"role":"stmt","file":0,"start":46,"end":60,"parent":2},{"role":"expr","file":0,"start":53,"end":60,"parent":6},{"role":"stmt","file":0,"start":63,"end":93,"parent":0},{"role":"expr","file":0,"start":63,"end":93,"parent":8},{"role":"expr","file":0,"start":69,"end":92,"parent":9}]}
+{"codewalk":2,"sources":[{"file":"native_callback.py","text":"def key(number):\n    print(\"key\", number)\n    return -number\n\n\nprint(sorted([1, 2], key=key))\n"}],"literals":{"list":["[","]"],"tuple":["(",")"],"set":["{","}"],"dict":["{","}"]},"locs":[{"role":"block","file":0,"start":0,"end":93,"parent":null,"title":"native_callback.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":16,"parent":0},{"role":"block","file":0,"start":0,"end":60,"parent":1,"title":"key","unit":"call"},{"role":"expr","file":0,"start":8,"end":14,"parent":1},{"role":"stmt","file":0,"start":21,"end":41,"parent":2},{"role":"expr","file":0,"start":21,"end":41,"parent":4},{"role":"stmt","file":0,"start":46,"end":60,"parent":2},{"role":"expr","file":0,"start":53,"end":60,"parent":6},{"role":"stmt","file":0,"start":63,"end":93,"parent":0},{"role":"expr","file":0,"start":63,"end":93,"parent":8},{"role":"expr","file":0,"start":69,"end":92,"parent":9}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"exit"}
@@ -6,7 +6,7 @@
 {"op":"enter","loc":9}
 {"op":"enter","loc":10}
 {"op":"enter","loc":2}
-{"op":"value","loc":3,"text":"1"}
+{"op":"value","loc":3,"value":{"kind":"number","text":"1"}}
 {"op":"enter","loc":4}
 {"op":"enter","loc":5}
 {"op":"out","stream":"stdout","text":"key 1\n"}
@@ -16,7 +16,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":2}
-{"op":"value","loc":3,"text":"2"}
+{"op":"value","loc":3,"value":{"kind":"number","text":"2"}}
 {"op":"enter","loc":4}
 {"op":"enter","loc":5}
 {"op":"out","stream":"stdout","text":"key 2\n"}

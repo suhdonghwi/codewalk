@@ -1,10 +1,22 @@
+export { objectValues, requireObject } from "./objects.ts";
+
 export { parseTrace } from "./parse.ts";
 
-export type { End, Loc, LocId, NodeId, Role } from "./schema.ts";
+export type {
+  End,
+  HeapObject,
+  Loc,
+  LocId,
+  NodeId,
+  ObjectId,
+  Role,
+  Value,
+} from "./schema.ts";
 
 export type {
   OutputChunk,
   Trace,
   TraceNode,
   TraceParseError,
+  ValueChunk,
 } from "./model.ts";

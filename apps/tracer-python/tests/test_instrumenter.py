@@ -193,11 +193,28 @@ def test_loop_entry_values_capture_only_destructured_names_in_source_order(
     entered = events.index({"op": "enter", "loc": iteration})
     values = [event for event in events if event["op"] == "value" and "loc" in event]
 
+    rest = values[2]["value"]["ref"]
+    [rest_object] = [
+        event for event in events if event["op"] == "obj" and event["id"] == rest
+    ]
+
     assert [
-        (source[locs[event["loc"]]["start"] : locs[event["loc"]]["end"]], event["text"])
+        (
+            source[locs[event["loc"]]["start"] : locs[event["loc"]]["end"]],
+            event["value"],
+        )
         for event in values
-    ] == [("first", "1"), ("second", "2"), ("rest", "[3, 4]")]
-    assert events[entered + 1 : entered + 4] == values
+    ] == [
+        ("first", {"kind": "number", "text": "1"}),
+        ("second", {"kind": "number", "text": "2"}),
+        ("rest", {"ref": rest}),
+    ]
+    assert rest_object["items"] == [
+        {"kind": "number", "text": "3"},
+        {"kind": "number", "text": "4"},
+    ]
+    after_entry = [event for event in events[entered + 1 :] if event["op"] != "obj"]
+    assert after_entry[:3] == values
     assert all(
         locs[event["loc"]]["parent"] == locs[iteration]["parent"] for event in values
     )
@@ -213,10 +230,10 @@ def test_a_function_records_changes_for_its_first_thousand_calls_only(
     )
     events = [json.loads(line) for line in _trace(path).stdout.splitlines()[1:]]
 
-    squares = [event["text"] for event in events if event.get("name") == "y"]
+    squares = [event["value"] for event in events if event.get("name") == "y"]
 
     assert len(squares) == 1000
-    assert squares[-1] == "998001"
+    assert squares[-1] == {"kind": "number", "text": "998001"}
 
 
 def test_syntax_and_runtime_failures_have_source_only_diagnostics(

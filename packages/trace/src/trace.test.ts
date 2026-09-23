@@ -2,12 +2,13 @@ import { readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
-import { parseTrace } from "./index.ts";
+import { requireObject, parseTrace } from "./index.ts";
 
 import type { Loc, Role, Trace } from "./index.ts";
 
 interface TestHeader {
-  readonly codewalk: 1;
+  readonly codewalk: 2;
+  readonly literals: Trace["header"]["literals"];
   readonly sources: readonly { readonly file: string; readonly text: string }[];
   readonly locs: readonly Loc[];
 }
@@ -27,7 +28,12 @@ function loc(role: Role, parent: number | null, start = 0, end = 1): Loc {
 }
 
 function header(locs: readonly Loc[], text = "x"): TestHeader {
-  return { codewalk: 1, sources: [{ file: "main.py", text }], locs };
+  return {
+    codewalk: 2,
+    sources: [{ file: "main.py", text }],
+    literals: {},
+    locs,
+  };
 }
 
 function traceOf<Event>(
@@ -85,15 +91,54 @@ test("the fact fixture builds the documented execution tree and output and entry
     { node: 25, stream: "stdout", text: "fact 1\n" },
     { node: 14, stream: "stdout", text: "2\n" },
   ]);
-  expect([3, 7, 12, 16, 23].map((block) => trace.nodes[block]?.values)).toEqual(
-    [
-      [{ loc: 14, name: "i", text: "0" }],
-      [{ loc: 3, name: "n", text: "1" }],
-      [{ loc: 14, name: "i", text: "1" }],
-      [{ loc: 3, name: "n", text: "2" }],
-      [{ loc: 3, name: "n", text: "1" }],
-    ],
+  expect(
+    [3, 7, 12, 16, 23].map((block) =>
+      trace.nodes[block]?.values.map(({ loc, name, value }) => ({
+        loc,
+        name,
+        value,
+      })),
+    ),
+  ).toEqual([
+    [{ loc: 14, name: "i", value: { kind: "number", text: "0" } }],
+    [{ loc: 3, name: "n", value: { kind: "number", text: "1" } }],
+    [{ loc: 14, name: "i", value: { kind: "number", text: "1" } }],
+    [{ loc: 3, name: "n", value: { kind: "number", text: "2" } }],
+    [{ loc: 3, name: "n", value: { kind: "number", text: "1" } }],
+  ]);
+});
+
+test("a reference resolves to the object as it was at its value event, including the objects it reaches", () => {
+  const trace = parsedTrace(
+    traceOf(
+      header([loc("block", null)]),
+      { op: "enter", loc: 0 },
+      { op: "obj", id: 0, kind: "sequence", type: "list", items: [{ ref: 1 }] },
+      { op: "obj", id: 1, kind: "sequence", type: "list", items: [] },
+      { op: "value", name: "outer", value: { ref: 0 } },
+      {
+        op: "obj",
+        id: 1,
+        kind: "sequence",
+        type: "list",
+        items: [{ kind: "number", text: "1" }],
+      },
+      { op: "value", name: "outer", value: { ref: 0 } },
+    ),
   );
+
+  const inner = trace.nodes[0]?.values.map(({ at }) =>
+    requireObject(trace, 1, at),
+  );
+
+  expect(inner).toEqual([
+    { kind: "sequence", type: "list", items: [] },
+    {
+      kind: "sequence",
+      type: "list",
+      items: [{ kind: "number", text: "1" }],
+    },
+  ]);
 });
 
 test("missing end and an unterminated partial final write both produce timeout", () => {
@@ -163,6 +208,8 @@ describe("structural validation", () => {
     const root = loc("block", null);
     const stmt = loc("stmt", 0);
     const expr = loc("expr", 1);
+    const number = { kind: "number", text: "1" };
+    const list = { op: "obj", kind: "sequence", type: "list" };
 
     const cases = [
       {
@@ -192,8 +239,9 @@ describe("structural validation", () => {
       {
         name: "loc file out of range",
         input: traceOf({
-          codewalk: 1,
+          codewalk: 2,
           sources: [{ file: "main.py", text: "x" }],
+          literals: {},
           locs: [
             {
               role: "block",
@@ -273,7 +321,7 @@ describe("structural validation", () => {
         input: traceOf(
           header([root]),
           { op: "enter", loc: 0 },
-          { op: "value", loc: 0, text: "x" },
+          { op: "value", loc: 0, value: number },
         ),
         line: 3,
       },
@@ -282,7 +330,7 @@ describe("structural validation", () => {
         input: traceOf(
           header([root]),
           { op: "enter", loc: 0 },
-          { op: "value", loc: 1, text: "x" },
+          { op: "value", loc: 1, value: number },
         ),
         line: 3,
       },
@@ -291,7 +339,7 @@ describe("structural validation", () => {
         input: traceOf(header([root, loc("expr", 0)]), {
           op: "value",
           loc: 1,
-          text: "x",
+          value: number,
         }),
         line: 2,
       },
@@ -301,7 +349,7 @@ describe("structural validation", () => {
           header([root, stmt, expr]),
           { op: "enter", loc: 0 },
           { op: "enter", loc: 1 },
-          { op: "value", loc: 2, text: "x" },
+          { op: "value", loc: 2, value: number },
         ),
         line: 4,
       },
@@ -312,9 +360,37 @@ describe("structural validation", () => {
           { op: "enter", loc: 0 },
           { op: "enter", loc: 1 },
           { op: "enter", loc: 2 },
-          { op: "value", name: "x", text: "1" },
+          { op: "value", name: "x", value: number },
         ),
         line: 5,
+      },
+      {
+        name: "object id skips ahead",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { ...list, id: 1, items: [] },
+        ),
+        line: 3,
+      },
+      {
+        name: "value refers to an undefined object",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { op: "value", name: "x", value: { ref: 0 } },
+        ),
+        line: 3,
+      },
+      {
+        name: "value follows an object that refers to an undefined object",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { ...list, id: 0, items: [{ ref: 1 }] },
+          { op: "value", name: "x", value: { ref: 0 } },
+        ),
+        line: 4,
       },
       {
         name: "event after end",

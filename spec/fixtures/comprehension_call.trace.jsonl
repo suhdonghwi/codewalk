@@ -1,4 +1,4 @@
-{"codewalk":1,"sources":[{"file":"comprehension_call.py","text":"def double(number):\n    return number * 2\n\n\nprint([double(i) for i in range(3)])\n"}],"locs":[{"role":"block","file":0,"start":0,"end":80,"parent":null,"title":"comprehension_call.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":19,"parent":0},{"role":"block","file":0,"start":0,"end":41,"parent":1,"title":"double","unit":"call"},{"role":"expr","file":0,"start":11,"end":17,"parent":1},{"role":"stmt","file":0,"start":24,"end":41,"parent":2},{"role":"expr","file":0,"start":31,"end":41,"parent":4},{"role":"stmt","file":0,"start":44,"end":80,"parent":0},{"role":"expr","file":0,"start":44,"end":80,"parent":6},{"role":"expr","file":0,"start":51,"end":60,"parent":7},{"role":"expr","file":0,"start":70,"end":78,"parent":7}]}
+{"codewalk":2,"sources":[{"file":"comprehension_call.py","text":"def double(number):\n    return number * 2\n\n\nprint([double(i) for i in range(3)])\n"}],"literals":{"list":["[","]"],"tuple":["(",")"],"set":["{","}"],"dict":["{","}"]},"locs":[{"role":"block","file":0,"start":0,"end":80,"parent":null,"title":"comprehension_call.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":19,"parent":0},{"role":"block","file":0,"start":0,"end":41,"parent":1,"title":"double","unit":"call"},{"role":"expr","file":0,"start":11,"end":17,"parent":1},{"role":"stmt","file":0,"start":24,"end":41,"parent":2},{"role":"expr","file":0,"start":31,"end":41,"parent":4},{"role":"stmt","file":0,"start":44,"end":80,"parent":0},{"role":"expr","file":0,"start":44,"end":80,"parent":6},{"role":"expr","file":0,"start":51,"end":60,"parent":7},{"role":"expr","file":0,"start":70,"end":78,"parent":7}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"exit"}
@@ -6,21 +6,21 @@
 {"op":"enter","loc":7}
 {"op":"enter","loc":8}
 {"op":"enter","loc":2}
-{"op":"value","loc":3,"text":"0"}
+{"op":"value","loc":3,"value":{"kind":"number","text":"0"}}
 {"op":"enter","loc":4}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":8}
 {"op":"enter","loc":2}
-{"op":"value","loc":3,"text":"1"}
+{"op":"value","loc":3,"value":{"kind":"number","text":"1"}}
 {"op":"enter","loc":4}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":8}
 {"op":"enter","loc":2}
-{"op":"value","loc":3,"text":"2"}
+{"op":"value","loc":3,"value":{"kind":"number","text":"2"}}
 {"op":"enter","loc":4}
 {"op":"exit"}
 {"op":"exit"}

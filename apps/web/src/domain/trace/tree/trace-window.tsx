@@ -87,6 +87,7 @@ function WindowBody({
             key={line.number}
             line={line}
             row={index + 1}
+            trace={trace}
             varyingNames={columns.map(({ name }) => name)}
             onHoverSite={setHoveredSite}
             onToggleSite={onToggleSite}

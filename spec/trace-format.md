@@ -1,4 +1,4 @@
-# codewalk trace format (v1)
+# codewalk trace format (v2)
 
 A trace is the complete, language-agnostic record of one program run. The tracer
 (per language) produces it; the viewer consumes it and knows nothing about the
@@ -51,8 +51,14 @@ killed mid-way.
 
 ```json
 {
-  "codewalk": 1,
+  "codewalk": 2,
   "sources": [{ "file": "main.py", "text": "def fact(n):\n ..." }],
+  "literals": {
+    "list": ["[", "]"],
+    "tuple": ["(", ")"],
+    "set": ["{", "}"],
+    "dict": ["{", "}"]
+  },
   "locs": [
     {
       "role": "block",
@@ -93,6 +99,11 @@ killed mid-way.
 - `codewalk` — format version.
 - `sources` — full text of every instrumented file. The viewer renders from this
   text, never from the editor, which may have changed since the run.
+- `literals` — the types the language writes with a bare literal, each with
+  its opening and closing bracket. The viewer writes a sequence, set or mapping
+  of one of these types between its brackets and without a type name, and any
+  other one after its type name, between its kind's brackets (`[]` for a
+  sequence, `{}` for a set or a mapping).
 - `locs` — table of source ranges, referenced by index.
   - `role` — `block` | `stmt` | `expr`.
   - `title` — required on `block` locs and absent from other locs. What the
@@ -138,7 +149,9 @@ Range conventions:
 {"op": "exit"}
 {"op": "exit", "exc": "ZeroDivisionError: division by zero"}
 {"op": "out", "stream": "stdout", "text": "fact 1\n"}
-{"op": "value", "loc": 16, "text": "3"}
+{"op": "value", "loc": 16, "value": {"kind": "number", "text": "3"}}
+{"op": "obj", "id": 0, "kind": "sequence", "type": "list", "items": [{"kind": "number", "text": "1"}]}
+{"op": "value", "name": "xs", "value": {"ref": 0}}
 {"op": "end", "status": "ok"}
 ```
 
@@ -148,13 +161,11 @@ Range conventions:
   block was left by a propagating exception; the value is a one-line summary.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
-- `value` — a value, in one of two forms. `{loc, text}` is the value of the
-  range given by `loc`, which must refer to an `expr` loc: a name bound at that
-  spot. `{name, text}` is the value of a variable the block receives without
-  binding it anywhere in its range. `text` is a bounded, one-line rendering;
-  Python renders objects without a custom `__repr__` as `<ClassName>`. It
-  attaches to the innermost open node like `out`, which is a block or a
-  statement:
+- `value` — a value (see [Values](#values)), in one of two forms. `{loc, value}`
+  is the value of the range given by `loc`, which must refer to an `expr` loc:
+  a name bound at that spot. `{name, value}` is the value of a variable the
+  block receives without binding it anywhere in its range. It attaches to the
+  innermost open node like `out`, which is a block or a statement:
   - On a `block` node, values are the block's inputs, emitted immediately after
     entering it: a function's parameters and an iteration's loop targets
     (anchored), and an iteration's loop state (named). Loop state is the
@@ -164,13 +175,17 @@ Range conventions:
     and includes both in sibling rows.
   - On a `stmt` node, a named value is the variable's value right after that
     statement, emitted before the statement closes because the statement
-    assigned the variable or changed its rendering (a list it appended to,
-    also through a call). The viewer places it with the statement's line.
+    assigned the variable or changed its value: the variable now holds a
+    different primitive or object, or an object it reaches changed (a list it
+    appended to, also through a call). The viewer places it with the
+    statement's line.
     Python records these for the variables a block's code mentions, local or
     global, but not functions, classes or modules. A loop statement is a
     statement of its parent block, so the values on it are the loop's end
     state; its own loop targets are left out. Calls of one function beyond
     its first 1000 record none.
+- `obj` — the state of an object, referenced from values by `id`. It attaches
+  to no node. See [Objects](#objects).
 - `end` — last line. `status`:
   - `ok` — program finished.
   - `exception` — uncaught exception; `traceback` holds the user-facing text.
@@ -189,7 +204,82 @@ mid-write. Any other unparseable line makes the whole trace invalid.
 
 A `value` event whose `loc` is out of range or not an `expr` loc is malformed,
 as is an anchored `value` event with no open block node and a named one
-attached to an `expr` node.
+attached to an `expr` node. An `obj` event whose `id` is neither already
+defined nor the next new id is malformed, as is a `value` event when a
+reference in it, or in any `obj` event before it, names an id not defined
+before it.
+
+### Values
+
+A value is either a primitive, written inline, or a reference to an object:
+
+```json
+{"kind": "number", "text": "42"}
+{"kind": "string", "text": "'hello'"}
+{"kind": "string", "text": "'aaaaaaaa…'", "length": 5000}
+{"ref": 3}
+```
+
+A **primitive** has no identity: it is compared by what it shows.
+
+- `kind` — `number` | `string` | `boolean` | `null`. The viewer uses it to style
+  and chart values, never to parse them into another language's syntax.
+- `text` — the value written as a literal of the source language, on one line.
+- `length` — present only when `text` was shortened: the full value's length
+  (a string's characters, a number's digits).
+
+A **reference** `{"ref": id}` points at an object defined by `obj` events.
+
+### Objects
+
+```json
+{"op": "obj", "id": 0, "kind": "sequence", "type": "list", "items": [{"kind": "number", "text": "1"}, {"ref": 1}]}
+{"op": "obj", "id": 1, "kind": "sequence", "type": "list", "items": [], "length": 30}
+{"op": "obj", "id": 2, "kind": "mapping", "type": "dict", "entries": [[{"kind": "string", "text": "'a'"}, {"ref": 0}]]}
+{"op": "obj", "id": 3, "kind": "record", "type": "Point", "text": "Point(x=1, y=2)", "fields": [["x", {"kind": "number", "text": "1"}], ["y", {"kind": "number", "text": "2"}]]}
+{"op": "obj", "id": 4, "kind": "opaque", "type": "function", "text": "<function helper>"}
+```
+
+An object has an identity, which `id` names: two references with the same id
+are the same object (`a = b = []`), and an object may reach itself. Ids are
+assigned in order of first definition, starting at 0, and never reused for
+another object.
+
+- `kind` — how the object is laid out:
+  - `sequence` — `items`, ordered and indexed from 0.
+  - `set` — `items`, unordered.
+  - `mapping` — `entries`, key and value pairs.
+  - `record` — `fields`, name and value pairs.
+  - `opaque` — nothing to open; `text` stands for it.
+- `type` — the object's type name as the language writes it.
+- `text` — optional; the object's own one-line rendering, when the language
+  gives it one beyond its structure (Python: a custom `__repr__`). Required on
+  `opaque` objects.
+- `length` — present only when some items, entries or fields were left out:
+  the full count. Those written are the first ones, in the language's order.
+  The tracer keeps a bounded amount of each value, so an object it stopped
+  opening is written with none and its `length`.
+
+An object may be defined more than once, because its state changes. A
+reference in a `value` event resolves to the object's latest definition before
+that event, and references inside that definition resolve the same way,
+relative to the same `value` event. Before each `value` event the tracer
+defines every object reachable from it that is new or has changed since its
+latest definition, so a `value` event shows the objects as they were at that
+moment while an unchanged object is written only once. Definitions may refer
+forward to ids defined later in the same run of `obj` events, which is how
+cycles are written.
+
+Python writes exact `int`, `float` and `complex` values as `number`, `str` and
+`bytes` as `string`, `bool` as `boolean` and `None` as `null`; a subclass
+instance is an object. Lists and tuples are sequences, except named tuples,
+which are records of their fields; sets and frozensets are sets; dicts are
+mappings; each includes its subclasses. Other instances are records of their
+instance attributes (`__dict__` and `__slots__`). Functions, classes, modules,
+iterators and generators are opaque: the tracer never iterates an object to
+look inside it, and runs a custom `__repr__` with recording paused, so it
+cannot change the trace. Memory addresses are stripped from every `text`, so
+traces are deterministic.
 
 ### What is _not_ recorded
 
@@ -199,8 +289,9 @@ attached to an `expr` node.
   Locs are a static table, however, so an `expr` loc may exist only as an anchor
   for values and never be entered as a node.
 - Values are recorded for block inputs and for the statements that change a
-  block's watched variables. Other expression values and heap state are
-  not recorded.
+  block's watched variables. Other expression values are not recorded, and
+  objects are recorded only as far as these values reach them, within the
+  tracer's limits.
 
 ## Derived views
 
