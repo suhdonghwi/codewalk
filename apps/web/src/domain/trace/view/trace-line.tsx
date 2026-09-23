@@ -55,6 +55,29 @@ interface OpenValue {
   entry: ValueChunk;
 }
 
+interface ValuePanelProps {
+  trace: Trace;
+  values: OpenValue[];
+}
+
+function ValuePanel({ trace, values }: ValuePanelProps) {
+  if (values.length === 0) return null;
+
+  return (
+    <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
+      {values.map(({ key, entry }) => (
+        <ValueInspector
+          at={entry.at}
+          key={key}
+          name={entry.name}
+          trace={trace}
+          value={entry.value}
+        />
+      ))}
+    </div>
+  );
+}
+
 function rowClasses(hasChips: boolean): string {
   return cn(
     "col-span-full min-h-code-line items-baseline whitespace-pre",
@@ -83,6 +106,11 @@ export function TraceLine({
     );
   }
 
+  const changeEntries: OpenValue[] = line.changes.map((entry, index) => ({
+    key: `change:${index}`,
+    entry,
+  }));
+
   const valueEntries: OpenValue[] = [
     ...line.spans.flatMap((span, index) =>
       span.value === null
@@ -90,10 +118,25 @@ export function TraceLine({
         : [{ key: `anchor:${index}`, entry: span.value }],
     ),
     ...line.values.map((entry) => ({ key: `value:${entry.name}`, entry })),
-    ...line.changes.map((entry, index) => ({ key: `change:${index}`, entry })),
+    ...changeEntries,
   ];
 
-  const openValues = valueEntries.filter(({ key }) => openKeys.includes(key));
+  const isOpen = ({ key }: OpenValue) => openKeys.includes(key);
+
+  function changeChip({ key, entry }: OpenValue) {
+    return (
+      <ValueChip
+        entry={entry}
+        expanded={openKeys.includes(key)}
+        key={key}
+        label={`${entry.name} →`}
+        onToggle={() => {
+          toggleValue(key);
+        }}
+        trace={trace}
+      />
+    );
+  }
 
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
@@ -207,18 +250,7 @@ export function TraceLine({
               trace={trace}
             />
           ))}
-          {line.changes.map((entry, index) => (
-            <ValueChip
-              entry={entry}
-              expanded={openKeys.includes(`change:${index}`)}
-              key={index}
-              label={`${entry.name} →`}
-              onToggle={() => {
-                toggleValue(`change:${index}`);
-              }}
-              trace={trace}
-            />
-          ))}
+          {changeEntries.map(changeChip)}
           {outputPreview === null ? null : (
             <InlineChip
               expandable={outputPreview.expandable}
@@ -236,19 +268,7 @@ export function TraceLine({
           )}
         </div>
       </div>
-      {openValues.length === 0 ? null : (
-        <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
-          {openValues.map(({ key, entry }) => (
-            <ValueInspector
-              at={entry.at}
-              key={key}
-              name={entry.name}
-              trace={trace}
-              value={entry.value}
-            />
-          ))}
-        </div>
-      )}
+      <ValuePanel trace={trace} values={valueEntries.filter(isOpen)} />
       {expanded && line.output !== null ? (
         <pre className="col-span-full m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output} />
