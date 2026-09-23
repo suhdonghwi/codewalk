@@ -44,6 +44,35 @@ export function zoomAboutPoint(
   };
 }
 
+function midpoint([a, b]: [Point, Point]): Point {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+function distance([a, b]: [Point, Point]): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+export function pinchedView(
+  view: ViewTransform,
+  from: [Point, Point],
+  to: [Point, Point],
+): ViewTransform {
+  const start = midpoint(from);
+  const end = midpoint(to);
+
+  const zoomed = zoomAboutPoint(
+    view,
+    start,
+    (view.scale * distance(to)) / Math.max(1, distance(from)),
+  );
+
+  return {
+    ...zoomed,
+    x: zoomed.x + end.x - start.x,
+    y: zoomed.y + end.y - start.y,
+  };
+}
+
 export interface Size {
   width: number;
   height: number;
