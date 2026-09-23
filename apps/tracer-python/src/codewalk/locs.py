@@ -92,10 +92,46 @@ class SourceMap:
     def statement_range(self, node: ast.stmt) -> tuple[int, int]:
         if not isinstance(node, _COMPOUND):
             return self.node_range(node)
-        start = self.parser_position(node.lineno, node.col_offset)
         first = bisect.bisect_left(
             self._token_starts, (node.lineno, self._character_column(node))
         )
+        return self._header_range(first) or self.node_range(node)
+
+    def handler_range(self, node: ast.ExceptHandler) -> tuple[int, int] | None:
+        """The `except ...:` header of a handler."""
+        first = bisect.bisect_left(
+            self._token_starts, (node.lineno, self._character_column(node))
+        )
+        return self._header_range(first)
+
+    def clause_range(self, keyword: str, after: ast.stmt) -> tuple[int, int] | None:
+        """The `keyword:` header right after `after`, if the next name is it."""
+        if after.end_lineno is None or after.end_col_offset is None:
+            return None
+        line = self._lines[after.end_lineno - 1]
+        column = len(line.encode("utf-8")[: after.end_col_offset].decode("utf-8"))
+        first = bisect.bisect_left(self._token_starts, (after.end_lineno, column))
+        for index in range(first, len(self._tokens)):
+            token = self._tokens[index]
+            if token.type == tokenize.NAME:
+                return self._header_range(index) if token.string == keyword else None
+        return None
+
+    def case_range(self, node: ast.match_case) -> tuple[int, int] | None:
+        """The `case ...:` header of a match case."""
+        pattern = node.pattern
+        index = bisect.bisect_left(
+            self._token_starts, (pattern.lineno, self._character_column(pattern))
+        )
+        while index > 0:
+            index -= 1
+            token = self._tokens[index]
+            if token.type == tokenize.NAME and token.string == "case":
+                return self._header_range(index)
+        return None
+
+    def _header_range(self, first: int) -> tuple[int, int] | None:
+        start = self.character_position(*self._tokens[first].start)
         depth = 0
         for token in self._tokens[first:]:
             if token.type != tokenize.OP:
@@ -106,7 +142,7 @@ class SourceMap:
                 depth -= 1
             elif token.string == ":" and depth == 0:
                 return start, self.character_position(*token.end)
-        return self.node_range(node)
+        return None
 
     def module_range(self) -> tuple[int, int]:
         return 0, _utf16_len(self.text.rstrip("\r\n"))
@@ -131,7 +167,9 @@ class SourceMap:
             return _utf16_len(self.text)
         return self.character_position(max(line, 1), column)
 
-    def _character_column(self, node: ast.arg | ast.expr | ast.stmt) -> int:
+    def _character_column(
+        self, node: ast.arg | ast.expr | ast.stmt | ast.ExceptHandler | ast.pattern
+    ) -> int:
         line = self._lines[node.lineno - 1]
         return len(line.encode("utf-8")[: node.col_offset].decode("utf-8"))
 

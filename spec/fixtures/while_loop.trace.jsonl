@@ -1,4 +1,4 @@
-{"codewalk":1,"sources":[{"file":"while_loop.py","text":"i = 0\nwhile i < 2:\n    print(i)\n    i += 1\nelse:\n    print(\"done\")\n"}],"locs":[{"role":"block","file":0,"start":0,"end":66,"parent":null,"title":"while_loop.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":5,"parent":0},{"role":"stmt","file":0,"start":6,"end":18,"parent":0},{"role":"block","file":0,"start":6,"end":66,"parent":2,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":6,"end":18,"parent":3},{"role":"expr","file":0,"start":12,"end":17,"parent":4},{"role":"stmt","file":0,"start":23,"end":31,"parent":3},{"role":"expr","file":0,"start":23,"end":31,"parent":6},{"role":"stmt","file":0,"start":36,"end":42,"parent":3},{"role":"stmt","file":0,"start":53,"end":66,"parent":0},{"role":"expr","file":0,"start":53,"end":66,"parent":9}]}
+{"codewalk":1,"sources":[{"file":"while_loop.py","text":"i = 0\nwhile i < 2:\n    print(i)\n    i += 1\nelse:\n    print(\"done\")\n"}],"locs":[{"role":"block","file":0,"start":0,"end":66,"parent":null,"title":"while_loop.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":5,"parent":0},{"role":"stmt","file":0,"start":6,"end":18,"parent":0},{"role":"block","file":0,"start":6,"end":66,"parent":2,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":6,"end":18,"parent":3},{"role":"expr","file":0,"start":12,"end":17,"parent":4},{"role":"stmt","file":0,"start":23,"end":31,"parent":3},{"role":"expr","file":0,"start":23,"end":31,"parent":6},{"role":"stmt","file":0,"start":36,"end":42,"parent":3},{"role":"stmt","file":0,"start":53,"end":66,"parent":0},{"role":"expr","file":0,"start":53,"end":66,"parent":9},{"role":"stmt","file":0,"start":43,"end":48,"parent":0}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"value","name":"i","text":"0"}
@@ -36,6 +36,8 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"value","name":"i","text":"2"}
+{"op":"exit"}
+{"op":"enter","loc":11}
 {"op":"exit"}
 {"op":"enter","loc":9}
 {"op":"enter","loc":10}
