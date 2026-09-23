@@ -150,7 +150,7 @@ export function TraceLine({
     return (
       <>
         <div className={cn(rowClasses(false), "hover:bg-neutral-50")}>
-          <div className="flex items-baseline pr-[2ch]">
+          <div className="flex items-baseline pr-[1ch]">
             <span
               aria-hidden
               className="sticky left-0 z-2 w-gutter flex-none"
@@ -181,7 +181,7 @@ export function TraceLine({
         )}
         data-site-anchor={anchor || undefined}
       >
-        <div className="flex items-baseline pr-[2ch]">
+        <div className="flex items-baseline pr-[1ch]">
           <span
             aria-hidden
             className={cn(
