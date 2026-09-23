@@ -10,7 +10,3 @@ export type RunOutcome =
   | { kind: "invalid"; error: TraceParseError }
   | { kind: "failed"; status: number }
   | { kind: "unreachable" };
-
-export interface TraceRunner {
-  run(request: RunRequest): Promise<RunOutcome>;
-}
