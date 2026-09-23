@@ -27,8 +27,6 @@ _MAX_OBJECTS = 200
 
 _MAX_TEXT = 200
 
-_SHORT_INTEGER = 10**18
-
 _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
 
 _OPAQUE = (
@@ -96,9 +94,6 @@ class Snapshot:
 
 def snapshot(value: object, previous: Snapshot | None = None) -> Snapshot:
     """Take `value`, reusing what `previous` recorded for unchanged objects."""
-    primitive = _primitive(value)
-    if primitive is not None:
-        return Snapshot(primitive, {})
     earlier = {} if previous is None else previous.entries
     entries: dict[int, _Entry] = {}
     queue: deque[object] = deque()
@@ -170,13 +165,12 @@ class Heap:
             return {"kind": item.kind, "text": item.text, "length": item.length}
 
         root = value(taken.root)
-        shapes = self._shapes
         for key, entry in entries.items():
-            shape = entry.shape
-            if shapes.get(key) == shape:
-                continue
-            shapes[key] = shape
             object_id = self._id(key, entry.item)
+            shape = entry.shape
+            if self._shapes.get(object_id) == shape:
+                continue
+            self._shapes[object_id] = shape
             event: dict[str, object] = {
                 "op": "obj",
                 "id": object_id,
@@ -212,8 +206,6 @@ def _primitive(value: object) -> Primitive | None:
     if kind is bool:
         return Primitive("boolean", repr(value))
     if kind is int and isinstance(value, int):
-        if -_SHORT_INTEGER < value < _SHORT_INTEGER:
-            return Primitive("number", repr(value))
         return _integer(value)
     if (kind is str or kind is bytes) and isinstance(value, (str, bytes)):
         if len(value) <= _MAX_TEXT:
@@ -246,9 +238,6 @@ def _integer(value: int) -> Primitive:
 
 def _contents(item: object, *, opened: bool) -> tuple[str, int, tuple[object, ...]]:
     limit = _MAX_ITEMS if opened else 0
-    kind = type(item)
-    if (kind is list or kind is tuple) and isinstance(item, (list, tuple)):
-        return "sequence", len(item), tuple(islice(item, limit))
     if isinstance(item, dict):
         entries = islice(dict.items(item), limit)
         return "mapping", dict.__len__(item), tuple(chain.from_iterable(entries))
