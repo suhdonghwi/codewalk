@@ -237,7 +237,9 @@ held at the window's top or bottom edge once the line scrolls out of view.
 - **Trace window** — custom read-only React component, _not_ CodeMirror. Renders
   the block's source range from the trace's own `sources`, highlighted with the
   same engine as the editor: Lezer (`@lezer/python` + `@lezer/highlight`) with
-  the shared `HighlightStyle`. Tokens are split at loc boundaries so highlight
+  the shared `HighlightStyle`. The indentation every non-blank line of the
+  range shares is trimmed, so a loop nested in a function starts at the left
+  edge of its window. Tokens are split at loc boundaries so highlight
   spans and interactive ranges are one flat span list. Shows:
   - statement state (see spec, "Statement state"): lit at full strength; inert
     (runs in a child window) faded but still syntax-coloured; dimmed (did not

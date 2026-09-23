@@ -44,3 +44,39 @@ export function lineContaining(
       ?.number ?? null
   );
 }
+
+function sharedPrefix(left: string, right: string): string {
+  let length = 0;
+
+  while (
+    length < left.length &&
+    length < right.length &&
+    left[length] === right[length]
+  ) {
+    length += 1;
+  }
+
+  return left.slice(0, length);
+}
+
+export function trimCommonIndent(
+  source: string,
+  lines: SourceLine[],
+): SourceLine[] {
+  let common: string | null = null;
+
+  for (const line of lines) {
+    const text = source.slice(line.from, line.to);
+
+    if (text.trim().length === 0) continue;
+    const indent = text.slice(0, text.length - text.trimStart().length);
+    common = common === null ? indent : sharedPrefix(common, indent);
+  }
+
+  const width = common?.length ?? 0;
+
+  return lines.map((line) => ({
+    ...line,
+    from: Math.min(line.from + width, line.to),
+  }));
+}

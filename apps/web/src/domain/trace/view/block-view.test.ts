@@ -12,6 +12,7 @@ import {
 } from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
+import { sourceLines, trimCommonIndent } from "./source-lines.ts";
 
 import type { NodeId, Trace } from "@codewalk/trace";
 
@@ -95,6 +96,24 @@ describe("buildBlockView", () => {
       line(iteration, 8).spans.find((span) => span.text.includes("i += 1"))
         ?.state,
     ).toBe("dimmed");
+  });
+
+  test("a window drops the indentation all its lines share, and only that", () => {
+    const source =
+      "def search():\n    while lo < hi:\n        mid = lo\n\n        if mid:\n            lo = mid\n";
+
+    const lines = trimCommonIndent(
+      source,
+      sourceLines(source, source.indexOf("while"), source.length - 1),
+    );
+
+    expect(lines.map(({ from, to }) => source.slice(from, to))).toEqual([
+      "while lo < hi:",
+      "    mid = lo",
+      "",
+      "    if mid:",
+      "        lo = mid",
+    ]);
   });
 
   test("an activation dims the branch it skipped and exposes the nested call it ran", () => {
