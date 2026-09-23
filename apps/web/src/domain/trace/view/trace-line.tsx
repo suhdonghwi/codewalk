@@ -7,9 +7,9 @@ import { previewInlineOutput } from "./inline-output.ts";
 import { ValueChip } from "./value-chip.tsx";
 import { ValueInspector } from "./value-inspector.tsx";
 
-import type { InlineSegment, Line, LineValue } from "./block-view.ts";
+import type { InlineSegment, Line } from "./block-view.ts";
 import type { Span } from "./spans.ts";
-import type { LocId, Trace } from "@codewalk/trace";
+import type { LocId, Trace, ValueChunk } from "@codewalk/trace";
 
 interface TraceLineProps {
   trace: Trace;
@@ -53,7 +53,7 @@ function siteBackground(span: Span): string | undefined {
 
 interface OpenValue {
   key: string;
-  entry: LineValue;
+  entry: ValueChunk;
 }
 
 export function TraceLine({

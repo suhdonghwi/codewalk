@@ -4,13 +4,12 @@ import { InlineChip } from "./inline-chip.tsx";
 import { PreviewText } from "./preview-text.tsx";
 import { PREVIEW_BUDGET, previewPieces, valueChildren } from "./values.ts";
 
-import type { LineValue } from "./block-view.ts";
-import type { Trace } from "@codewalk/trace";
+import type { Trace, ValueChunk } from "@codewalk/trace";
 
 interface ValueChipProps {
   trace: Trace;
   label?: string;
-  entry: LineValue;
+  entry: ValueChunk;
   expanded: boolean;
   faded?: boolean;
   className?: string;

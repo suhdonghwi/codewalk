@@ -10,18 +10,14 @@ import {
   siblingColumns,
   siblingListTitle,
 } from "./block-title.ts";
-import {
-  buildBlockView,
-  type BlockView,
-  type LineValue,
-} from "./block-view.ts";
+import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 import { sourceLines, trimCommonIndent } from "./source-lines.ts";
 import { pieceText, preview } from "./values.ts";
 
 import type { SiblingCell } from "./block-title.ts";
 
-import type { NodeId, Trace } from "@codewalk/trace";
+import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
 function fixture(name: string): Trace {
   const contents = readFileSync(
@@ -71,7 +67,7 @@ function cellTexts(cells: SiblingCell[] | null) {
   );
 }
 
-function shown(trace: Trace, { value, at }: LineValue): string {
+function shown(trace: Trace, { value, at }: ValueChunk): string {
   return preview(trace, value, at, 80);
 }
 

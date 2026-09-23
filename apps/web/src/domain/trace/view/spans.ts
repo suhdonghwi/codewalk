@@ -1,15 +1,14 @@
-import type { LineValue } from "./block-view.ts";
 import type { SourceLine } from "./source-lines.ts";
 import type { Token } from "./tokens.ts";
 import type { Site, StatementState } from "../views.ts";
-import type { Loc, LocId, Trace } from "@codewalk/trace";
+import type { Loc, LocId, Trace, ValueChunk } from "@codewalk/trace";
 
 export interface Span {
   text: string;
   classes: string;
   state: StatementState;
   sites: LocId[];
-  value: LineValue | null;
+  value: ValueChunk | null;
 }
 
 export interface LocatedState {
@@ -19,7 +18,7 @@ export interface LocatedState {
 
 interface ValueAnchor {
   end: number;
-  value: LineValue;
+  value: ValueChunk;
 }
 
 interface SiteLoc {

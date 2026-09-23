@@ -16,24 +16,18 @@ import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span, SpanContext } from "./spans.ts";
 import type { Token } from "./tokens.ts";
 import type { Site } from "../views.ts";
-import type { NodeId, Trace, TraceNode, Value } from "@codewalk/trace";
+import type { NodeId, Trace, TraceNode, ValueChunk } from "@codewalk/trace";
 
 export interface InlineSegment {
   stream: "stdout" | "stderr";
   text: string;
 }
 
-export interface LineValue {
-  name: string;
-  value: Value;
-  at: number;
-}
-
 export interface Line {
   number: number;
   spans: Span[];
-  values: LineValue[];
-  changes: LineValue[];
+  values: ValueChunk[];
+  changes: ValueChunk[];
   output: InlineSegment[] | null;
   exception: string | null;
 }
@@ -92,8 +86,8 @@ function changesByLine(
   trace: Trace,
   node: TraceNode,
   lines: SourceLine[],
-): Map<number, LineValue[]> {
-  const changes = new Map<number, LineValue[]>();
+): Map<number, ValueChunk[]> {
+  const changes = new Map<number, ValueChunk[]>();
 
   for (const child of node.children) {
     const statement = trace.nodes[child];
@@ -105,13 +99,7 @@ function changesByLine(
     const line = lineContaining(lines, loc.end);
 
     if (line === null || statement.values.length === 0) continue;
-    const entries = changes.get(line) ?? [];
-
-    for (const { name, value, at } of statement.values) {
-      entries.push({ name, value, at });
-    }
-
-    changes.set(line, entries);
+    changes.set(line, [...(changes.get(line) ?? []), ...statement.values]);
   }
 
   return changes;
@@ -183,18 +171,15 @@ export function buildBlockView(
     states,
     nestedBlocks,
     sites: siteLocs(trace, sites),
-    values: node.values.flatMap(({ loc: locId, name, value, at }) => {
-      const anchor = locId === null ? undefined : trace.header.locs[locId];
+    values: node.values.flatMap((chunk) => {
+      const anchor =
+        chunk.loc === null ? undefined : trace.header.locs[chunk.loc];
 
-      return anchor === undefined
-        ? []
-        : [{ end: anchor.end, value: { name, value, at } }];
+      return anchor === undefined ? [] : [{ end: anchor.end, value: chunk }];
     }),
   };
 
-  const blockValues = node.values.flatMap(({ loc: locId, name, value, at }) =>
-    locId === null ? [{ name, value, at }] : [],
-  );
+  const blockValues = node.values.filter(({ loc }) => loc === null);
 
   return {
     lines: lines.map((line, index) => ({
