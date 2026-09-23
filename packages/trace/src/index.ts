@@ -9,7 +9,6 @@ export type {
   LocId,
   NodeId,
   ObjectId,
-  Primitive,
   Role,
   Value,
 } from "./schema.ts";

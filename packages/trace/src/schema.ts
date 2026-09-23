@@ -227,8 +227,6 @@ export type NodeId = number;
 
 export type ObjectId = number;
 
-export type Primitive = z.infer<typeof PrimitiveSchema>;
-
 export type Value = z.infer<typeof ValueSchema>;
 
 export type HeapObject = z.infer<typeof HeapObjectSchema>;
