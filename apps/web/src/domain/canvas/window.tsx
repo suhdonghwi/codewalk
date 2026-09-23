@@ -102,15 +102,15 @@ export function ResizeHandles({
   return (
     <>
       <div
-        className={`${RESIZE_HANDLE} top-titlebar right-0 bottom-3 w-1.5 cursor-ew-resize`}
+        className={`${RESIZE_HANDLE} top-titlebar right-0 bottom-3 w-1.5 cursor-ew-resize pointer-coarse:bottom-8 pointer-coarse:w-3`}
         {...right}
       />
       <div
-        className={`${RESIZE_HANDLE} right-3 bottom-0 left-0 h-1.5 cursor-ns-resize`}
+        className={`${RESIZE_HANDLE} right-3 bottom-0 left-0 h-1.5 cursor-ns-resize pointer-coarse:right-8 pointer-coarse:h-3`}
         {...bottom}
       />
       <div
-        className={`${RESIZE_HANDLE} right-0 bottom-0 size-3 cursor-nwse-resize`}
+        className={`${RESIZE_HANDLE} right-0 bottom-0 size-3 cursor-nwse-resize pointer-coarse:size-8`}
         {...corner}
       />
     </>
