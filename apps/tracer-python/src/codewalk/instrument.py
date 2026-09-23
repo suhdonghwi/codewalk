@@ -9,6 +9,7 @@ from codewalk.liveness import (
     loop_state,
     scope_variables,
     statement_bindings,
+    target_names,
 )
 from codewalk.locs import Loc, SourceMap
 
@@ -24,10 +25,19 @@ _BRACKETED = (
 
 @dataclass(frozen=True)
 class Tracking:
-    """The variables an iteration records: its inputs, and all it watches."""
+    """The variables a block records: its named inputs, and all it watches."""
 
     inputs: tuple[str, ...]
     watched: tuple[str, ...]
+    per_call: bool
+
+
+@dataclass(frozen=True)
+class StatementNames:
+    """Names a statement binds itself, and names whose changes it leaves out."""
+
+    binds: tuple[str, ...]
+    quiet: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -35,14 +45,14 @@ class Instrumented:
     tree: ast.Module
     locs: list[Loc]
     tracking: dict[int, Tracking]
-    bindings: dict[int, tuple[str, ...]]
+    statements: dict[int, StatementNames]
 
 
 def instrument(tree: ast.Module, source: str, source_name: str) -> Instrumented:
     transformer = _Instrumenter(source, source_name)
     module = transformer.module(tree)
     return Instrumented(
-        module, transformer.locs, transformer.tracking, transformer.bindings
+        module, transformer.locs, transformer.tracking, transformer.statements
     )
 
 
@@ -53,7 +63,7 @@ class _Instrumenter:
         self.locs: list[Loc] = []
         self._scopes: list[tuple[set[str], bool]] = []
         self.tracking: dict[int, Tracking] = {}
-        self.bindings: dict[int, tuple[str, ...]] = {}
+        self.statements: dict[int, StatementNames] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -62,8 +72,12 @@ class _Instrumenter:
         )
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
-        self._scopes.append((scope_variables(node.body), False))
-        body = self._body(node.body[prefix_count:], module_loc)
+        variables = scope_variables(node.body)
+        self._scopes.append((set(variables), False))
+        body = [
+            *self._watch(module_loc, variables, node, per_call=False),
+            *self._body(node.body[prefix_count:], module_loc),
+        ]
         wrapper = self._block_wrapper("block", module_loc, body, node)
         node.body = [*prefix, wrapper]
         ast.fix_missing_locations(node)
@@ -96,13 +110,15 @@ class _Instrumenter:
             )
             values = self._parameter_values(node.args, statement)
             doc, rest = _split_docstring(node.body)
-            self._scopes.append((scope_variables(rest, node.args), False))
-            body = self._body(rest, function)
-            self._scopes.pop()
-            node.body = [
-                *doc,
-                self._block_wrapper("block", function, [*values, *body], node),
+            variables = scope_variables(rest, node.args)
+            self._scopes.append((set(variables), False))
+            body = [
+                *values,
+                *self._watch(function, variables, node, per_call=True),
+                *self._body(rest, function),
             ]
+            self._scopes.pop()
+            node.body = [*doc, self._block_wrapper("block", function, body, node)]
         elif isinstance(node, ast.AsyncFunctionDef):
             pass
         elif isinstance(node, ast.ClassDef):
@@ -113,7 +129,7 @@ class _Instrumenter:
             for keyword in node.keywords:
                 keyword.value = self._expression(keyword.value, statement)
             doc, rest = _split_docstring(node.body)
-            self._scopes.append((scope_variables(rest), True))
+            self._scopes.append((set(scope_variables(rest)), True))
             node.body = [*doc, *self._body(rest, block)]
             self._scopes.pop()
         elif isinstance(node, ast.While):
@@ -268,9 +284,19 @@ class _Instrumenter:
         ]
 
     def _bind(self, statement: int, node: ast.stmt) -> None:
-        names = statement_bindings(node)
-        if names:
-            self.bindings[statement] = tuple(names)
+        binds = statement_bindings(node)
+        quiet = target_names(node.target) if isinstance(node, ast.For) else []
+        if binds or quiet:
+            self.statements[statement] = StatementNames(tuple(binds), tuple(quiet))
+
+    def _watch(
+        self, block: int, watched: list[str], owner: ast.AST, *, per_call: bool
+    ) -> list[ast.stmt]:
+        if not watched:
+            return []
+        self.tracking[block] = Tracking((), tuple(watched), per_call)
+        call = ast.Expr(value=_runtime_call("state", ast.Constant(block)))
+        return [ast.copy_location(call, owner)]
 
     def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
         current, _ = self._scopes[-1]
@@ -282,7 +308,7 @@ class _Instrumenter:
         watched = [*inputs, *(name for name in assigned if name not in inputs)]
         if not watched:
             return []
-        self.tracking[iteration] = Tracking(tuple(inputs), tuple(watched))
+        self.tracking[iteration] = Tracking(tuple(inputs), tuple(watched), False)
         call = ast.Expr(value=_runtime_call("state", ast.Constant(iteration)))
         return [ast.copy_location(call, node)]
 

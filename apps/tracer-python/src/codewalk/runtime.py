@@ -1,6 +1,7 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
 import io
+import re
 import reprlib
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -8,12 +9,16 @@ from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from types import FrameType, TracebackType
 from typing import Literal
 
-from codewalk.instrument import Tracking
+from codewalk.instrument import StatementNames, Tracking
 from codewalk.sink import EventSink
 
 type Stream = Literal["stdout", "stderr"]
 
 _VALUE_TEXT_LIMIT = 48
+
+_WATCHED_CALLS = 1000
+
+_ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
 
 
 class _ValueRepr(reprlib.Repr):
@@ -21,7 +26,7 @@ class _ValueRepr(reprlib.Repr):
         if type(x).__repr__ is object.__repr__:
             return f"<{type(x).__name__}>"
         try:
-            text = repr(x)
+            text = _ADDRESS.sub("", repr(x))
         except BaseException:
             return f"<{type(x).__name__}>"
         if len(text) > self.maxother:
@@ -84,12 +89,13 @@ class Runtime:
         parents: Sequence[int | None],
         sink: EventSink,
         tracking: Mapping[int, Tracking] | None = None,
-        bindings: Mapping[int, Sequence[str]] | None = None,
+        statements: Mapping[int, StatementNames] | None = None,
     ) -> None:
         self._parents = parents
         self._sink = sink
         self._tracking = tracking or {}
-        self._bindings = bindings or {}
+        self._statements = statements or {}
+        self._calls: dict[int, int] = {}
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
@@ -117,6 +123,11 @@ class Runtime:
         tracking = self._tracking.get(loc)
         if not self._active or block is None or block.loc != loc or not tracking:
             return
+        if tracking.per_call:
+            calls = self._calls.get(loc, 0) + 1
+            self._calls[loc] = calls
+            if calls > _WATCHED_CALLS:
+                return
         frame = sys._getframe(1)
         watched: dict[str, str] = {}
         for name in tracking.watched:
@@ -265,15 +276,18 @@ class Runtime:
             node = stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
-        bound = self._bindings.get(stack[index].loc, ())
+        names = self._statements.get(stack[index].loc)
+        binds = () if names is None else names.binds
+        quiet = () if names is None else names.quiet
         for name in tracking.watched:
             found, value = _lookup(frame, name)
             if not found:
                 continue
             text = self.render(_format_value, value)
-            if name in bound or watched.get(name) != text:
+            if name in binds or watched.get(name) != text:
                 watched[name] = text
-                self._emit({"op": "value", "name": name, "text": text})
+                if name in binds or name not in quiet:
+                    self._emit({"op": "value", "name": name, "text": text})
 
     def _repair(self, parent: int | None) -> None:
         while self._stack:

@@ -3,6 +3,7 @@
 {"op":"enter","loc":1}
 {"op":"exit"}
 {"op":"enter","loc":9}
+{"op":"value","name":"i","text":"0"}
 {"op":"exit"}
 {"op":"enter","loc":10}
 {"op":"enter","loc":11}
@@ -44,6 +45,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
+{"op":"value","name":"i","text":"1"}
 {"op":"exit"}
 {"op":"enter","loc":15}
 {"op":"enter","loc":16}

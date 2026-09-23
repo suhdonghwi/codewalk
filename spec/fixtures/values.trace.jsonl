@@ -11,6 +11,7 @@
 {"op":"enter","loc":18}
 {"op":"exit"}
 {"op":"enter","loc":34}
+{"op":"value","name":"long_values","text":"[0, 1, 2, 3, 4, 5, …]"}
 {"op":"exit"}
 {"op":"enter","loc":37}
 {"op":"enter","loc":38}

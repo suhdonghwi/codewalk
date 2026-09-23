@@ -161,8 +161,12 @@ Range conventions:
     statement, emitted before the statement closes because the statement
     assigned the variable or changed its rendering (a list it appended to,
     also through a call). The viewer places it with the statement's line.
-    Python records these for the variables an iteration watches: its loop
-    state and every name its body assigns.
+    Python records these for the variables a block watches: an iteration its
+    loop state and every name its body assigns, a function call its
+    parameters and local variables, the module its global variables. A loop
+    statement is a statement of its parent block, so the values on it are the
+    loop's end state; its own loop targets are left out. Calls of one function
+    beyond its first 1000 record none.
 - `end` — last line. `status`:
   - `ok` — program finished.
   - `exception` — uncaught exception; `traceback` holds the user-facing text.
@@ -190,8 +194,8 @@ attached to an `expr` node.
   whether the expression ran; use `stmt` nodes for that.
   Locs are a static table, however, so an `expr` loc may exist only as an anchor
   for values and never be entered as a node.
-- Values are recorded for block inputs and for the statements that change an
-  iteration's watched variables. Other expression values and heap state are
+- Values are recorded for block inputs and for the statements that change a
+  block's watched variables. Other expression values and heap state are
   not recorded.
 
 ## Derived views

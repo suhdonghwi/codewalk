@@ -61,9 +61,16 @@ def statement_bindings(node: ast.stmt) -> list[str]:
     return list(bindings.names)
 
 
+def target_names(target: ast.expr) -> list[str]:
+    """Names a `for` target binds."""
+    bindings = _Bindings()
+    bindings.visit(target)
+    return list(bindings.names)
+
+
 def scope_variables(
     body: list[ast.stmt], arguments: ast.arguments | None = None
-) -> set[str]:
+) -> list[str]:
     """Names a scope binds as variables, leaving out `def`, `class` and imports."""
     bindings = _Bindings()
     if arguments is not None:
@@ -78,7 +85,7 @@ def scope_variables(
                 bindings.names[argument.arg] = None
     for statement in body:
         bindings.visit(statement)
-    return set(bindings.names)
+    return list(bindings.names)
 
 
 class _Reads:
@@ -259,7 +266,7 @@ class _Reads:
             for default in [*node.args.defaults, *node.args.kw_defaults]:
                 if default is not None:
                     self.expression(default, assigned, definite=definite)
-            inner = assigned | scope_variables([], node.args)
+            inner = assigned | set(scope_variables([], node.args))
             self.expression(node.body, inner, definite=False)
         elif isinstance(node, _COMPREHENSIONS):
             self._comprehension(node, assigned)

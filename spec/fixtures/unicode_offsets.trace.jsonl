@@ -3,6 +3,7 @@
 {"op":"enter","loc":1}
 {"op":"exit"}
 {"op":"enter","loc":6}
+{"op":"value","name":"값","text":"'한국 😀'"}
 {"op":"exit"}
 {"op":"enter","loc":7}
 {"op":"enter","loc":8}

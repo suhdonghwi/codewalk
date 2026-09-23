@@ -74,8 +74,8 @@ so are a function activation and an iteration.
 
 v1 records structure, statement coverage, output and exceptions. It also
 records block inputs — function parameters, loop targets and loop state — at
-block entry, and inside iterations the value each statement gave to the
-variables it assigned or changed.
+block entry, and in every block the value each statement gave to the variables
+it assigned or changed.
 
 ## Tracer (Python)
 
@@ -141,7 +141,8 @@ for i in _cw_e(_cw_b(15), range(2)):
   characters, the length an inline chip shows. Recording and output capture
   are muted while formatting so an instrumented user `__repr__` cannot change
   the trace. Objects without a custom `__repr__` render as `<ClassName>`,
-  including inside containers.
+  including inside containers, and memory addresses are dropped from built-in
+  reprs (`<function <lambda>>`) so traces stay deterministic.
 - **Loop state.** An iteration's inputs beyond its targets are the variables it
   may read before assigning them: a definite-assignment walk over the body (for
   `while`, the condition first) that intersects at branch joins and drops paths
@@ -150,10 +151,12 @@ for i in _cw_e(_cw_b(15), range(2)):
   state. Mutation needs no special case: a list the body appends to is read
   before it is assigned, and its value differs between iterations. A variable
   not bound yet (typically in the first iteration) is left out.
-- **Changes.** An iteration also watches every name its body assigns. The
-  instrumenter hands the runtime two static tables: per iteration loc, its
-  inputs and watched names; per statement loc, the names the statement binds
-  itself. `_cw.state(id)` reads the watched names from the caller's frame
+- **Changes.** Every block watches variables: an iteration its loop state and
+  every name its body assigns, a function call its parameters and locals, the
+  module its globals. The instrumenter hands the runtime two static tables:
+  per block loc, its inputs and watched names; per statement loc, the names
+  the statement binds itself and, for a `for`, its targets, which that
+  statement does not report. `_cw.state(id)` reads the watched names from the caller's frame
   (`f_locals`, then `f_globals`), emits the inputs and remembers each rendering.
   At every statement boundary in that iteration, and at its exit, the runtime
   renders the watched names again and emits a named value on the statement
@@ -161,7 +164,10 @@ for i in _cw_e(_cw_b(15), range(2)):
   `mid = (lo + hi) // 2` is recorded even when it repeats last iteration's
   value, and `remember(seen, w)` is recorded because `seen` rendered differently after
   it. Statements of a called function belong to that function's block and are
-  not settled against the iteration.
+  not settled against the iteration. A loop is one statement of its parent
+  block, so what the parent records on it is the loop's end state. Only the
+  first 1000 calls of each function watch their variables, so heavy
+  recursion does not spend its time limit on renderings.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits** belong to the runner, not the tracer. The runner kills the process
   at its time limit or once the trace reaches its byte cap. The tracer flushes

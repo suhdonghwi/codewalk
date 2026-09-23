@@ -48,7 +48,7 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
         [loc["parent"] for loc in result.locs],
         sink,
         result.tracking,
-        result.bindings,
+        result.statements,
     )
     globals_: dict[str, object] = {
         "__name__": "__main__",
