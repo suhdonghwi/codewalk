@@ -45,6 +45,19 @@ export function outputSegments(outcome: RunOutcome | null): OutputSegment[] {
     return [{ kind: "notice", text: "Could not reach the server" }];
   }
 
+  if (outcome.kind === "failed") {
+    const rejected = outcome.status === 400 || outcome.status === 413;
+
+    return [
+      {
+        kind: "notice",
+        text: rejected
+          ? "The program or its input is too large to run"
+          : "The server could not run the program",
+      },
+    ];
+  }
+
   const segments: OutputSegment[] = outcome.trace.outputs.map(
     (output, chunk) => ({ kind: output.stream, text: output.text, chunk }),
   );

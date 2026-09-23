@@ -52,10 +52,7 @@ export function App({ runner: injectedRunner }: AppProps) {
       .run({ source: state.source, stdin: state.stdin })
       .then(finishRun)
       .catch(() => {
-        finishRun({
-          kind: "unreachable",
-          message: "Runner failed",
-        });
+        finishRun({ kind: "unreachable" });
       })
       .finally(() => {
         useRunStore.getState().setRunning(false);

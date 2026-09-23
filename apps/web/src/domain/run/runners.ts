@@ -26,15 +26,12 @@ export function createHttpRunner(): TraceRunner {
         });
 
         if (!response.ok) {
-          return {
-            kind: "unreachable",
-            message: `Server returned ${response.status}`,
-          };
+          return { kind: "failed", status: response.status };
         }
 
         return parsedOutcome(await response.text());
       } catch {
-        return { kind: "unreachable", message: "Network request failed" };
+        return { kind: "unreachable" };
       }
     },
   };
@@ -54,7 +51,7 @@ export function createFixtureRunner(): TraceRunner {
         fixtureFiles["../../../../../spec/fixtures/fact.trace.jsonl"];
 
       if (load === undefined) {
-        return { kind: "unreachable", message: "Fixture is unavailable" };
+        return { kind: "unreachable" };
       }
 
       return parsedOutcome(await load());

@@ -8,7 +8,8 @@ export interface RunRequest {
 export type RunOutcome =
   | { kind: "trace"; trace: Trace }
   | { kind: "invalid"; error: TraceParseError }
-  | { kind: "unreachable"; message: string };
+  | { kind: "failed"; status: number }
+  | { kind: "unreachable" };
 
 export interface TraceRunner {
   run(request: RunRequest): Promise<RunOutcome>;
