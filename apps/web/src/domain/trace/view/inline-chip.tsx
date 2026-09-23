@@ -21,6 +21,19 @@ const TONE_CLASSES: Record<InlineChipTone, string> = {
   exception: "bg-exception/15 text-exception",
 };
 
+export function Disclosure({ expanded }: { expanded: boolean }) {
+  return (
+    <ChevronRight
+      aria-hidden
+      className={cn(
+        "mr-[0.25ch] inline-block size-[1em] align-[-0.12em] transition-transform",
+        expanded && "rotate-90",
+      )}
+      strokeWidth={2.25}
+    />
+  );
+}
+
 export function InlineChip({
   tone,
   children,
@@ -46,14 +59,7 @@ export function InlineChip({
       onClick={onToggle}
       type="button"
     >
-      <ChevronRight
-        aria-hidden
-        className={cn(
-          "mr-[0.25ch] inline-block size-[1em] align-[-0.125em] transition-transform",
-          expanded && "rotate-90",
-        )}
-        strokeWidth={2.25}
-      />
+      <Disclosure expanded={expanded} />
       {children}
     </button>
   );

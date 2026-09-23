@@ -229,15 +229,19 @@ export function TraceLine({
           )}
         </div>
       </div>
-      {openValues.map(({ key, entry }) => (
-        <ValueInspector
-          at={entry.at}
-          key={key}
-          name={entry.name}
-          trace={trace}
-          value={entry.value}
-        />
-      ))}
+      {openValues.length === 0 ? null : (
+        <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
+          {openValues.map(({ key, entry }) => (
+            <ValueInspector
+              at={entry.at}
+              key={key}
+              name={entry.name}
+              trace={trace}
+              value={entry.value}
+            />
+          ))}
+        </div>
+      )}
       {expanded && line.output !== null ? (
         <pre className="col-span-full m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output} />
