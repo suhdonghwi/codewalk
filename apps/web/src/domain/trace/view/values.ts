@@ -1,4 +1,4 @@
-import { objectAt } from "@codewalk/trace";
+import { requireObject } from "@codewalk/trace";
 import { match } from "ts-pattern";
 
 import type { HeapObject, ObjectId, Trace, Value } from "@codewalk/trace";
@@ -184,9 +184,7 @@ function collapsed(
     return cut(piece(PRIMITIVE_PIECES[value.kind], value.text), budget);
   }
 
-  const object = objectAt(trace, value.ref, at);
-
-  if (object === null) return [piece("muted", "…")];
+  const object = requireObject(trace, value.ref, at);
 
   if (object.text !== undefined)
     return cut(piece("plain", object.text), budget);
@@ -205,9 +203,9 @@ function writeValue(
 ): Piece[] {
   if (!("ref" in value)) return collapsed(trace, value, at, budget);
 
-  const object = objectAt(trace, value.ref, at);
+  const object = requireObject(trace, value.ref, at);
 
-  if (object === null || object.text !== undefined) {
+  if (object.text !== undefined) {
     return collapsed(trace, value, at, budget);
   }
 
@@ -260,9 +258,7 @@ export function valueChildren(
 ): ValueChildren | null {
   if (!("ref" in value)) return null;
 
-  const object = objectAt(trace, value.ref, at);
-
-  if (object === null) return null;
+  const object = requireObject(trace, value.ref, at);
 
   const children = match(object)
     .with({ kind: "sequence" }, ({ items, length }) => ({
@@ -320,9 +316,9 @@ export function sharedObjects(
 
     for (const row of children.rows) pending.push(row.value);
 
-    const object = objectAt(trace, next.ref, at);
+    const object = requireObject(trace, next.ref, at);
 
-    if (object?.kind === "mapping") {
+    if (object.kind === "mapping") {
       for (const [key] of object.entries) pending.push(key);
     }
   }

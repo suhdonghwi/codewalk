@@ -1,11 +1,11 @@
 import type { ObjectVersion, Trace } from "./model.ts";
 import type { HeapObject, ObjectId } from "./schema.ts";
 
-export function objectAt(
+export function requireObject(
   trace: Trace,
   id: ObjectId,
   at: number,
-): HeapObject | null {
+): HeapObject {
   const versions: ObjectVersion[] = trace.objects[id] ?? [];
   let low = 0;
   let high = versions.length;
@@ -17,5 +17,11 @@ export function objectAt(
     else high = middle;
   }
 
-  return versions[low - 1]?.object ?? null;
+  const object = versions[low - 1]?.object;
+
+  if (object === undefined) {
+    throw new Error(`Object ${id} is not defined before ${at}`);
+  }
+
+  return object;
 }

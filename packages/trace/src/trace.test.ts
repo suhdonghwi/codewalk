@@ -2,7 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 
 import { describe, expect, test } from "vitest";
 
-import { objectAt, parseTrace } from "./index.ts";
+import { requireObject, parseTrace } from "./index.ts";
 
 import type { Loc, Role, Trace } from "./index.ts";
 
@@ -127,7 +127,9 @@ test("a reference resolves to the object as it was at its value event, including
     ),
   );
 
-  const inner = trace.nodes[0]?.values.map(({ at }) => objectAt(trace, 1, at));
+  const inner = trace.nodes[0]?.values.map(({ at }) =>
+    requireObject(trace, 1, at),
+  );
 
   expect(inner).toEqual([
     { kind: "sequence", type: "list", items: [] },

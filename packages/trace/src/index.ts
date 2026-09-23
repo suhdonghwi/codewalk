@@ -1,4 +1,4 @@
-export { objectAt } from "./objects.ts";
+export { requireObject } from "./objects.ts";
 
 export { parseTrace } from "./parse.ts";
 
