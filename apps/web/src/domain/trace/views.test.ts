@@ -4,9 +4,9 @@ import { parseTrace } from "@codewalk/trace";
 import { expect, test } from "vitest";
 
 import {
+  blockPath,
   blockSites,
   exceptionOrigin,
-  pathTo,
   statementStates,
 } from "./views.ts";
 
@@ -63,21 +63,11 @@ const factFixtureUrl = new URL(
 test("the fact fixture produces the documented paths, sites, and statement states", async () => {
   const trace = parsedTrace(await readFile(factFixtureUrl, "utf8"));
 
-  expect(pathTo(trace, 25)).toEqual([
-    { block: 0, site: 2 },
-    { block: 12, site: 15 },
-    { block: 16, site: 22 },
-    { block: 23, site: 25 },
-  ]);
-  expect(pathTo(trace, 23)).toEqual([
-    { block: 0, site: 2 },
-    { block: 12, site: 15 },
-    { block: 16, site: 22 },
-    { block: 23, site: null },
-  ]);
+  expect(blockPath(trace, 25)).toEqual([0, 12, 16, 23]);
+  expect(blockPath(trace, 23)).toEqual([0, 12, 16, 23]);
   expect(blockSites(trace, 16)).toEqual([
-    { loc: 5, nodes: [18], blocks: [], outputs: [2] },
-    { loc: 11, nodes: [22], blocks: [23], outputs: [] },
+    { loc: 5, blocks: [], outputs: [2] },
+    { loc: 11, blocks: [23], outputs: [] },
   ]);
   expect(statementStates(trace, 16)).toEqual([
     { loc: 1, state: "inert" },
@@ -112,7 +102,7 @@ test("sites merge repeated executions of one loc in execution order", () => {
   );
 
   expect(blockSites(parsedTrace(input), 0)).toEqual([
-    { loc: 2, nodes: [2, 3], blocks: [4], outputs: [0] },
+    { loc: 2, blocks: [4], outputs: [0] },
   ]);
 });
 

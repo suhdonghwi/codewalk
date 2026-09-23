@@ -1,26 +1,16 @@
 import { match, P } from "ts-pattern";
 
-import type { LocId, NodeId, Role, Trace, TraceNode } from "@codewalk/trace";
-
-function isBlockRole(role: Role | undefined): boolean {
-  return role === "block";
-}
-
-export interface PathStep {
-  block: NodeId;
-  site: NodeId | null;
-}
+import type { LocId, NodeId, Role, Trace } from "@codewalk/trace";
 
 export interface Site {
   loc: LocId;
-  nodes: NodeId[];
   blocks: NodeId[];
   outputs: number[];
 }
 
 export type StatementState = "lit" | "dimmed" | "inert";
 
-function nodeRole(trace: Trace, node: NodeId) {
+function nodeRole(trace: Trace, node: NodeId): Role | undefined {
   const traceNode = trace.nodes[node];
 
   return traceNode === undefined
@@ -28,56 +18,19 @@ function nodeRole(trace: Trace, node: NodeId) {
     : trace.header.locs[traceNode.loc]?.role;
 }
 
-function isStatementRole(role: Role | undefined): boolean {
-  return role === "stmt";
-}
-
-export function pathTo(trace: Trace, target: NodeId): PathStep[] {
-  const targetNode = trace.nodes[target];
-
-  if (targetNode === undefined) return [];
-
-  const reverseBlocks: NodeId[] = [];
-  let current: NodeId | null = target;
+export function blockPath(trace: Trace, node: NodeId): NodeId[] {
+  const path: NodeId[] = [];
+  let current: NodeId | null = node;
 
   while (current !== null) {
-    const node: TraceNode | undefined = trace.nodes[current];
-
-    if (node === undefined) break;
-
-    if (isBlockRole(trace.header.locs[node.loc]?.role)) {
-      reverseBlocks.push(current);
-    }
-
-    current = node.parent;
+    if (nodeRole(trace, current) === "block") path.push(current);
+    current = trace.nodes[current]?.parent ?? null;
   }
 
-  const blocks = reverseBlocks.reverse();
-  const steps: PathStep[] = [];
-
-  for (let index = 0; index < blocks.length; index += 1) {
-    const block = blocks[index];
-
-    if (block === undefined) continue;
-    const nextBlock = blocks[index + 1];
-
-    if (nextBlock !== undefined) {
-      steps.push({ block, site: trace.nodes[nextBlock]?.parent ?? null });
-      continue;
-    }
-
-    steps.push({
-      block,
-      site: isBlockRole(nodeRole(trace, target)) ? null : target,
-    });
-  }
-
-  return steps;
+  return path.reverse();
 }
 
 export function blockSites(trace: Trace, block: NodeId): Site[] {
-  if (!isBlockRole(nodeRole(trace, block))) return [];
-
   const sites: Site[] = [];
   const sitesByLoc = new Map<LocId, Site>();
 
@@ -95,19 +48,17 @@ export function blockSites(trace: Trace, block: NodeId): Site[] {
         const blocks: NodeId[] = [];
 
         for (const child of node.children) {
-          if (isBlockRole(nodeRole(trace, child))) blocks.push(child);
+          if (nodeRole(trace, child) === "block") blocks.push(child);
         }
 
         if (blocks.length > 0 || node.outputs.length > 0) {
           let site = sitesByLoc.get(node.loc);
 
           if (site === undefined) {
-            site = { loc: node.loc, nodes: [], blocks: [], outputs: [] };
+            site = { loc: node.loc, blocks: [], outputs: [] };
             sitesByLoc.set(node.loc, site);
             sites.push(site);
           }
-
-          site.nodes.push(nodeId);
 
           // Not `push(...blocks)`: a loop statement can hold more iterations
           // than the engine accepts as call arguments.
@@ -117,7 +68,7 @@ export function blockSites(trace: Trace, block: NodeId): Site[] {
         }
 
         for (const child of node.children) {
-          if (!isBlockRole(nodeRole(trace, child))) visit(child);
+          if (nodeRole(trace, child) !== "block") visit(child);
         }
       })
       .exhaustive();
@@ -140,7 +91,7 @@ function nearestBlockLoc(trace: Trace, locId: LocId): LocId | null {
 
     if (loc === undefined) return null;
 
-    if (isBlockRole(loc.role)) return current;
+    if (loc.role === "block") return current;
     current = loc.parent;
   }
 
@@ -156,12 +107,12 @@ export function statementStates(
   if (blockNode === undefined) return [];
   const blockLoc = trace.header.locs[blockNode.loc];
 
-  if (blockLoc === undefined || !isBlockRole(blockLoc.role)) return [];
+  if (blockLoc === undefined) return [];
 
   const executed = new Set<LocId>();
 
   for (const child of blockNode.children) {
-    if (isStatementRole(nodeRole(trace, child))) {
+    if (nodeRole(trace, child) === "stmt") {
       const childNode = trace.nodes[child];
 
       if (childNode !== undefined) executed.add(childNode.loc);
@@ -208,8 +159,7 @@ function lastStatementChild(trace: Trace, block: NodeId): NodeId | null {
   for (let index = children.length - 1; index >= 0; index -= 1) {
     const child = children[index];
 
-    if (child !== undefined && isStatementRole(nodeRole(trace, child)))
-      return child;
+    if (child !== undefined && nodeRole(trace, child) === "stmt") return child;
   }
 
   return null;
