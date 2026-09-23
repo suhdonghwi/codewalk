@@ -1,11 +1,12 @@
 """AST instrumentation for codewalk traces."""
 
 import ast
+import symtable
 from dataclasses import dataclass
 from typing import Literal
 
 from codewalk.liveness import (
-    Live,
+    function_scope,
     live_after_loops,
     loop_assigns,
     loop_state,
@@ -31,7 +32,7 @@ class StatementNames:
 
     binds: tuple[str, ...]
     quiet: tuple[str, ...]
-    live: Live | None = None
+    live: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -59,11 +60,12 @@ class _Instrumenter:
     def __init__(self, source: str, source_name: str) -> None:
         self.source = SourceMap(source)
         self.source_name = source_name
+        self.scope = symtable.symtable(source, source_name, "exec")
         self.locs: list[Loc] = []
         self.watched: dict[int, tuple[str, ...]] = {}
         self.inputs: dict[int, tuple[str, ...]] = {}
         self.statements: dict[int, StatementNames] = {}
-        self.live: dict[ast.stmt, Live] = {}
+        self.live: dict[ast.stmt, frozenset[str]] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -73,7 +75,7 @@ class _Instrumenter:
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
         self.watched[module_loc] = _mentioned(node)
-        self.live.update(live_after_loops(node.body))
+        self.live.update(live_after_loops(node.body, self.scope))
         body = self._body(node.body[prefix_count:], module_loc)
         wrapper = self._block_wrapper("block", module_loc, body, node)
         node.body = [*prefix, wrapper]
@@ -108,11 +110,9 @@ class _Instrumenter:
             )
             self.watched[function] = mentioned
             values = self._parameter_values(node.args, statement)
-            self.live.update(
-                live_after_loops(
-                    node.body, [value.arg for value in _parameters(node.args)]
-                )
-            )
+            scope = function_scope(self.scope, node)
+            if scope is not None:
+                self.live.update(live_after_loops(node.body, scope))
             doc, rest = _split_docstring(node.body)
             body = self._body(rest, function)
             node.body = [
@@ -284,13 +284,19 @@ class _Instrumenter:
     def _parameter_values(
         self, arguments: ast.arguments, parent: int
     ) -> list[ast.stmt]:
+        parameters = [*arguments.posonlyargs, *arguments.args]
+        if arguments.vararg is not None:
+            parameters.append(arguments.vararg)
+        parameters.extend(arguments.kwonlyargs)
+        if arguments.kwarg is not None:
+            parameters.append(arguments.kwarg)
         return [
             _value_statement(
                 self._loc("expr", *self.source.argument_range(parameter), parent),
                 parameter.arg,
                 parameter,
             )
-            for parameter in _parameters(arguments)
+            for parameter in parameters
         ]
 
     def _clause_body(
@@ -308,7 +314,7 @@ class _Instrumenter:
         return [self._marker(clause, statements[0], marker), *body]
 
     def _bind(
-        self, statement: int, node: ast.stmt, *, live: Live | None = None
+        self, statement: int, node: ast.stmt, *, live: frozenset[str] | None = None
     ) -> None:
         binds = statement_bindings(node)
         quiet = target_names(node.target) if isinstance(node, ast.For) else []
@@ -474,16 +480,6 @@ def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     value = ast.Name(id=name, ctx=ast.Load())
     statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
     return ast.copy_location(statement, owner)
-
-
-def _parameters(arguments: ast.arguments) -> list[ast.arg]:
-    parameters = [*arguments.posonlyargs, *arguments.args]
-    if arguments.vararg is not None:
-        parameters.append(arguments.vararg)
-    parameters.extend(arguments.kwonlyargs)
-    if arguments.kwarg is not None:
-        parameters.append(arguments.kwarg)
-    return parameters
 
 
 def _split_docstring(body: list[ast.stmt]) -> tuple[list[ast.stmt], list[ast.stmt]]:

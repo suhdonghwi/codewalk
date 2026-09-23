@@ -1,12 +1,11 @@
-"""Static analysis of the state a loop takes in and hands on."""
+"""Live-variable analysis: the state a loop takes in and the state it hands on."""
 
 import ast
-from collections.abc import Sequence
+import symtable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass
 
-type Assigned = set[str] | None
-
-type Live = frozenset[str]
+type Names = tuple[str, ...]
 
 _COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
@@ -30,14 +29,46 @@ _DYNAMIC_SCOPE = frozenset({"dir", "eval", "exec", "globals", "locals", "vars"})
 
 def loop_state(loop: ast.For | ast.While) -> list[str]:
     """Names one iteration may read before assigning them, in first-read order."""
-    reads = _Reads()
-    assigned: set[str] = set()
+    body = _Live(frozenset()).block(loop.body, (), _Exits())
     if isinstance(loop, ast.For):
-        _bind_names(loop.target, assigned)
-    else:
-        reads.expression(loop.test, assigned, definite=True)
-    reads.block(loop.body, assigned)
-    return reads.names
+        targets: set[str] = set()
+        _bind_names(loop.target, targets)
+        return list(_minus(body, targets))
+    reads, bound = _expression_effect(loop.test)
+    return list(_union(reads, _minus(body, bound)))
+
+
+def live_after_loops(
+    body: list[ast.stmt], scope: symtable.SymbolTable
+) -> dict[ast.stmt, frozenset[str]]:
+    """Names the scope may still read once each loop in its body has ended."""
+    if any(
+        symbol.get_name() in _DYNAMIC_SCOPE
+        and symbol.is_global()
+        and symbol.is_referenced()
+        for symbol in scope.get_symbols()
+    ):
+        return {}
+    live = _Live(_escaping(scope))
+    live.block(body, (), _Exits())
+    return live.after
+
+
+def function_scope(
+    scope: symtable.SymbolTable, node: ast.FunctionDef
+) -> symtable.SymbolTable | None:
+    """The symbol table of a function defined anywhere inside `scope`."""
+    for child in scope.get_children():
+        if (
+            child.get_type() == symtable.SymbolTableType.FUNCTION
+            and child.get_name() == node.name
+            and child.get_lineno() == node.lineno
+        ):
+            return child
+        found = function_scope(child, node)
+        if found is not None:
+            return found
+    return None
 
 
 def loop_assigns(loop: ast.For | ast.While) -> set[str]:
@@ -48,24 +79,6 @@ def loop_assigns(loop: ast.For | ast.While) -> set[str]:
     for statement in loop.body:
         assigns.visit(statement)
     return set(assigns.names)
-
-
-def live_after_loops(
-    body: list[ast.stmt], parameters: Sequence[str] = ()
-) -> dict[ast.stmt, Live]:
-    """Names the scope may still read once each loop in its body has ended."""
-    scope = _Scope()
-    for statement in body:
-        scope.visit(statement)
-    if scope.dynamic:
-        return {}
-    assigns = _Assigns()
-    for statement in body:
-        assigns.visit(statement)
-    kept = {name for name in parameters if name not in assigns.names}
-    live = _Live(frozenset(scope.declared | scope.captured | kept))
-    live.block(body, frozenset(), _Exits())
-    return live.after
 
 
 def statement_bindings(node: ast.stmt) -> list[str]:
@@ -92,18 +105,179 @@ def target_names(target: ast.expr) -> list[str]:
     return list(bindings.names)
 
 
+def _escaping(scope: symtable.SymbolTable) -> frozenset[str]:
+    names = {
+        symbol.get_name()
+        for child in scope.get_children()
+        for symbol in child.get_symbols()
+        if symbol.is_free()
+    }
+    if scope.get_type() == symtable.SymbolTableType.MODULE:
+        names |= _global_reads(scope)
+    else:
+        names |= {
+            symbol.get_name()
+            for symbol in scope.get_symbols()
+            if symbol.is_global()
+            or symbol.is_free()
+            or (symbol.is_parameter() and not symbol.is_assigned())
+        }
+    return frozenset(names)
+
+
+def _global_reads(scope: symtable.SymbolTable) -> set[str]:
+    names: set[str] = set()
+    for child in scope.get_children():
+        names |= {
+            symbol.get_name()
+            for symbol in child.get_symbols()
+            if symbol.is_global() and symbol.is_referenced()
+        }
+        names |= _global_reads(child)
+    return names
+
+
+def _union(*parts: Iterable[str]) -> Names:
+    return tuple(dict.fromkeys(name for part in parts for name in part))
+
+
+def _minus(names: Names, removed: Collection[str]) -> Names:
+    return tuple(name for name in names if name not in removed)
+
+
+def _expression_effect(node: ast.expr) -> tuple[Names, set[str]]:
+    reads = _Reads()
+    bound: set[str] = set()
+    reads.expression(node, bound, definite=True)
+    return tuple(reads.names), bound
+
+
+@dataclass(frozen=True)
+class _Exits:
+    brk: Names = ()
+    cont: Names = ()
+    ret: Names = ()
+    throw: Names = ()
+
+
+class _Live:
+    def __init__(self, escaping: frozenset[str]) -> None:
+        self.escaping = escaping
+        self.after: dict[ast.stmt, frozenset[str]] = {}
+
+    def block(self, statements: list[ast.stmt], out: Names, exits: _Exits) -> Names:
+        for statement in reversed(statements):
+            out = _union(self.statement(statement, out, exits), exits.throw)
+        return out
+
+    def statement(self, node: ast.stmt, out: Names, exits: _Exits) -> Names:
+        if isinstance(node, ast.Break):
+            return exits.brk
+        if isinstance(node, ast.Continue):
+            return exits.cont
+        if isinstance(node, ast.Return):
+            if node.value is None:
+                return exits.ret
+            return _union(_expression_effect(node.value)[0], exits.ret)
+        if isinstance(node, ast.Raise):
+            reads = _Reads()
+            for part in (node.exc, node.cause):
+                if part is not None:
+                    reads.expression(part, set(), definite=True)
+            return tuple(reads.names)
+        if isinstance(node, ast.If):
+            reads, bound = _expression_effect(node.test)
+            branches = _union(
+                self.block(node.body, out, exits), self.block(node.orelse, out, exits)
+            )
+            return _union(reads, _minus(branches, bound))
+        if isinstance(node, (ast.While, ast.For)):
+            return self._loop(node, out, exits)
+        if isinstance(node, (ast.With, ast.AsyncWith)):
+            items = _Reads()
+            bound: set[str] = set()
+            for item in node.items:
+                items.expression(item.context_expr, bound, definite=True)
+                if item.optional_vars is not None:
+                    items.target(item.optional_vars, bound, definite=True)
+            body = self.block(node.body, out, exits)
+            return _union(items.names, _minus(body, bound))
+        if isinstance(node, (ast.Try, ast.TryStar)):
+            return self._try(node, out, exits)
+        if isinstance(node, ast.Match):
+            return self._match(node, out, exits)
+        reads = _Reads()
+        bound = set()
+        reads.statement(node, bound)
+        return _union(reads.names, _minus(out, bound))
+
+    def _loop(self, node: ast.While | ast.For, out: Names, exits: _Exits) -> Names:
+        ended = self.block(node.orelse, out, exits)
+        self.after[node] = frozenset(ended) | frozenset(out) | self.escaping
+        targets: set[str] = set()
+        if isinstance(node, ast.For):
+            _bind_names(node.target, targets)
+        head: Names = ()
+        while True:
+            inner = _Exits(out, head, exits.ret, exits.throw)
+            body = self.block(node.body, head, inner)
+            if isinstance(node, ast.For):
+                reached = _union(ended, _minus(body, targets))
+            else:
+                reads, bound = _expression_effect(node.test)
+                reached = _union(reads, _minus(_union(ended, body), bound))
+            if set(reached) == set(head):
+                break
+            head = reached
+        if isinstance(node, ast.While):
+            return head
+        reads, bound = _expression_effect(node.iter)
+        return _union(reads, _minus(head, bound))
+
+    def _try(self, node: ast.Try | ast.TryStar, out: Names, exits: _Exits) -> Names:
+        def through_finally(names: Names) -> Names:
+            return self.block(node.finalbody, names, exits)
+
+        inner = _Exits(
+            through_finally(exits.brk),
+            through_finally(exits.cont),
+            through_finally(exits.ret),
+            through_finally(exits.throw),
+        )
+        after = through_finally(out)
+        handlers: Names = ()
+        for handler in node.handlers:
+            caught = self.block(handler.body, after, inner)
+            if handler.name is not None:
+                caught = _minus(caught, {handler.name})
+            if handler.type is not None:
+                caught = _union(_expression_effect(handler.type)[0], caught)
+            handlers = _union(handlers, caught)
+        orelse = self.block(node.orelse, after, inner)
+        guarded = _Exits(
+            inner.brk, inner.cont, inner.ret, _union(inner.throw, handlers)
+        )
+        return self.block(node.body, orelse, guarded)
+
+    def _match(self, node: ast.Match, out: Names, exits: _Exits) -> Names:
+        reads, bound = _expression_effect(node.subject)
+        cases: Names = ()
+        for case in node.cases:
+            pattern = _Reads()
+            captured: set[str] = set()
+            pattern.pattern(case.pattern, captured)
+            if case.guard is not None:
+                pattern.expression(case.guard, captured, definite=True)
+            body = self.block(case.body, out, exits)
+            cases = _union(cases, pattern.names, _minus(body, captured))
+        return _union(reads, _minus(_union(cases, out), bound))
+
+
 class _Reads:
     def __init__(self) -> None:
         self.names: list[str] = []
 
-    def block(self, statements: list[ast.stmt], assigned: Assigned) -> Assigned:
-        for statement in statements:
-            if assigned is None:
-                return None
-            assigned = self.statement(statement, assigned)
-        return assigned
-
-    def statement(self, node: ast.stmt, assigned: set[str]) -> Assigned:
+    def statement(self, node: ast.stmt, assigned: set[str]) -> None:
         if isinstance(node, ast.Expr):
             self.expression(node.value, assigned, definite=True)
         elif isinstance(node, ast.Assign):
@@ -123,56 +297,13 @@ class _Reads:
         elif isinstance(node, ast.Delete):
             for target in node.targets:
                 if isinstance(target, ast.Name):
-                    assigned.discard(target.id)
+                    assigned.add(target.id)
                 else:
                     self.target(target, assigned, definite=False)
-        elif isinstance(node, ast.Return):
-            if node.value is not None:
-                self.expression(node.value, assigned, definite=True)
-            return None
-        elif isinstance(node, ast.Raise):
-            for part in (node.exc, node.cause):
-                if part is not None:
-                    self.expression(part, assigned, definite=True)
-            return None
-        elif isinstance(node, (ast.Break, ast.Continue)):
-            return None
         elif isinstance(node, ast.Assert):
             self.expression(node.test, assigned, definite=True)
             if node.msg is not None:
                 self.expression(node.msg, assigned, definite=False)
-        elif isinstance(node, ast.If):
-            self.expression(node.test, assigned, definite=True)
-            return _join(
-                self.block(node.body, set(assigned)),
-                self.block(node.orelse, set(assigned)),
-            )
-        elif isinstance(node, (ast.For, ast.AsyncFor)):
-            self.expression(node.iter, assigned, definite=True)
-            body = set(assigned)
-            self.target(node.target, body, definite=True)
-            self.block(node.body, body)
-            self.block(node.orelse, set(assigned))
-        elif isinstance(node, ast.While):
-            self.expression(node.test, assigned, definite=True)
-            self.block(node.body, set(assigned))
-            self.block(node.orelse, set(assigned))
-        elif isinstance(node, (ast.With, ast.AsyncWith)):
-            for item in node.items:
-                self.expression(item.context_expr, assigned, definite=True)
-                if item.optional_vars is not None:
-                    self.target(item.optional_vars, assigned, definite=True)
-            return self.block(node.body, assigned)
-        elif isinstance(node, (ast.Try, ast.TryStar)):
-            return self._try(node, assigned)
-        elif isinstance(node, ast.Match):
-            self.expression(node.subject, assigned, definite=True)
-            for case in node.cases:
-                bound = set(assigned)
-                self._pattern(case.pattern, bound)
-                if case.guard is not None:
-                    self.expression(case.guard, bound, definite=True)
-                self.block(case.body, bound)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             for decorator in node.decorator_list:
                 self.expression(decorator, assigned, definite=True)
@@ -192,48 +323,32 @@ class _Reads:
                     assigned.add(alias.asname or alias.name.split(".")[0])
         elif isinstance(node, ast.TypeAlias):
             self.target(node.name, assigned, definite=True)
-        return assigned
 
-    def _try(self, node: ast.Try | ast.TryStar, assigned: set[str]) -> Assigned:
-        ends = [self.block(node.orelse, self.block(node.body, set(assigned)))]
-        for handler in node.handlers:
-            if handler.type is not None:
-                self.expression(handler.type, set(assigned), definite=True)
-            bound = set(assigned)
-            if handler.name is not None:
-                bound.add(handler.name)
-            ends.append(self.block(handler.body, bound))
-        joined = _join(*ends)
-        final = self.block(node.finalbody, set(assigned))
-        if joined is None or final is None:
-            return None
-        return joined | final
-
-    def _pattern(self, node: ast.pattern, assigned: set[str]) -> None:
+    def pattern(self, node: ast.pattern, assigned: set[str]) -> None:
         if isinstance(node, ast.MatchValue):
             self.expression(node.value, assigned, definite=True)
         elif isinstance(node, (ast.MatchAs, ast.MatchStar)):
             if isinstance(node, ast.MatchAs) and node.pattern is not None:
-                self._pattern(node.pattern, assigned)
+                self.pattern(node.pattern, assigned)
             if node.name is not None:
                 assigned.add(node.name)
         elif isinstance(node, ast.MatchSequence):
             for pattern in node.patterns:
-                self._pattern(pattern, assigned)
+                self.pattern(pattern, assigned)
         elif isinstance(node, ast.MatchMapping):
             for key in node.keys:
                 self.expression(key, assigned, definite=True)
             for pattern in node.patterns:
-                self._pattern(pattern, assigned)
+                self.pattern(pattern, assigned)
             if node.rest is not None:
                 assigned.add(node.rest)
         elif isinstance(node, ast.MatchClass):
             self.expression(node.cls, assigned, definite=True)
             for pattern in [*node.patterns, *node.kwd_patterns]:
-                self._pattern(pattern, assigned)
+                self.pattern(pattern, assigned)
         elif isinstance(node, ast.MatchOr):
             for pattern in node.patterns:
-                self._pattern(pattern, set(assigned))
+                self.pattern(pattern, set(assigned))
 
     def target(self, node: ast.expr, assigned: set[str], *, definite: bool) -> None:
         if isinstance(node, ast.Name):
@@ -324,13 +439,6 @@ def _bind_names(node: ast.expr, assigned: set[str]) -> None:
         _bind_names(node.value, assigned)
 
 
-def _join(*states: Assigned) -> Assigned:
-    reached = [state for state in states if state is not None]
-    if not reached:
-        return None
-    return set.intersection(*reached)
-
-
 class _Bindings(ast.NodeVisitor):
     def __init__(self) -> None:
         self.names: dict[str, None] = {}
@@ -380,177 +488,3 @@ class _Assigns(_Bindings):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.names[node.name] = None
-
-
-@dataclass(frozen=True)
-class _Exits:
-    brk: Live = frozenset()
-    cont: Live = frozenset()
-    ret: Live = frozenset()
-    throw: Live = frozenset()
-
-
-class _Live:
-    def __init__(self, escaping: Live) -> None:
-        self.escaping = escaping
-        self.after: dict[ast.stmt, Live] = {}
-
-    def block(self, statements: list[ast.stmt], out: Live, exits: _Exits) -> Live:
-        for statement in reversed(statements):
-            out = self.statement(statement, out, exits) | exits.throw
-        return out
-
-    def statement(self, node: ast.stmt, out: Live, exits: _Exits) -> Live:
-        if isinstance(node, ast.Return):
-            return _loads(node) | exits.ret
-        if isinstance(node, ast.Raise):
-            return _loads(node)
-        if isinstance(node, ast.Break):
-            return exits.brk
-        if isinstance(node, ast.Continue):
-            return exits.cont
-        if isinstance(node, ast.If):
-            return (
-                _loads(node.test)
-                | self.block(node.body, out, exits)
-                | self.block(node.orelse, out, exits)
-            )
-        if isinstance(node, (ast.While, ast.For)):
-            return self._loop(node, out, exits)
-        if isinstance(node, (ast.With, ast.AsyncWith)):
-            bound: set[str] = set()
-            reads: set[str] = set()
-            for item in node.items:
-                reads |= _loads(item.context_expr)
-                if item.optional_vars is not None:
-                    reads |= _loads(item.optional_vars)
-                    _bind_names(item.optional_vars, bound)
-            return (self.block(node.body, out, exits) - bound) | reads
-        if isinstance(node, (ast.Try, ast.TryStar)):
-            return self._try(node, out, exits)
-        if isinstance(node, ast.Match):
-            live = _loads(node.subject) | out
-            for case in node.cases:
-                live |= _loads(case.pattern) | self.block(case.body, out, exits)
-                if case.guard is not None:
-                    live |= _loads(case.guard)
-            return live
-        if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name):
-            return out | _loads(node) | {node.target.id}
-        return (out - _kills(node)) | _loads(node)
-
-    def _loop(self, node: ast.While | ast.For, out: Live, exits: _Exits) -> Live:
-        ended = self.block(node.orelse, out, exits)
-        self.after[node] = ended | out | self.escaping
-        targets: set[str] = set()
-        if isinstance(node, ast.For):
-            _bind_names(node.target, targets)
-            entry = ended | _loads(node.target)
-        else:
-            entry = ended | _loads(node.test)
-        head: Live = frozenset()
-        while True:
-            inner = _Exits(out, head, exits.ret, exits.throw)
-            reached = entry | (self.block(node.body, head, inner) - targets)
-            if reached == head:
-                break
-            head = reached
-        return _loads(node.iter) | head if isinstance(node, ast.For) else head
-
-    def _try(self, node: ast.Try | ast.TryStar, out: Live, exits: _Exits) -> Live:
-        def through_finally(live: Live) -> Live:
-            return self.block(node.finalbody, live, exits)
-
-        inner = _Exits(
-            through_finally(exits.brk),
-            through_finally(exits.cont),
-            through_finally(exits.ret),
-            through_finally(exits.throw),
-        )
-        after = through_finally(out)
-        handlers: Live = frozenset()
-        for handler in node.handlers:
-            caught = self.block(handler.body, after, inner)
-            if handler.name is not None:
-                caught -= {handler.name}
-            if handler.type is not None:
-                caught |= _loads(handler.type)
-            handlers |= caught
-        orelse = self.block(node.orelse, after, inner)
-        guarded = _Exits(inner.brk, inner.cont, inner.ret, inner.throw | handlers)
-        return self.block(node.body, orelse, guarded)
-
-
-def _loads(node: ast.AST) -> Live:
-    names: set[str] = set()
-    pending = [node]
-    while pending:
-        current = pending.pop()
-        if isinstance(current, ast.Name):
-            if isinstance(current.ctx, ast.Load):
-                names.add(current.id)
-        elif isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            pending.extend(current.decorator_list)
-            pending.append(current.args)
-            if current.returns is not None:
-                pending.append(current.returns)
-        elif isinstance(current, ast.Lambda):
-            pending.append(current.args)
-        else:
-            pending.extend(ast.iter_child_nodes(current))
-    return frozenset(names)
-
-
-def _kills(node: ast.stmt) -> set[str]:
-    bound: set[str] = set()
-    if isinstance(node, ast.Assign):
-        for target in node.targets:
-            _bind_names(target, bound)
-    elif isinstance(node, ast.AnnAssign) and node.value is not None:
-        _bind_names(node.target, bound)
-    elif isinstance(node, ast.Delete):
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                bound.add(target.id)
-    elif isinstance(node, (ast.Import, ast.ImportFrom)):
-        for alias in node.names:
-            if alias.name != "*":
-                bound.add(alias.asname or alias.name.split(".")[0])
-    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-        bound.add(node.name)
-    return bound
-
-
-class _Scope(ast.NodeVisitor):
-    def __init__(self) -> None:
-        self.declared: set[str] = set()
-        self.captured: set[str] = set()
-        self.dynamic = False
-
-    def visit_Global(self, node: ast.Global) -> None:
-        self.declared.update(node.names)
-
-    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
-        self.declared.update(node.names)
-
-    def visit_Call(self, node: ast.Call) -> None:
-        if isinstance(node.func, ast.Name) and node.func.id in _DYNAMIC_SCOPE:
-            self.dynamic = True
-        self.generic_visit(node)
-
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        self._nested(node)
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        self._nested(node)
-
-    def visit_Lambda(self, node: ast.Lambda) -> None:
-        self._nested(node)
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        self._nested(node)
-
-    def _nested(self, node: ast.AST) -> None:
-        for child in ast.walk(node):
-            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
-                self.captured.add(child.id)

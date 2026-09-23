@@ -1,8 +1,14 @@
 import ast
+import symtable
 
 import pytest
 
-from codewalk.liveness import live_after_loops, loop_assigns, loop_state
+from codewalk.liveness import (
+    function_scope,
+    live_after_loops,
+    loop_assigns,
+    loop_state,
+)
 
 
 @pytest.mark.parametrize(
@@ -68,7 +74,7 @@ def test_loop_assigns_only_rebinding_in_the_enclosing_scope(
     ("source", "line", "live"),
     [
         (
-            "def f():\n    queue = make()\n    while queue:\n"
+            "def f():\n    queue = [1]\n    while queue:\n"
             "        node = queue.pop()\n        if node:\n            return node\n"
             "    return None\n",
             3,
@@ -92,6 +98,17 @@ def test_loop_assigns_only_rebinding_in_the_enclosing_scope(
             {"out"},
         ),
         (
+            "def fill():\n    for x in range(3):\n        results.append(x)\n",
+            2,
+            {"range", "results"},
+        ),
+        (
+            "def f(xs):\n    for x in xs:\n        i = x\n        total = x\n"
+            "    def g():\n        i = 0\n        return i + total\n    return g\n",
+            2,
+            {"xs", "total"},
+        ),
+        (
             "for x in xs:\n    table = x\ndef lookup():\n    return table\nlookup()\n",
             1,
             {"table"},
@@ -103,15 +120,15 @@ def test_live_after_a_loop_is_what_later_code_or_the_caller_may_read(
     source: str, line: int, live: set[str] | None
 ) -> None:
     tree = ast.parse(source)
+    module = symtable.symtable(source, "test.py", "exec")
     first = tree.body[0]
-    scope = first if isinstance(first, ast.FunctionDef) else tree
-    parameters = (
-        [argument.arg for argument in first.args.args]
-        if isinstance(first, ast.FunctionDef)
-        else []
-    )
+    if isinstance(first, ast.FunctionDef):
+        body, scope = first.body, function_scope(module, first)
+    else:
+        body, scope = tree.body, module
+    assert scope is not None
 
-    after = live_after_loops(scope.body, parameters)
+    after = live_after_loops(body, scope)
 
     assert next(
         (names for loop, names in after.items() if loop.lineno == line), None
