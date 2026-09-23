@@ -134,11 +134,7 @@ export function blockSites(trace: Trace, block: NodeId): Site[] {
 export function blockValues(trace: Trace, block: NodeId): ValueChunk[] {
   if (!isBlockRole(nodeRole(trace, block))) return [];
 
-  return (trace.nodes[block]?.values ?? []).flatMap((index) => {
-    const value = trace.values[index];
-
-    return value === undefined ? [] : [value];
-  });
+  return trace.nodes[block]?.values ?? [];
 }
 
 function nearestBlockLoc(trace: Trace, locId: LocId): LocId | null {

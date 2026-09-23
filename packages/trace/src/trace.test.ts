@@ -92,14 +92,15 @@ test("the fact fixture builds the documented execution tree and output and entry
     { node: 25, stream: "stdout", text: "fact 1\n" },
     { node: 14, stream: "stdout", text: "2\n" },
   ]);
-  expect(trace.values).toEqual([
-    { node: 3, loc: 14, text: "0" },
-    { node: 7, loc: 3, text: "1" },
-    { node: 12, loc: 14, text: "1" },
-    { node: 16, loc: 3, text: "2" },
-    { node: 23, loc: 3, text: "1" },
-  ]);
-  expect(trace.nodes[16]?.values).toEqual([3]);
+  expect([3, 7, 12, 16, 23].map((block) => trace.nodes[block]?.values)).toEqual(
+    [
+      [{ loc: 14, text: "0" }],
+      [{ loc: 3, text: "1" }],
+      [{ loc: 14, text: "1" }],
+      [{ loc: 3, text: "2" }],
+      [{ loc: 3, text: "1" }],
+    ],
+  );
 });
 
 test("the fact fixture produces the documented paths, sites, and statement states", async () => {
@@ -121,7 +122,7 @@ test("the fact fixture produces the documented paths, sites, and statement state
     { loc: 5, nodes: [18], blocks: [], outputs: [2] },
     { loc: 11, nodes: [22], blocks: [23], outputs: [] },
   ]);
-  expect(blockValues(trace, 16)).toEqual([{ node: 16, loc: 3, text: "2" }]);
+  expect(blockValues(trace, 16)).toEqual([{ loc: 3, text: "2" }]);
   expect(statementStates(trace, 16)).toEqual([
     { loc: 1, state: "inert" },
     { loc: 4, state: "lit" },

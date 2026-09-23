@@ -9,7 +9,6 @@ import type {
   Trace,
   TraceNode,
   TraceParseError,
-  ValueChunk,
 } from "./model.ts";
 
 function parseError(
@@ -174,7 +173,6 @@ export function parseTrace(jsonl: string): ParseResult {
   const header = headerResult.data;
   const nodes: TraceNode[] = [];
   const outputs: OutputChunk[] = [];
-  const values: ValueChunk[] = [];
   const open: number[] = [];
   let end: End | null = null;
 
@@ -314,15 +312,12 @@ export function parseTrace(jsonl: string): ParseResult {
         }
 
         const node = nodes[nodeId];
-        const ownerLoc = node === undefined ? undefined : header.locs[node.loc];
 
-        if (!isBlockRole(ownerLoc?.role)) {
+        if (node === undefined || !isBlockRole(header.locs[node.loc]?.role)) {
           return structureError(index + 1, "value is not attached to a block");
         }
 
-        const valueId = values.length;
-        values.push({ node: nodeId, loc, text });
-        nodes[nodeId]?.values.push(valueId);
+        node.values.push({ loc, text });
 
         return null;
       })
@@ -361,7 +356,6 @@ export function parseTrace(jsonl: string): ParseResult {
     header,
     nodes,
     outputs,
-    values,
     root: nodes.length === 0 ? null : 0,
     end: end ?? { status: "timeout" },
   };

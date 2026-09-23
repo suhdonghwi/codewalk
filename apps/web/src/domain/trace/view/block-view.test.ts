@@ -211,7 +211,6 @@ describe("buildBlockView", () => {
         },
       ],
       outputs: [],
-      values: [],
       root: 0,
       end: { status: "ok" },
     };

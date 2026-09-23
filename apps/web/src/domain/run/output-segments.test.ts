@@ -9,7 +9,6 @@ function traceOutcome(end: End, outputs: OutputChunk[] = []): RunOutcome {
     header: { codewalk: 1, sources: [], locs: [] },
     nodes: [],
     outputs,
-    values: [],
     root: null,
     end,
   };
