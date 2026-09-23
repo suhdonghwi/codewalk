@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from contextlib import suppress
 
+from codewalk.instrument import LocFacts
 from codewalk.runtime import Runtime
 
 
@@ -15,7 +16,7 @@ class ListSink:
 def test_a_caught_nested_expression_exception_leaves_no_stale_node() -> None:
     parents = [None, 0, 1, 2, 3, 4, 5, 3, 7, 8, 9]
     sink = ListSink()
-    runtime = Runtime(parents, sink, {}, {}, {})
+    runtime = Runtime([LocFacts(parent) for parent in parents], sink)
 
     def helper() -> None:
         with runtime.block(9):
@@ -63,7 +64,7 @@ def test_a_caught_nested_expression_exception_leaves_no_stale_node() -> None:
 def test_abrupt_control_flow_closes_iterations_and_their_children() -> None:
     parents = [None, 0, 1, 2, 0, 4, 5, 6, 7]
     sink = ListSink()
-    runtime = Runtime(parents, sink, {}, {}, {})
+    runtime = Runtime([LocFacts(parent) for parent in parents], sink)
 
     def stop() -> int:
         with runtime.block(5):
@@ -117,7 +118,7 @@ def test_abrupt_control_flow_closes_iterations_and_their_children() -> None:
 def test_a_propagating_exception_marks_each_block_until_it_is_caught() -> None:
     parents = [None, 0, 1, 2, 3, 4, 5, 6, 0]
     sink = ListSink()
-    runtime = Runtime(parents, sink, {}, {}, {})
+    runtime = Runtime([LocFacts(parent) for parent in parents], sink)
 
     def inner() -> None:
         with runtime.block(6):
@@ -163,7 +164,7 @@ def test_a_propagating_exception_marks_each_block_until_it_is_caught() -> None:
 def test_repair_stops_at_a_block_when_the_static_parent_is_not_open() -> None:
     parents = [None, 0, 1, 1]
     sink = ListSink()
-    runtime = Runtime(parents, sink, {}, {}, {})
+    runtime = Runtime([LocFacts(parent) for parent in parents], sink)
 
     with runtime.block(0):
         runtime.stmt(1)

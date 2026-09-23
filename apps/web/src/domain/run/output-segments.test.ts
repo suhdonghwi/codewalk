@@ -1,21 +1,41 @@
-import type { End, OutputChunk, Trace } from "@codewalk/trace";
+import type { End, OutputChunk, Trace, TraceNode } from "@codewalk/trace";
 import { describe, expect, test } from "vitest";
 
 import { outputSegments, type OutputSegment } from "./output-segments.ts";
 import type { RunOutcome } from "./types.ts";
 
-function traceOutcome(end: End, outputs: OutputChunk[] = []): RunOutcome {
+const node: TraceNode = {
+  id: 0,
+  loc: {
+    role: "block",
+    title: "main.py",
+    unit: "module",
+    start: 0,
+    end: 0,
+    parent: null,
+    id: 0,
+    owner: null,
+  },
+  parent: null,
+  children: [],
+  sites: [],
+  outputs: [],
+  values: [],
+  returned: null,
+  exc: null,
+};
+
+function traceOutcome(
+  end: End,
+  outputs: Omit<OutputChunk, "node">[] = [],
+): RunOutcome {
   const trace: Trace = {
-    header: {
-      codewalk: 2,
-      sources: [],
-      literals: {},
-      locs: [],
-    },
+    source: { file: "main.py", text: "" },
+    literals: {},
+    locs: [],
     nodes: [],
-    outputs,
+    outputs: outputs.map((output) => ({ ...output, node })),
     objects: [],
-    root: null,
     end,
   };
 
@@ -32,8 +52,8 @@ const cases: OutputCase[] = [
   {
     name: "keeps stdout and stderr chunks in order without an ok notice",
     outcome: traceOutcome({ status: "ok" }, [
-      { node: 0, stream: "stdout", text: "one" },
-      { node: 1, stream: "stderr", text: "two" },
+      { stream: "stdout", text: "one" },
+      { stream: "stderr", text: "two" },
     ]),
     expected: [
       { kind: "stdout", text: "one", chunk: 0 },
@@ -44,7 +64,7 @@ const cases: OutputCase[] = [
     name: "puts the traceback after output for an exception",
     outcome: traceOutcome(
       { status: "exception", traceback: "Traceback text" },
-      [{ node: 0, stream: "stdout", text: "before\n" }],
+      [{ stream: "stdout", text: "before\n" }],
     ),
     expected: [
       { kind: "stdout", text: "before\n", chunk: 0 },
@@ -66,7 +86,6 @@ const cases: OutputCase[] = [
     outcome: traceOutcome({
       status: "syntax_error",
       message: "invalid syntax",
-      file: 0,
       start: 2,
       end: 3,
     }),
@@ -76,7 +95,7 @@ const cases: OutputCase[] = [
     name: "formats the line and message for an invalid trace",
     outcome: {
       kind: "invalid",
-      error: { kind: "schema", line: 7, message: "bad event" },
+      error: { line: 7, message: "bad event" },
     },
     expected: [{ kind: "notice", text: "Invalid trace (line 7): bad event" }],
   },

@@ -9,14 +9,15 @@ export type {
   LocId,
   NodeId,
   ObjectId,
-  Role,
   Value,
 } from "./schema.ts";
 
 export type {
   OutputChunk,
   RecordedValue,
+  Site,
   Trace,
+  TraceLoc,
   TraceNode,
   TraceParseError,
   ValueChunk,

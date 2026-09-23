@@ -25,14 +25,19 @@ _BRACKETED = (
 )
 
 
-@dataclass(frozen=True)
-class StatementNames:
-    """Names a statement binds itself, names whose changes it leaves out, and,
-    on a loop, the only names whose changes it records; `literal` are the bound
-    names whose value the statement writes out as a literal."""
+@dataclass(slots=True)
+class LocFacts:
+    """What the runtime knows about a loc beyond the trace header. A block
+    watches `watched`; an iteration takes `inputs` as its loop state. A
+    statement binds `binds` itself, leaves the changes of `quiet` out and, on a
+    loop, records only the changes of `live`; `literal` are the bound names
+    whose value it writes out as a literal."""
 
-    binds: tuple[str, ...]
-    quiet: tuple[str, ...]
+    parent: int | None
+    watched: tuple[str, ...] = ()
+    inputs: tuple[str, ...] = ()
+    binds: tuple[str, ...] = ()
+    quiet: tuple[str, ...] = ()
     live: frozenset[str] | None = None
     literal: tuple[str, ...] = ()
 
@@ -41,21 +46,13 @@ class StatementNames:
 class Instrumented:
     tree: ast.Module
     locs: list[Loc]
-    watched: dict[int, tuple[str, ...]]
-    inputs: dict[int, tuple[str, ...]]
-    statements: dict[int, StatementNames]
+    facts: list[LocFacts]
 
 
 def instrument(tree: ast.Module, source: str, source_name: str) -> Instrumented:
     transformer = _Instrumenter(source, source_name)
     module = transformer.module(tree)
-    return Instrumented(
-        module,
-        transformer.locs,
-        transformer.watched,
-        transformer.inputs,
-        transformer.statements,
-    )
+    return Instrumented(module, transformer.locs, transformer.facts)
 
 
 class _Instrumenter:
@@ -64,9 +61,7 @@ class _Instrumenter:
         self.source_name = source_name
         self.scope = symtable.symtable(source, source_name, "exec")
         self.locs: list[Loc] = []
-        self.watched: dict[int, tuple[str, ...]] = {}
-        self.inputs: dict[int, tuple[str, ...]] = {}
-        self.statements: dict[int, StatementNames] = {}
+        self.facts: list[LocFacts] = []
         self.live: dict[ast.stmt, frozenset[str]] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
@@ -76,7 +71,7 @@ class _Instrumenter:
         )
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
-        self.watched[module_loc] = _mentioned(node)
+        self.facts[module_loc].watched = _mentioned(node)
         self.live.update(live_after_loops(node.body, self.scope))
         body = self._body(node.body[prefix_count:], module_loc)
         wrapper = self._block_wrapper("block", module_loc, body, node)
@@ -110,7 +105,7 @@ class _Instrumenter:
                 title=node.name,
                 unit="call",
             )
-            self.watched[function] = mentioned
+            self.facts[function].watched = mentioned
             values = self._parameter_values(node.args, statement)
             scope = function_scope(self.scope, node)
             if scope is not None:
@@ -140,16 +135,8 @@ class _Instrumenter:
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
             else_range = self.source.clause_range("else", node.body[-1])
-            loop_start, loop_end = self.source.node_range(node)
-            iteration = self._loc(
-                "block",
-                loop_start,
-                loop_end,
-                statement,
-                title="iteration",
-                unit="iteration",
-            )
-            self.watched[iteration] = mentioned
+            iteration = self._iteration(node, statement)
+            self.facts[iteration].watched = mentioned
             node.body = [
                 self._block_wrapper(
                     "iteration",
@@ -239,16 +226,8 @@ class _Instrumenter:
     def _while(
         self, node: ast.While, statement: int, block: int, header: tuple[int, int]
     ) -> list[ast.stmt]:
-        loop_start, loop_end = self.source.node_range(node)
-        iteration = self._loc(
-            "block",
-            loop_start,
-            loop_end,
-            statement,
-            title="iteration",
-            unit="iteration",
-        )
-        self.watched[iteration] = _mentioned(node)
+        iteration = self._iteration(node, statement)
+        self.facts[iteration].watched = _mentioned(node)
         test = self._loc("stmt", *header, iteration)
         self._bind(test, node)
         leave: list[ast.stmt] = [ast.Break()]
@@ -277,6 +256,13 @@ class _Instrumenter:
         # that the loop ended on a false test rather than on a `break`.
         after = ast.If(test=_runtime_call("take_exhausted"), body=orelse, orelse=[])
         return [node, ast.copy_location(after, node)]
+
+    def _iteration(self, node: ast.For | ast.While, statement: int) -> int:
+        start, _ = self.source.node_range(node)
+        _, end = self.source.node_range(node.body[-1])
+        return self._loc(
+            "block", start, end, statement, title="iteration", unit="iteration"
+        )
 
     def _definition_expressions(self, node: ast.FunctionDef, parent: int) -> None:
         node.decorator_list = [
@@ -325,18 +311,18 @@ class _Instrumenter:
     def _bind(
         self, statement: int, node: ast.stmt, *, live: frozenset[str] | None = None
     ) -> None:
-        binds = statement_bindings(node)
-        quiet = target_names(node.target) if isinstance(node, ast.For) else []
-        if binds or quiet or live is not None:
-            self.statements[statement] = StatementNames(
-                tuple(binds), tuple(quiet), live, _literal_bindings(node)
-            )
+        facts = self.facts[statement]
+        facts.binds = tuple(statement_bindings(node))
+        if isinstance(node, ast.For):
+            facts.quiet = tuple(target_names(node.target))
+        facts.live = live
+        facts.literal = _literal_bindings(node)
 
     def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
         inputs = loop_state(node)
         if not inputs:
             return []
-        self.inputs[iteration] = tuple(inputs)
+        self.facts[iteration].inputs = tuple(inputs)
         assigns = loop_assigns(node)
         rebinds = [name for name in inputs if name in assigns]
         if rebinds:
@@ -462,7 +448,6 @@ class _Instrumenter:
     ) -> int:
         loc: Loc = {
             "role": role,
-            "file": 0,
             "start": start,
             "end": end,
             "parent": parent,
@@ -472,6 +457,7 @@ class _Instrumenter:
         if unit is not None:
             loc["unit"] = unit
         self.locs.append(loc)
+        self.facts.append(LocFacts(parent))
         return len(self.locs) - 1
 
 

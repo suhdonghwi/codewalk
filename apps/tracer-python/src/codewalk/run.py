@@ -32,7 +32,6 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
                 "op": "end",
                 "status": "syntax_error",
                 "message": error.msg,
-                "file": 0,
                 "start": start,
                 "end": end,
             }
@@ -44,13 +43,7 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
     sink.write(_header(source_name, source, result.locs))
     sink.flush()
 
-    runtime = Runtime(
-        [loc["parent"] for loc in result.locs],
-        sink,
-        result.watched,
-        result.inputs,
-        result.statements,
-    )
+    runtime = Runtime(result.facts, sink)
     globals_: dict[str, object] = {
         "__name__": "__main__",
         "__file__": str(path),
@@ -85,7 +78,7 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
         except SystemExit:
             runtime.finish("ok")
         except BaseException as error:
-            rendered = runtime.render(_format_traceback, error)
+            rendered = runtime.paused(_format_traceback, error)
             runtime.finish("exception", traceback=rendered)
         else:
             runtime.finish("ok")
@@ -94,8 +87,8 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
 
 def _header(source_name: str, source: str, locs: list[Loc]) -> dict[str, object]:
     return {
-        "codewalk": 2,
-        "sources": [{"file": source_name, "text": source}],
+        "codewalk": 3,
+        "source": {"file": source_name, "text": source},
         "literals": {
             "list": ["[", "]"],
             "tuple": ["(", ")"],

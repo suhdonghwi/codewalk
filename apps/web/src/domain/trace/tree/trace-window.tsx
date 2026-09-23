@@ -3,25 +3,19 @@ import { useMemo, useState } from "react";
 
 import { WindowChrome } from "@/domain/canvas/index.ts";
 
-import {
-  buildBlockTitle,
-  type SiblingColumn,
-  type SiblingPosition,
-} from "../view/block-title.ts";
 import { buildBlockView } from "../view/block-view.ts";
 import { tokenizePython } from "../view/tokens.ts";
 import { TraceLine } from "../view/trace-line.tsx";
-import { requireBlock } from "../views.ts";
 
-import type { LocId, NodeId, Trace } from "@codewalk/trace";
+import type { LocId, Trace, TraceNode } from "@codewalk/trace";
 
 const MAX_VISIBLE_LINES = 30;
 
 interface TraceWindowProps {
   trace: Trace;
-  block: NodeId;
-  position: SiblingPosition;
-  columns: SiblingColumn[];
+  block: TraceNode;
+  title: string;
+  varyingNames: string[];
   openSite: LocId | null;
   titlebarProps: HTMLAttributes<HTMLDivElement> | undefined;
   onToggleSite: (site: LocId) => void;
@@ -38,9 +32,9 @@ export function titleIndicator(hasException: boolean) {
 
 interface WindowBodyProps {
   trace: Trace;
-  block: NodeId;
+  block: TraceNode;
   openSite: LocId | null;
-  columns: SiblingColumn[];
+  varyingNames: string[];
   onToggleSite: (site: LocId) => void;
 }
 
@@ -48,11 +42,11 @@ function WindowBody({
   trace,
   block,
   openSite,
-  columns,
+  varyingNames,
   onToggleSite,
 }: WindowBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
-  const { source } = requireBlock(trace, block);
+  const source = trace.source.text;
   const tokens = useMemo(() => tokenizePython(source), [source]);
 
   const view = useMemo(
@@ -95,7 +89,7 @@ function WindowBody({
                 key={line.number}
                 line={line}
                 trace={trace}
-                varyingNames={columns.map(({ name }) => name)}
+                varyingNames={varyingNames}
                 onHoverSite={setHoveredSite}
                 onToggleSite={onToggleSite}
                 openSite={openSite}
@@ -111,27 +105,25 @@ function WindowBody({
 export function TraceWindow({
   trace,
   block,
-  position,
-  columns,
+  title,
+  varyingNames,
   openSite,
   titlebarProps,
   onToggleSite,
 }: TraceWindowProps) {
-  const title = buildBlockTitle(trace, block, position);
-
   return (
     <WindowChrome
       className="flex w-max max-w-trace flex-col"
-      title={title.text}
-      titleIndicator={titleIndicator(title.hasException)}
+      title={title}
+      titleIndicator={titleIndicator(block.exc !== null)}
       titlebarProps={titlebarProps}
     >
       <WindowBody
         block={block}
-        columns={columns}
         onToggleSite={onToggleSite}
         openSite={openSite}
         trace={trace}
+        varyingNames={varyingNames}
       />
     </WindowChrome>
   );

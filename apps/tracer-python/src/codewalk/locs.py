@@ -11,7 +11,6 @@ class Loc(TypedDict, total=False):
     role: Literal["block", "stmt", "expr"]
     title: str
     unit: str
-    file: int
     start: int
     end: int
     parent: int | None

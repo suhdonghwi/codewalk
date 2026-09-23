@@ -3,12 +3,9 @@ import type { LocId, NodeId } from "@codewalk/trace";
 // Mirrors --spacing-titlebar in index.css for trace layout calculations.
 export const TITLE_BAR = 28;
 
-const COLUMN_GAP = 64;
-
 export interface Measurement {
   block: NodeId;
   openSite: LocId | null;
-  width: number;
   anchorCenterY: number | null;
 }
 
@@ -19,7 +16,6 @@ export function sameMeasurement(
   return (
     left?.block === right.block &&
     left.openSite === right.openSite &&
-    left.width === right.width &&
     left.anchorCenterY === right.anchorCenterY
   );
 }
@@ -29,52 +25,31 @@ export interface ColumnInput {
   openSite: LocId | null;
 }
 
-export interface ColumnLayout {
-  x: number;
-  top: number;
-  edge: { fromX: number; toX: number; y: number } | null;
-}
-
-interface ParentAnchor {
-  right: number;
-  anchorY: number;
-}
-
 /**
- * Lays out the leading columns that can be placed right now. A column needs
+ * The tops of the leading columns that can be placed right now. A column needs
  * its own measurement and a fresh anchor from the column before it, so layout
  * stops at the first unmeasured column and after a column whose anchor was
- * measured for a different open site. Laying out this prefix — rather than all
- * columns or none — keeps existing windows and edges mounted while a newly
- * opened column is still being measured.
+ * measured for a different open site. Placing this prefix — rather than all
+ * columns or none — keeps existing windows mounted while a newly opened
+ * column is still being measured.
  */
-export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
-  const layouts: ColumnLayout[] = [];
-  let parent: ParentAnchor | null = null;
+export function columnTops(columns: ColumnInput[]): number[] {
+  const tops: number[] = [];
+  let top = 0;
 
   for (const { measurement, openSite } of columns) {
-    if (measurement === null || (layouts.length > 0 && parent === null)) break;
+    if (measurement === null) break;
+    tops.push(top);
 
-    const x: number = parent === null ? 0 : parent.right + COLUMN_GAP;
-    const top: number = parent === null ? 0 : parent.anchorY - TITLE_BAR / 2;
+    if (
+      measurement.anchorCenterY === null ||
+      measurement.openSite !== openSite
+    ) {
+      break;
+    }
 
-    layouts.push({
-      x,
-      top,
-      edge:
-        parent === null
-          ? null
-          : { fromX: parent.right, toX: x, y: parent.anchorY },
-    });
-
-    parent =
-      measurement.anchorCenterY !== null && measurement.openSite === openSite
-        ? {
-            right: x + measurement.width,
-            anchorY: top + measurement.anchorCenterY,
-          }
-        : null;
+    top += measurement.anchorCenterY - TITLE_BAR / 2;
   }
 
-  return layouts;
+  return tops;
 }

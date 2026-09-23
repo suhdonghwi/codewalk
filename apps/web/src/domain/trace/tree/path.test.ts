@@ -40,7 +40,16 @@ describe("trace paths", () => {
     paths.push(toggleSite(trace, paths.at(-1) ?? [], 2, 11));
 
     expect(paths).toEqual([[0], [0, 3], [0, 12], [0, 12, 16], [0, 12, 16, 23]]);
-    expect(pathColumns(trace, paths[4] ?? [])).toEqual([
+    expect(
+      pathColumns(trace, paths[4] ?? []).map(
+        ({ block, blocks, expandedIndex, openSite }) => ({
+          block: block.id,
+          blocks: blocks.map(({ id }) => id),
+          expandedIndex,
+          openSite,
+        }),
+      ),
+    ).toEqual([
       { block: 0, blocks: [0], expandedIndex: 0, openSite: 13 },
       { block: 12, blocks: [3, 12], expandedIndex: 1, openSite: 19 },
       { block: 16, blocks: [16], expandedIndex: 0, openSite: 11 },

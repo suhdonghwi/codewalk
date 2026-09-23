@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const TRACE_FORMAT_VERSION = 2;
+const TRACE_FORMAT_VERSION = 3;
 
 const RoleSchema = z.enum(["block", "stmt", "expr"]);
 
@@ -9,7 +9,6 @@ const BlockLocSchema = z
     role: z.literal("block"),
     title: z.string(),
     unit: z.string(),
-    file: z.number().int().nonnegative(),
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),
     parent: z.number().int().nonnegative().nullable(),
@@ -20,7 +19,6 @@ const BlockLocSchema = z
 const NonBlockLocSchema = z
   .object({
     role: z.enum(["stmt", "expr"]),
-    file: z.number().int().nonnegative(),
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),
     parent: z.number().int().nonnegative().nullable(),
@@ -42,7 +40,7 @@ const SourceSchema = z
 export const HeaderSchema = z
   .object({
     codewalk: z.literal(TRACE_FORMAT_VERSION),
-    sources: z.array(SourceSchema),
+    source: SourceSchema,
     literals: z.record(z.string(), z.tuple([z.string(), z.string()])),
     locs: z.array(LocSchema),
   })
@@ -67,7 +65,6 @@ const SyntaxErrorEndSchema = z
   .object({
     status: z.literal("syntax_error"),
     message: z.string(),
-    file: z.number().int().nonnegative(),
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),
   })

@@ -3,27 +3,24 @@ import { match, P } from "ts-pattern";
 import { objectValues } from "./objects.ts";
 import { EventSchema, HeaderSchema } from "./schema.ts";
 
-import type { End, Header, Role, TraceEvent, Value } from "./schema.ts";
+import type { Header, LocId, Role, TraceEvent, Value } from "./schema.ts";
 import type {
-  ObjectVersion,
-  OutputChunk,
   ParseResult,
+  Site,
   Trace,
+  TraceLoc,
   TraceNode,
-  TraceParseError,
   ValueChunk,
 } from "./model.ts";
 
-function parseError(
-  kind: TraceParseError["kind"],
-  line: number,
-  message: string,
-): ParseResult {
-  return { ok: false, error: { kind, line, message } };
-}
+const CONTAINS: Record<Role, readonly Role[]> = {
+  block: ["stmt"],
+  stmt: ["expr", "block"],
+  expr: ["expr", "block"],
+};
 
-function structureError(line: number, message: string): TraceParseError {
-  return { kind: "structure", line, message };
+function failure(line: number, message: string): ParseResult {
+  return { ok: false, error: { line, message } };
 }
 
 function schemaMessage(error: {
@@ -33,172 +30,154 @@ function schemaMessage(error: {
 }
 
 function rangeProblem(
-  header: Header,
-  range: { file: number; start: number; end: number },
+  text: string,
+  range: { start: number; end: number },
 ): string | null {
-  if (range.file >= header.sources.length) {
-    return `has out-of-range file ${range.file}`;
-  }
-
   if (range.start > range.end) return "starts after it ends";
 
-  const source = header.sources[range.file];
+  if (range.end > text.length) return "ends beyond its source text";
 
-  if (source !== undefined && range.end > source.text.length) {
-    return "ends beyond its source text";
+  return null;
+}
+
+function locsProblem({ locs, source }: Header): string | null {
+  for (const [id, loc] of locs.entries()) {
+    if (loc.parent !== null && loc.parent >= locs.length) {
+      return `loc ${id} has out-of-range parent ${loc.parent}`;
+    }
+
+    const problem = rangeProblem(source.text, loc);
+
+    if (problem !== null) return `loc ${id} ${problem}`;
+  }
+
+  for (const [id, loc] of locs.entries()) {
+    const seen = new Set([id]);
+
+    for (
+      let current = loc.parent;
+      current !== null;
+      current = locs[current]?.parent ?? null
+    ) {
+      if (seen.has(current)) return `loc ${id} has a cycle in its parent chain`;
+      seen.add(current);
+    }
   }
 
   return null;
 }
 
-function validateHeader(header: Header): TraceParseError | null {
-  for (let locId = 0; locId < header.locs.length; locId += 1) {
-    const loc = header.locs[locId];
+function resolveLocs({ locs }: Header): TraceLoc[] {
+  return locs.map((loc, id) => {
+    let owner: LocId | null = loc.parent;
 
-    if (loc === undefined) continue;
-
-    if (loc.parent !== null && loc.parent >= header.locs.length) {
-      return structureError(
-        1,
-        `loc ${locId} has out-of-range parent ${loc.parent}`,
-      );
+    while (owner !== null && locs[owner]?.role !== "block") {
+      owner = locs[owner]?.parent ?? null;
     }
 
-    const problem = rangeProblem(header, loc);
+    return { ...loc, id, owner };
+  });
+}
 
-    if (problem !== null) return structureError(1, `loc ${locId} ${problem}`);
-  }
+function collectSites(block: TraceNode): void {
+  const sitesByLoc = new Map<LocId, Site>();
 
-  for (let locId = 0; locId < header.locs.length; locId += 1) {
-    const seen = new Set<number>();
-    let current: number | null = locId;
+  const visit = (node: TraceNode): void => {
+    const blocks = node.children.filter((child) => child.loc.role === "block");
 
-    while (current !== null) {
-      if (seen.has(current)) {
-        return structureError(
-          1,
-          `loc ${locId} has a cycle in its parent chain`,
-        );
+    if (blocks.length > 0 || node.outputs.length > 0) {
+      let site = sitesByLoc.get(node.loc.id);
+
+      if (site === undefined) {
+        site = { loc: node.loc, blocks: [], outputs: [] };
+        sitesByLoc.set(node.loc.id, site);
+        block.sites.push(site);
       }
 
-      seen.add(current);
-      current = header.locs[current]?.parent ?? null;
+      // Not `push(...blocks)`: a loop statement can hold more iterations
+      // than the engine accepts as call arguments.
+      for (const child of blocks) site.blocks.push(child);
+
+      for (const output of node.outputs) site.outputs.push(output);
     }
-  }
 
-  return null;
-}
+    for (const child of node.children) {
+      if (child.loc.role !== "block") visit(child);
+    }
+  };
 
-function roleCanContain(parent: Role, child: Role): boolean {
-  return match<[Role, Role], boolean>([parent, child])
-    .with(["block", "stmt"], () => true)
-    .with(["stmt", P.union("expr", "block")], () => true)
-    .with(["expr", P.union("expr", "block")], () => true)
-    .with(["block", P.union("block", "expr")], () => false)
-    .with([P.union("stmt", "expr"), "stmt"], () => false)
-    .exhaustive();
-}
-
-function endFromEvent(event: Extract<TraceEvent, { op: "end" }>): End {
-  const { op: _op, ...end } = event;
-
-  return end;
-}
-
-function validateSyntaxErrorEnd(
-  end: Extract<End, { status: "syntax_error" }>,
-  header: Header,
-  line: number,
-): TraceParseError | null {
-  const problem = rangeProblem(header, end);
-
-  return problem === null
-    ? null
-    : structureError(line, `syntax error ${problem}`);
+  for (const child of block.children) visit(child);
 }
 
 export function parseTrace(jsonl: string): ParseResult {
-  if (jsonl.length === 0) return parseError("empty", 1, "trace is empty");
+  if (jsonl.length === 0) return failure(1, "trace is empty");
 
   const lines = jsonl.split("\n");
-  const hasTerminatingNewline = jsonl.endsWith("\n");
-
-  const [headerLine = ""] = lines;
+  const complete = jsonl.endsWith("\n");
 
   let headerResult: ReturnType<typeof HeaderSchema.safeParse>;
 
   try {
-    headerResult = HeaderSchema.safeParse(JSON.parse(headerLine));
+    headerResult = HeaderSchema.safeParse(JSON.parse(lines[0] ?? ""));
   } catch {
-    if (lines.length === 1 && !hasTerminatingNewline) {
-      return parseError(
-        "empty",
-        1,
-        "trace is empty after dropping an incomplete line",
-      );
-    }
-
-    return parseError("json", 1, "line is not valid JSON");
+    return lines.length === 1 && !complete
+      ? failure(1, "trace is empty after dropping an incomplete line")
+      : failure(1, "line is not valid JSON");
   }
 
   if (!headerResult.success) {
-    return parseError("schema", 1, schemaMessage(headerResult.error));
+    return failure(1, schemaMessage(headerResult.error));
   }
 
-  const headerError = validateHeader(headerResult.data);
-
-  if (headerError !== null) return { ok: false, error: headerError };
-
   const header = headerResult.data;
-  const nodes: TraceNode[] = [];
-  const outputs: OutputChunk[] = [];
-  const objects: ObjectVersion[][] = [];
+  const headerProblem = locsProblem(header);
+
+  if (headerProblem !== null) return failure(1, headerProblem);
+
+  const locs = resolveLocs(header);
+
+  const trace: Trace = {
+    source: header.source,
+    literals: header.literals,
+    locs,
+    nodes: [],
+    outputs: [],
+    objects: [],
+    end: { status: "timeout" },
+  };
+
+  const open: TraceNode[] = [];
   const undefinedReferences = new Set<number>();
   let definitions = 0;
-  const open: number[] = [];
-  let end: End | null = null;
+  let ended = false;
 
-  function referenceError(line: number, value: Value): TraceParseError | null {
-    if ("ref" in value && value.ref >= objects.length) {
-      return structureError(
-        line,
-        `value refers to undefined object ${value.ref}`,
-      );
+  function referenceProblem(value: Value): string | null {
+    if ("ref" in value && value.ref >= trace.objects.length) {
+      return `value refers to undefined object ${value.ref}`;
     }
 
     const [pending] = undefinedReferences;
 
     return pending === undefined
       ? null
-      : structureError(
-          line,
-          `value follows a reference to undefined object ${pending}`,
-        );
+      : `value follows a reference to undefined object ${pending}`;
   }
 
-  function attachValue(
-    line: number,
-    value: ValueChunk,
-  ): TraceParseError | null {
-    const error = referenceError(line, value.value);
+  function attachValue(value: ValueChunk): string | null {
+    const problem = referenceProblem(value.value);
 
-    if (error !== null) return error;
+    if (problem !== null) return problem;
 
-    const nodeId = open.at(-1);
+    const node = open.at(-1);
 
-    if (nodeId === undefined) {
-      return structureError(line, "value has no open node");
+    if (node === undefined) return "value has no open node";
+
+    if (value.loc !== null && node.loc.role !== "block") {
+      return "value is not attached to a block";
     }
 
-    const node = nodes[nodeId];
-    const role = node === undefined ? undefined : header.locs[node.loc]?.role;
-
-    if (node === undefined || (value.loc !== null && role !== "block")) {
-      return structureError(line, "value is not attached to a block");
-    }
-
-    if (role === "expr") {
-      return structureError(line, "a named value is attached to an expression");
+    if (node.loc.role === "expr") {
+      return "a named value is attached to an expression";
     }
 
     node.values.push(value);
@@ -206,146 +185,87 @@ export function parseTrace(jsonl: string): ParseResult {
     return null;
   }
 
-  for (let index = 1; index < lines.length; index += 1) {
-    const line = lines[index];
+  function apply(event: TraceEvent): string | null {
+    return match(event)
+      .with({ op: "enter" }, ({ loc: locId }) => {
+        const loc = locs[locId];
 
-    if (line === undefined || line.length === 0) continue;
+        if (loc === undefined) return `enter has out-of-range loc ${locId}`;
 
-    let eventResult: ReturnType<typeof EventSchema.safeParse>;
+        const parent = open.at(-1) ?? null;
 
-    try {
-      eventResult = EventSchema.safeParse(JSON.parse(line));
-    } catch {
-      const isIncompleteFinalLine =
-        index === lines.length - 1 && !hasTerminatingNewline;
-
-      if (isIncompleteFinalLine) continue;
-
-      return parseError("json", index + 1, "line is not valid JSON");
-    }
-
-    if (end !== null) {
-      return parseError("structure", index + 1, "an event appears after end");
-    }
-
-    if (!eventResult.success) {
-      return parseError("schema", index + 1, schemaMessage(eventResult.error));
-    }
-
-    const event = eventResult.data;
-
-    const eventError = match(event)
-      .with({ op: "enter" }, ({ loc }) => {
-        const enteredLoc = header.locs[loc];
-
-        if (enteredLoc === undefined) {
-          return structureError(index + 1, `enter has out-of-range loc ${loc}`);
+        if (trace.nodes.length === 0 && loc.role !== "block") {
+          return "the first enter is not a block";
         }
 
-        if (nodes.length === 0 && enteredLoc.role !== "block") {
-          return structureError(index + 1, "the first enter is not a block");
+        if (trace.nodes.length > 0 && parent === null) {
+          return "enter would create a second root";
         }
 
-        if (nodes.length > 0 && open.length === 0) {
-          return structureError(index + 1, "enter would create a second root");
+        if (parent !== null && !CONTAINS[parent.loc.role].includes(loc.role)) {
+          return `a ${parent.loc.role} node cannot contain a ${loc.role} node`;
         }
 
-        const parentId = open.at(-1) ?? null;
-
-        if (parentId !== null) {
-          const parentNode = nodes[parentId];
-
-          const parentLoc =
-            parentNode === undefined ? undefined : header.locs[parentNode.loc];
-
-          if (
-            parentLoc === undefined ||
-            !roleCanContain(parentLoc.role, enteredLoc.role)
-          ) {
-            return structureError(
-              index + 1,
-              `a ${parentLoc?.role ?? "missing"} node cannot contain a ${enteredLoc.role} node`,
-            );
-          }
-        }
-
-        const id = nodes.length;
-        nodes.push({
-          id,
+        const node: TraceNode = {
+          id: trace.nodes.length,
           loc,
-          parent: parentId,
+          parent,
           children: [],
+          sites: [],
           outputs: [],
           values: [],
           returned: null,
           exc: null,
-        });
+        };
 
-        if (parentId !== null) nodes[parentId]?.children.push(id);
-        open.push(id);
+        trace.nodes.push(node);
+        parent?.children.push(node);
+        open.push(node);
 
         return null;
       })
       .with({ op: "exit" }, ({ exc }) => {
-        const nodeId = open.at(-1);
+        const node = open.pop();
 
-        if (nodeId === undefined) {
-          return structureError(index + 1, "exit has no open node");
+        if (node === undefined) return "exit has no open node";
+
+        if (exc === undefined) return null;
+
+        if (node.loc.role === "expr") {
+          return "exit.exc is only valid on a block or stmt node";
         }
 
-        const node = nodes[nodeId];
-        const loc = node === undefined ? undefined : header.locs[node.loc];
-
-        if (exc !== undefined && loc?.role === "expr") {
-          return structureError(
-            index + 1,
-            "exit.exc is only valid on a block or stmt node",
-          );
-        }
-
-        open.pop();
-
-        if (node !== undefined && exc !== undefined) node.exc = exc;
+        node.exc = exc;
 
         return null;
       })
       .with({ op: "out" }, ({ stream, text }) => {
-        const nodeId = open.at(-1);
+        const node = open.at(-1);
 
-        if (nodeId === undefined) {
-          return structureError(index + 1, "out has no open node");
-        }
+        if (node === undefined) return "out has no open node";
 
-        const outputId = outputs.length;
-        outputs.push({ node: nodeId, stream, text });
-        nodes[nodeId]?.outputs.push(outputId);
+        node.outputs.push(trace.outputs.length);
+        trace.outputs.push({ node, stream, text });
 
         return null;
       })
-      .with({ op: "value", loc: P.number }, ({ loc, value }) => {
-        const valueLoc = header.locs[loc];
+      .with({ op: "value", loc: P.number }, ({ loc: locId, value }) => {
+        const loc = locs[locId];
 
-        if (valueLoc === undefined) {
-          return structureError(index + 1, `value has out-of-range loc ${loc}`);
-        }
+        if (loc === undefined) return `value has out-of-range loc ${locId}`;
 
-        if (valueLoc.role !== "expr") {
-          return structureError(index + 1, "value loc is not an expr");
-        }
+        if (loc.role !== "expr") return "value loc is not an expr";
 
-        const source = header.sources[valueLoc.file]?.text ?? "";
-        const name = source.slice(valueLoc.start, valueLoc.end);
-
-        return attachValue(index + 1, {
+        return attachValue({
           loc,
-          name,
+          name: trace.source.text.slice(loc.start, loc.end),
           value,
           at: definitions,
           literal: false,
         });
       })
       .with({ op: "value", name: P.string }, ({ name, value, literal }) =>
-        attachValue(index + 1, {
+        attachValue({
           loc: null,
           name,
           value,
@@ -354,88 +274,87 @@ export function parseTrace(jsonl: string): ParseResult {
         }),
       )
       .with({ op: "return" }, ({ value, literal }) => {
-        const error = referenceError(index + 1, value);
+        const problem = referenceProblem(value);
 
-        if (error !== null) return error;
+        if (problem !== null) return problem;
 
-        const nodeId = open.at(-1);
-        const node = nodeId === undefined ? undefined : nodes[nodeId];
+        const node = open.at(-1);
 
-        if (node === undefined || header.locs[node.loc]?.role !== "stmt") {
-          return structureError(
-            index + 1,
-            "return is not attached to a statement",
-          );
+        if (node?.loc.role !== "stmt") {
+          return "return is not attached to a statement";
         }
 
-        if (node.returned !== null) {
-          return structureError(index + 1, "a statement returns twice");
-        }
+        if (node.returned !== null) return "a statement returns twice";
 
         node.returned = { value, at: definitions, literal: literal ?? false };
 
         return null;
       })
       .with({ op: "obj" }, ({ op: _op, id, ...object }) => {
-        if (id > objects.length) {
-          return structureError(
-            index + 1,
-            `obj ${id} skips ahead of the next new id ${objects.length}`,
-          );
+        if (id > trace.objects.length) {
+          return `obj ${id} skips ahead of the next new id ${trace.objects.length}`;
         }
 
-        if (id === objects.length) objects.push([]);
-        objects[id]?.push({ at: definitions, object });
+        if (id === trace.objects.length) trace.objects.push([]);
+        trace.objects[id]?.push({ at: definitions, object });
         definitions += 1;
         undefinedReferences.delete(id);
 
         for (const value of objectValues(object)) {
-          if ("ref" in value && value.ref >= objects.length) {
+          if ("ref" in value && value.ref >= trace.objects.length) {
             undefinedReferences.add(value.ref);
           }
         }
 
         return null;
       })
-      .with({ op: "end" }, (endEvent) => {
-        const parsedEnd = endFromEvent(endEvent);
+      .with({ op: "end" }, ({ op: _op, ...end }) => {
+        if (end.status === "syntax_error") {
+          if (trace.nodes.length > 0) {
+            return "syntax_error end follows enter events";
+          }
 
-        const semanticError = match(parsedEnd)
-          .with({ status: "syntax_error" }, (syntaxEnd) => {
-            if (nodes.length > 0) {
-              return structureError(
-                index + 1,
-                "syntax_error end follows enter events",
-              );
-            }
+          const problem = rangeProblem(trace.source.text, end);
 
-            return validateSyntaxErrorEnd(syntaxEnd, header, index + 1);
-          })
-          .with(
-            { status: P.union("ok", "truncated", "timeout", "exception") },
-            () => null,
-          )
-          .exhaustive();
+          if (problem !== null) return `syntax error ${problem}`;
+        }
 
-        if (semanticError !== null) return semanticError;
-        end = parsedEnd;
+        trace.end = end;
+        ended = true;
         open.length = 0;
 
         return null;
       })
       .exhaustive();
-
-    if (eventError !== null) return { ok: false, error: eventError };
   }
 
-  const trace: Trace = {
-    header,
-    nodes,
-    outputs,
-    objects,
-    root: nodes.length === 0 ? null : 0,
-    end: end ?? { status: "timeout" },
-  };
+  for (const [index, line] of lines.entries()) {
+    if (index === 0 || line.length === 0) continue;
+
+    let eventResult: ReturnType<typeof EventSchema.safeParse>;
+
+    try {
+      eventResult = EventSchema.safeParse(JSON.parse(line));
+    } catch {
+      if (index === lines.length - 1 && !complete) continue;
+
+      return failure(index + 1, "line is not valid JSON");
+    }
+
+    if (ended) return failure(index + 1, "an event appears after end");
+
+    if (!eventResult.success) {
+      return failure(index + 1, schemaMessage(eventResult.error));
+    }
+
+    const problem = apply(eventResult.data);
+
+    if (problem !== null) return failure(index + 1, problem);
+  }
+
+  for (const node of trace.nodes) {
+    if (node.loc.role === "block") collectSites(node);
+  }
 
   return { ok: true, trace };
 }

@@ -4,33 +4,30 @@ import { describe, expect, test } from "vitest";
 
 import { requireObject, parseTrace } from "./index.ts";
 
-import type { Loc, Role, Trace } from "./index.ts";
+import type { Loc, Trace } from "./index.ts";
 
 interface TestHeader {
-  readonly codewalk: 2;
-  readonly literals: Trace["header"]["literals"];
-  readonly sources: readonly { readonly file: string; readonly text: string }[];
+  readonly codewalk: 3;
+  readonly literals: Trace["literals"];
+  readonly source: { readonly file: string; readonly text: string };
   readonly locs: readonly Loc[];
 }
 
-function loc(role: Role, parent: number | null, start = 0, end = 1): Loc {
+function loc(
+  role: Loc["role"],
+  parent: number | null,
+  start = 0,
+  end = 1,
+): Loc {
   return role === "block"
-    ? {
-        role,
-        title: "main.py",
-        unit: "module",
-        file: 0,
-        start,
-        end,
-        parent,
-      }
-    : { role, file: 0, start, end, parent };
+    ? { role, title: "main.py", unit: "module", start, end, parent }
+    : { role, start, end, parent };
 }
 
 function header(locs: readonly Loc[], text = "x"): TestHeader {
   return {
-    codewalk: 2,
-    sources: [{ file: "main.py", text }],
+    codewalk: 3,
+    source: { file: "main.py", text },
     literals: {},
     locs,
   };
@@ -76,15 +73,30 @@ test("every Python tracer fixture satisfies the trace parser contract", async ()
   }
 });
 
-test("the fact fixture builds the documented execution tree and output and entry value ownership", async () => {
+test("the fact fixture builds the documented execution tree, sites, output and entry value ownership", async () => {
   const trace = parsedTrace(await readFile(factFixtureUrl, "utf8"));
 
   expect(trace.end).toEqual({ status: "ok" });
-  expect(trace.root).toBe(0);
   expect(trace.nodes).toHaveLength(28);
-  expect(trace.nodes[0]?.children).toEqual([1, 2]);
-  expect(trace.nodes[2]?.children).toEqual([3, 12]);
-  expect(trace.outputs).toEqual([
+  expect(trace.nodes[0]?.children.map(({ id }) => id)).toEqual([1, 2]);
+  expect(trace.nodes[2]?.children.map(({ id }) => id)).toEqual([3, 12]);
+  expect(
+    trace.nodes[16]?.sites.map(({ loc, blocks, outputs }) => ({
+      loc: loc.id,
+      blocks: blocks.map(({ id }) => id),
+      outputs,
+    })),
+  ).toEqual([
+    { loc: 5, blocks: [], outputs: [2] },
+    { loc: 11, blocks: [23], outputs: [] },
+  ]);
+  expect(
+    trace.outputs.map(({ node, stream, text }) => ({
+      node: node.id,
+      stream,
+      text,
+    })),
+  ).toEqual([
     { node: 9, stream: "stdout", text: "fact 1\n" },
     { node: 5, stream: "stdout", text: "1\n" },
     { node: 18, stream: "stdout", text: "fact 2\n" },
@@ -94,7 +106,7 @@ test("the fact fixture builds the documented execution tree and output and entry
   expect(
     [3, 7, 12, 16, 23].map((block) =>
       trace.nodes[block]?.values.map(({ loc, name, value }) => ({
-        loc,
+        loc: loc?.id,
         name,
         value,
       })),
@@ -106,6 +118,39 @@ test("the fact fixture builds the documented execution tree and output and entry
     [{ loc: 3, name: "n", value: { kind: "number", text: "2" } }],
     [{ loc: 3, name: "n", value: { kind: "number", text: "1" } }],
   ]);
+});
+
+test("sites merge repeated executions of one loc in execution order", () => {
+  const trace = parsedTrace(
+    traceOf(
+      header([
+        loc("block", null),
+        loc("stmt", 0),
+        loc("expr", 1),
+        loc("block", 2),
+      ]),
+      { op: "enter", loc: 0 },
+      { op: "enter", loc: 1 },
+      { op: "enter", loc: 2 },
+      { op: "out", stream: "stdout", text: "first" },
+      { op: "exit" },
+      { op: "enter", loc: 2 },
+      { op: "enter", loc: 3 },
+      { op: "exit" },
+      { op: "exit" },
+      { op: "exit" },
+      { op: "exit" },
+      { op: "end", status: "ok" },
+    ),
+  );
+
+  expect(
+    trace.nodes[0]?.sites.map(({ loc, blocks, outputs }) => ({
+      loc: loc.id,
+      blocks: blocks.map(({ id }) => id),
+      outputs,
+    })),
+  ).toEqual([{ loc: 2, blocks: [4], outputs: [0] }]);
 });
 
 test("a reference resolves to the object as it was at its value event, including the objects it reaches", () => {
@@ -155,7 +200,7 @@ test("missing end and an unterminated partial final write both produce timeout",
   expect(parsedTrace(partialFinalLine).end).toEqual({ status: "timeout" });
   expect(parseTrace(terminatedInvalidLine)).toMatchObject({
     ok: false,
-    error: { kind: "json", line: 3 },
+    error: { line: 3 },
   });
 });
 
@@ -164,33 +209,29 @@ test("a syntax error end is valid without execution nodes", () => {
     op: "end",
     status: "syntax_error",
     message: "invalid",
-    file: 0,
     start: 0,
     end: 3,
   });
 
   const trace = parsedTrace(input);
 
-  expect(trace.root).toBeNull();
   expect(trace.nodes).toEqual([]);
   expect(trace.end).toEqual({
     status: "syntax_error",
     message: "invalid",
-    file: 0,
     start: 0,
     end: 3,
   });
 });
 
-test("boundary failures report their category and 1-based line", () => {
+test("boundary failures report their 1-based line", () => {
   const validHeader = header([loc("block", null)]);
 
   const cases = [
-    { input: "", kind: "empty", line: 1 },
-    { input: `${JSON.stringify(validHeader)}\n{\n`, kind: "json", line: 2 },
+    { input: "", line: 1 },
+    { input: `${JSON.stringify(validHeader)}\n{\n`, line: 2 },
     {
       input: `${JSON.stringify(validHeader)}\n${JSON.stringify({ op: "end", status: "ok", extra: true })}\n`,
-      kind: "schema",
       line: 2,
     },
   ];
@@ -198,7 +239,7 @@ test("boundary failures report their category and 1-based line", () => {
   for (const example of cases) {
     expect(parseTrace(example.input)).toMatchObject({
       ok: false,
-      error: { kind: example.kind, line: example.line },
+      error: { line: example.line },
     });
   }
 });
@@ -234,26 +275,6 @@ describe("structural validation", () => {
       {
         name: "loc parent out of range",
         input: traceOf(header([loc("block", 1)])),
-        line: 1,
-      },
-      {
-        name: "loc file out of range",
-        input: traceOf({
-          codewalk: 2,
-          sources: [{ file: "main.py", text: "x" }],
-          literals: {},
-          locs: [
-            {
-              role: "block",
-              title: "main.py",
-              unit: "module",
-              file: 1,
-              start: 0,
-              end: 1,
-              parent: null,
-            },
-          ],
-        }),
         line: 1,
       },
       {
@@ -437,7 +458,7 @@ describe("structural validation", () => {
     for (const example of cases) {
       expect(parseTrace(example.input), example.name).toMatchObject({
         ok: false,
-        error: { kind: "structure", line: example.line },
+        error: { line: example.line },
       });
     }
   });

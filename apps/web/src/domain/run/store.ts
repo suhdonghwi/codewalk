@@ -4,17 +4,20 @@ import { readStoredState, writeStoredState } from "./persistence.ts";
 
 import type { StoredState } from "./persistence.ts";
 import type { RunOutcome } from "./types.ts";
+import type { NodeId } from "@codewalk/trace";
 
 interface RunState {
   source: string;
   stdin: string;
   outcome: RunOutcome | null;
+  path: NodeId[];
   running: boolean;
   setSource: (source: string) => void;
   setStdin: (stdin: string) => void;
   setInput: (input: StoredState) => void;
   setRunning: (running: boolean) => void;
-  setOutcome: (outcome: RunOutcome) => void;
+  setOutcome: (outcome: RunOutcome, path: NodeId[]) => void;
+  setPath: (path: NodeId[]) => void;
 }
 
 const initialInput = readStoredState(window.localStorage);
@@ -23,6 +26,7 @@ export const useRunStore = create<RunState>()((set, get) => ({
   source: initialInput.source,
   stdin: initialInput.stdin,
   outcome: null,
+  path: [],
   running: false,
   setSource: (source) => {
     const stdin = get().stdin;
@@ -41,7 +45,10 @@ export const useRunStore = create<RunState>()((set, get) => ({
   setRunning: (running) => {
     set({ running });
   },
-  setOutcome: (outcome) => {
-    set({ outcome });
+  setOutcome: (outcome, path) => {
+    set({ outcome, path });
+  },
+  setPath: (path) => {
+    set({ path });
   },
 }));

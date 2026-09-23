@@ -52,7 +52,7 @@ export class SubprocessRunner implements Runner {
 
       const child = spawn(
         this.#options.pythonPath,
-        ["-I", "-m", "codewalk", "run", "main.py", "--trace-fd", "3"],
+        ["-I", "-m", "codewalk", "main.py", "--trace-fd", "3"],
         {
           cwd: directory,
           detached: true,

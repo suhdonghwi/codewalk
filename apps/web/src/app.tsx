@@ -8,7 +8,7 @@ import {
   StdinWindow,
   useRunStore,
 } from "@/domain/run/index.ts";
-import { TraceTree, useTraceStore } from "@/domain/trace/index.ts";
+import { openingPath, outputPath, TraceTree } from "@/domain/trace/index.ts";
 import { TooltipProvider } from "@/ui/tooltip.tsx";
 
 import type { Example, RunOutcome } from "@/domain/run/index.ts";
@@ -18,14 +18,17 @@ function runShortcut(): string {
 }
 
 function finishRun(outcome: RunOutcome): void {
-  useRunStore.getState().setOutcome(outcome);
-  useTraceStore
+  useRunStore
     .getState()
-    .resetForTrace(outcome.kind === "trace" ? outcome.trace : null);
+    .setOutcome(
+      outcome,
+      outcome.kind === "trace" ? openingPath(outcome.trace) : [],
+    );
 }
 
 export function App() {
   const outcome = useRunStore((state) => state.outcome);
+  const path = useRunStore((state) => state.path);
 
   function run(): void {
     const state = useRunStore.getState();
@@ -51,7 +54,7 @@ export function App() {
     const current = useRunStore.getState().outcome;
 
     if (current?.kind !== "trace") return;
-    useTraceStore.getState().openOutput(current.trace, chunk);
+    useRunStore.getState().setPath(outputPath(current.trace, chunk));
   }
 
   useEffect(() => {
@@ -69,7 +72,15 @@ export function App() {
   }, [run]);
 
   const traceTree =
-    outcome?.kind === "trace" ? <TraceTree trace={outcome.trace} /> : null;
+    outcome?.kind === "trace" ? (
+      <TraceTree
+        onNavigate={(next) => {
+          useRunStore.getState().setPath(next);
+        }}
+        path={path}
+        trace={outcome.trace}
+      />
+    ) : null;
 
   return (
     <TooltipProvider delay={300}>

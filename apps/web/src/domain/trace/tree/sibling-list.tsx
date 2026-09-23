@@ -3,19 +3,18 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
+import { PreviewText } from "../view/preview-text.tsx";
 import {
-  buildBlockTitle,
   siblingCells,
   siblingListTitle,
   type SiblingCell,
   type SiblingColumn,
-} from "../view/block-title.ts";
-import { PreviewText } from "../view/preview-text.tsx";
-import { requireBlock } from "../views.ts";
+} from "../view/sibling-table.ts";
+import { blockLoc, blockTitle } from "../views.ts";
 import { titleIndicator } from "./trace-window.tsx";
 
 import type { KeyboardEvent } from "react";
-import type { NodeId, Trace } from "@codewalk/trace";
+import type { NodeId, Trace, TraceNode } from "@codewalk/trace";
 
 const ROW_HEIGHT = 24;
 
@@ -27,7 +26,7 @@ const MAX_LABEL_WIDTH = 24;
 
 interface SiblingListProps {
   trace: Trace;
-  blocks: NodeId[];
+  blocks: TraceNode[];
   columns: SiblingColumn[];
   after: SiblingCell[] | null;
   selectedIndex: number;
@@ -122,7 +121,7 @@ export function SiblingList({
 
     if (step === 0 || neighbour === undefined) return;
     event.preventDefault();
-    onChoose(neighbour);
+    onChoose(neighbour.id);
   }
 
   const first = Math.max(
@@ -141,7 +140,7 @@ export function SiblingList({
     MAX_LABEL_WIDTH,
     firstBlock === undefined
       ? 0
-      : `${requireBlock(trace, firstBlock).loc.title} ${blocks.length}`.length,
+      : `${blockLoc(firstBlock).title} ${blocks.length}`.length,
   );
 
   const template = gridTemplate(labelWidth, columns);
@@ -150,7 +149,7 @@ export function SiblingList({
   return (
     <WindowChrome
       className="w-max max-w-trace min-w-30"
-      title={siblingListTitle(trace, blocks)}
+      title={siblingListTitle(blocks)}
     >
       <div
         className="overflow-auto overscroll-contain font-code text-xs font-medium"
@@ -187,12 +186,6 @@ export function SiblingList({
           )}
           {blocks.slice(first, end).map((block, offset) => {
             const index = first + offset;
-
-            const title = buildBlockTitle(trace, block, {
-              index,
-              count: blocks.length,
-            });
-
             const selected = index === selectedIndex;
 
             return (
@@ -205,10 +198,10 @@ export function SiblingList({
                     ? "bg-site-accent/12 text-neutral-800"
                     : "hover:bg-neutral-50 focus-visible:bg-neutral-50",
                 )}
-                data-block={block}
-                key={block}
+                data-block={block.id}
+                key={block.id}
                 onClick={() => {
-                  onChoose(block);
+                  onChoose(block.id);
                 }}
                 style={{
                   gridTemplateColumns: template,
@@ -218,11 +211,13 @@ export function SiblingList({
                 type="button"
               >
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate">{title.text}</span>
-                  {titleIndicator(title.hasException)}
+                  <span className="truncate">
+                    {blockTitle(block, index, blocks.length)}
+                  </span>
+                  {titleIndicator(block.exc !== null)}
                 </span>
                 <Cells
-                  cells={siblingCells(trace, blocks, index, columns)}
+                  cells={siblingCells(trace, block, columns)}
                   columns={columns}
                 />
               </button>
