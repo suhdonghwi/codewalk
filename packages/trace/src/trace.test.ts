@@ -366,6 +366,36 @@ describe("structural validation", () => {
         line: 5,
       },
       {
+        name: "return outside a statement",
+        input: traceOf(
+          header([root]),
+          { op: "enter", loc: 0 },
+          { op: "return", value: number },
+        ),
+        line: 3,
+      },
+      {
+        name: "statement returns twice",
+        input: traceOf(
+          header([root, stmt]),
+          { op: "enter", loc: 0 },
+          { op: "enter", loc: 1 },
+          { op: "return", value: number },
+          { op: "return", value: number },
+        ),
+        line: 5,
+      },
+      {
+        name: "return refers to an undefined object",
+        input: traceOf(
+          header([root, stmt]),
+          { op: "enter", loc: 0 },
+          { op: "enter", loc: 1 },
+          { op: "return", value: { ref: 0 } },
+        ),
+        line: 4,
+      },
+      {
         name: "object id skips ahead",
         input: traceOf(
           header([root]),

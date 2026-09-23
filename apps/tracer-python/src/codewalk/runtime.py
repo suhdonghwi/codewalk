@@ -166,6 +166,23 @@ class Runtime:
             return
         self._emit_value("loc", loc, self._snapshot((loc, ""), value))
 
+    def returned[T](self, loc: int, value: T) -> T:
+        if not self._active:
+            return value
+        self._repair(loc)
+        block = self._innermost_block()
+        stack = self._stack
+        if (
+            block is None
+            or block.watched is None
+            or stack[-1].block
+            or stack[-1].loc != loc
+        ):
+            return value
+        taken = self._snapshot((loc, ""), value)
+        self._emit({"op": "return", "value": self._heap.define(taken)})
+        return value
+
     def render[T, R](self, format_: Callable[[T], R], subject: T) -> R:
         active = self._active
         self._active = False

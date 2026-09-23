@@ -13,6 +13,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":6}
+{"op":"return","value":{"kind":"number","text":"-1"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":2}
@@ -23,6 +24,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":6}
+{"op":"return","value":{"kind":"number","text":"-2"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

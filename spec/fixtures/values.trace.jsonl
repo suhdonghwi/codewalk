@@ -51,9 +51,11 @@
 {"op":"enter","loc":15}
 {"op":"value","loc":16,"value":{"ref":0}}
 {"op":"enter","loc":17}
+{"op":"return","value":{"ref":0}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
+{"op":"return","value":{"ref":0}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
@@ -79,9 +81,11 @@
 {"op":"enter","loc":15}
 {"op":"value","loc":16,"value":{"ref":5}}
 {"op":"enter","loc":17}
+{"op":"return","value":{"ref":5}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
+{"op":"return","value":{"ref":5}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

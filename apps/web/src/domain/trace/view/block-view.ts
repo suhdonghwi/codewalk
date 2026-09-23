@@ -19,6 +19,7 @@ import type { Site } from "../views.ts";
 import type {
   LocId,
   NodeId,
+  RecordedValue,
   Trace,
   TraceNode,
   ValueChunk,
@@ -36,7 +37,13 @@ export interface Line {
   changes: ValueChunk[];
   output: InlineSegment[] | null;
   exception: string | null;
+  returned: Returned | null;
   loopEnd: LoopEnd | null;
+}
+
+interface Returned {
+  indent: string;
+  value: RecordedValue;
 }
 
 interface LoopEnd {
@@ -132,6 +139,16 @@ function bodyEnd(trace: Trace, iteration: LocId): number {
   );
 }
 
+function indentAt(
+  source: string,
+  lines: SourceLine[],
+  start: number,
+): string | null {
+  const line = lines.find(({ from, to }) => from <= start && start <= to);
+
+  return line === undefined ? null : source.slice(line.from, start);
+}
+
 function placeChanges(
   trace: Trace,
   node: TraceNode,
@@ -160,21 +177,44 @@ function placeChanges(
       continue;
     }
 
-    const header = lines.find(
-      (line) => line.from <= loc.start && loc.start <= line.to,
-    );
-
+    const indent = indentAt(source, lines, loc.start);
     const line = lineContaining(lines, bodyEnd(trace, iteration));
 
-    if (header === undefined || line === null) continue;
+    if (indent === null || line === null) continue;
 
     loopEnds.set(line, {
-      indent: source.slice(header.from, loc.start),
+      indent,
       changes: [...(loopEnds.get(line)?.changes ?? []), ...statement.values],
     });
   }
 
   return { changes, loopEnds };
+}
+
+function returnedByLine(
+  trace: Trace,
+  node: TraceNode,
+  source: string,
+  lines: SourceLine[],
+): Map<number, Returned> {
+  const result = new Map<number, Returned>();
+
+  for (const child of node.children) {
+    const statement = trace.nodes[child];
+
+    if (statement === undefined || statement.returned === null) continue;
+    const loc = trace.header.locs[statement.loc];
+
+    if (loc === undefined) continue;
+    const indent = indentAt(source, lines, loc.start);
+    const line = lineContaining(lines, loc.end);
+
+    if (indent !== null && line !== null) {
+      result.set(line, { indent, value: statement.returned });
+    }
+  }
+
+  return result;
 }
 
 function exceptionByLine(
@@ -214,6 +254,7 @@ function runs(lines: Line[]): Line[][] {
     if (
       current !== undefined &&
       previous !== undefined &&
+      previous.returned === null &&
       previous.loopEnd === null &&
       hasChips(previous) === hasChips(line)
     ) {
@@ -259,6 +300,7 @@ export function buildBlockView(
 
   const outputs = outputsByLine(trace, sites, lines);
   const exceptions = exceptionByLine(trace, block, lines);
+  const returned = returnedByLine(trace, node, source, lines);
   const { changes, loopEnds } = placeChanges(trace, node, source, lines);
 
   const context: SpanContext = {
@@ -286,6 +328,7 @@ export function buildBlockView(
         changes: changes.get(line.number) ?? [],
         output: outputs.get(line.number) ?? null,
         exception: exceptions.get(line.number) ?? null,
+        returned: returned.get(line.number) ?? null,
         loopEnd: loopEnds.get(line.number) ?? null,
       })),
     ),

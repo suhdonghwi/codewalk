@@ -14,6 +14,7 @@ export interface TraceNode {
   children: NodeId[];
   outputs: number[];
   values: ValueChunk[];
+  returned: RecordedValue | null;
   exc: string | null;
 }
 
@@ -23,11 +24,14 @@ export interface OutputChunk {
   text: string;
 }
 
-export interface ValueChunk {
-  loc: LocId | null;
-  name: string;
+export interface RecordedValue {
   value: Value;
   at: number;
+}
+
+export interface ValueChunk extends RecordedValue {
+  loc: LocId | null;
+  name: string;
 }
 
 export interface ObjectVersion {

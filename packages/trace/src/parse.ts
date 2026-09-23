@@ -3,7 +3,7 @@ import { match, P } from "ts-pattern";
 import { objectValues } from "./objects.ts";
 import { EventSchema, HeaderSchema } from "./schema.ts";
 
-import type { End, Header, Role, TraceEvent } from "./schema.ts";
+import type { End, Header, Role, TraceEvent, Value } from "./schema.ts";
 import type {
   ObjectVersion,
   OutputChunk,
@@ -158,25 +158,31 @@ export function parseTrace(jsonl: string): ParseResult {
   const open: number[] = [];
   let end: End | null = null;
 
-  function attachValue(
-    line: number,
-    value: ValueChunk,
-  ): TraceParseError | null {
-    if ("ref" in value.value && value.value.ref >= objects.length) {
+  function referenceError(line: number, value: Value): TraceParseError | null {
+    if ("ref" in value && value.ref >= objects.length) {
       return structureError(
         line,
-        `value refers to undefined object ${value.value.ref}`,
+        `value refers to undefined object ${value.ref}`,
       );
     }
 
     const [pending] = undefinedReferences;
 
-    if (pending !== undefined) {
-      return structureError(
-        line,
-        `value follows a reference to undefined object ${pending}`,
-      );
-    }
+    return pending === undefined
+      ? null
+      : structureError(
+          line,
+          `value follows a reference to undefined object ${pending}`,
+        );
+  }
+
+  function attachValue(
+    line: number,
+    value: ValueChunk,
+  ): TraceParseError | null {
+    const error = referenceError(line, value.value);
+
+    if (error !== null) return error;
 
     const nodeId = open.at(-1);
 
@@ -271,6 +277,7 @@ export function parseTrace(jsonl: string): ParseResult {
           children: [],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         });
 
@@ -334,6 +341,29 @@ export function parseTrace(jsonl: string): ParseResult {
       .with({ op: "value", name: P.string }, ({ name, value }) =>
         attachValue(index + 1, { loc: null, name, value, at: definitions }),
       )
+      .with({ op: "return" }, ({ value }) => {
+        const error = referenceError(index + 1, value);
+
+        if (error !== null) return error;
+
+        const nodeId = open.at(-1);
+        const node = nodeId === undefined ? undefined : nodes[nodeId];
+
+        if (node === undefined || header.locs[node.loc]?.role !== "stmt") {
+          return structureError(
+            index + 1,
+            "return is not attached to a statement",
+          );
+        }
+
+        if (node.returned !== null) {
+          return structureError(index + 1, "a statement returns twice");
+        }
+
+        node.returned = { value, at: definitions };
+
+        return null;
+      })
       .with({ op: "obj" }, ({ op: _op, id, ...object }) => {
         if (id > objects.length) {
           return structureError(

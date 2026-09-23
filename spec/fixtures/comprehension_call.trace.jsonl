@@ -8,6 +8,7 @@
 {"op":"enter","loc":2}
 {"op":"value","loc":3,"value":{"kind":"number","text":"0"}}
 {"op":"enter","loc":4}
+{"op":"return","value":{"kind":"number","text":"0"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
@@ -15,6 +16,7 @@
 {"op":"enter","loc":2}
 {"op":"value","loc":3,"value":{"kind":"number","text":"1"}}
 {"op":"enter","loc":4}
+{"op":"return","value":{"kind":"number","text":"2"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
@@ -22,6 +24,7 @@
 {"op":"enter","loc":2}
 {"op":"value","loc":3,"value":{"kind":"number","text":"2"}}
 {"op":"enter","loc":4}
+{"op":"return","value":{"kind":"number","text":"4"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

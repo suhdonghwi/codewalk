@@ -215,7 +215,12 @@ class _Instrumenter:
             node.value = self._expression(node.value, statement)
         elif isinstance(node, ast.Return):
             if node.value is not None:
-                node.value = self._expression(node.value, statement)
+                returned = _runtime_call(
+                    "returned",
+                    ast.Constant(statement),
+                    self._expression(node.value, statement),
+                )
+                node.value = ast.copy_location(returned, node.value)
         elif isinstance(node, ast.Raise):
             if node.exc is not None:
                 node.exc = self._expression(node.exc, statement)
