@@ -28,7 +28,7 @@ interface Layout {
   total: number;
 }
 
-export const PREVIEW_BUDGET = 40;
+export const PREVIEW_BUDGET = 60;
 
 const KEY_BUDGET = 24;
 
