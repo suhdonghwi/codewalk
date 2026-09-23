@@ -1,15 +1,9 @@
 import { match, P } from "ts-pattern";
 
+import { objectValues } from "./objects.ts";
 import { EventSchema, HeaderSchema } from "./schema.ts";
 
-import type {
-  End,
-  Header,
-  HeapObject,
-  Role,
-  TraceEvent,
-  Value,
-} from "./schema.ts";
+import type { End, Header, Role, TraceEvent } from "./schema.ts";
 import type {
   ObjectVersion,
   OutputChunk,
@@ -102,15 +96,6 @@ function roleCanContain(parent: Role, child: Role): boolean {
     .with(["expr", P.union("expr", "block")], () => true)
     .with(["block", P.union("block", "expr")], () => false)
     .with([P.union("stmt", "expr"), "stmt"], () => false)
-    .exhaustive();
-}
-
-function objectValues(object: HeapObject): Value[] {
-  return match(object)
-    .with({ kind: P.union("sequence", "set") }, ({ items }) => items)
-    .with({ kind: "mapping" }, ({ entries }) => entries.flat())
-    .with({ kind: "record" }, ({ fields }) => fields.map(([, value]) => value))
-    .with({ kind: "opaque" }, () => [])
     .exhaustive();
 }
 

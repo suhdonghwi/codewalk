@@ -1,4 +1,4 @@
-import { requireObject } from "@codewalk/trace";
+import { objectValues, requireObject } from "@codewalk/trace";
 import { match } from "ts-pattern";
 
 import type { HeapObject, ObjectId, Trace, Value } from "@codewalk/trace";
@@ -310,17 +310,7 @@ export function sharedObjects(
     }
 
     reached.add(next.ref);
-    const children = valueChildren(trace, next, at);
-
-    if (children === null) continue;
-
-    for (const row of children.rows) pending.push(row.value);
-
-    const object = requireObject(trace, next.ref, at);
-
-    if (object.kind === "mapping") {
-      for (const [key] of object.entries) pending.push(key);
-    }
+    pending.push(...objectValues(requireObject(trace, next.ref, at)));
   }
 
   return shared;

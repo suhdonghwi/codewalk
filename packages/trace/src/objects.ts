@@ -1,5 +1,16 @@
+import { match, P } from "ts-pattern";
+
 import type { ObjectVersion, Trace } from "./model.ts";
-import type { HeapObject, ObjectId } from "./schema.ts";
+import type { HeapObject, ObjectId, Value } from "./schema.ts";
+
+export function objectValues(object: HeapObject): Value[] {
+  return match(object)
+    .with({ kind: P.union("sequence", "set") }, ({ items }) => items)
+    .with({ kind: "mapping" }, ({ entries }) => entries.flat())
+    .with({ kind: "record" }, ({ fields }) => fields.map(([, value]) => value))
+    .with({ kind: "opaque" }, () => [])
+    .exhaustive();
+}
 
 export function requireObject(
   trace: Trace,
