@@ -1,12 +1,15 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
+import io
 import reprlib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from types import TracebackType
 from typing import Literal
 
-from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
+
+type Stream = Literal["stdout", "stderr"]
 
 _VALUE_TEXT_LIMIT = 48
 
@@ -83,9 +86,8 @@ class Runtime:
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
-        # False once the trace has ended and while
-        # `render` runs user formatting code; a plain attribute because it is
-        # read several times per event.
+        # False once the trace has ended and while `render` runs user
+        # formatting code; a plain attribute because it is read on every event.
         self._active = True
         self._exhausted = False
 
@@ -107,14 +109,13 @@ class Runtime:
         if not self._active:
             return
         self._repair(self._parents[loc])
-        if self._active and self._emit({"op": "enter", "loc": loc}):
-            self._stack.append(_Node(loc, block=False, pending=False))
+        self._emit({"op": "enter", "loc": loc})
+        self._stack.append(_Node(loc, block=False, pending=False))
 
     def begin(self, loc: int) -> int:
         if self._active:
             self._repair(self._parents[loc])
-            if self._active:
-                self._stack.append(_Node(loc, block=False, pending=True))
+            self._stack.append(_Node(loc, block=False, pending=True))
         return loc
 
     def end[T](self, loc: int, value: T) -> T:
@@ -132,7 +133,7 @@ class Runtime:
         else:
             return value
 
-        while self._active and len(self._stack) > match:
+        while len(self._stack) > match:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
@@ -157,33 +158,31 @@ class Runtime:
         if not self._active or not self._stack:
             return
         self._materialize()
-        if not self._active or not self._stack:
-            return
         if self._out_stream == stream:
             self._out_text += text
             return
         self._flush_output()
-        if self._active:
-            self._out_stream = stream
-            self._out_text = text
+        self._out_stream = stream
+        self._out_text = text
 
-    def capture_output(self) -> OutputCapture:
-        return OutputCapture(self.out)
+    @contextmanager
+    def capture_output(self) -> Iterator[None]:
+        with (
+            redirect_stdout(_CaptureStream(self.out, "stdout")),
+            redirect_stderr(_CaptureStream(self.out, "stderr")),
+        ):
+            yield
 
     def finish(self, status: str, **fields: object) -> None:
         if not self._active:
             return
         self._flush_output()
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
-        if not self._active:
-            return
-        event: dict[str, object] = {"op": "end", "status": status}
-        event.update(fields)
-        if self._emit(event):
-            self._active = False
+        self._emit({"op": "end", "status": status, **fields})
+        self._active = False
 
     def _enter_block(self, loc: int, *, repair: bool) -> _Node | None:
         if not self._active:
@@ -191,8 +190,7 @@ class Runtime:
         if repair:
             self._repair(self._parents[loc])
         self._materialize()
-        if not self._active or not self._emit({"op": "enter", "loc": loc}):
-            return None
+        self._emit({"op": "enter", "loc": loc})
         node = _Node(loc, block=True, pending=False)
         self._stack.append(node)
         return node
@@ -200,7 +198,7 @@ class Runtime:
     def _exit_block(self, target: _Node | None, exc: BaseException | None) -> None:
         if not self._active or target is None:
             return
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack.pop()
             if node is target:
                 if exc is None:
@@ -213,7 +211,7 @@ class Runtime:
                 self._emit({"op": "exit"})
 
     def _repair(self, parent: int | None) -> None:
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack[-1]
             if node.loc == parent or node.block:
                 return
@@ -229,17 +227,12 @@ class Runtime:
         while first > 0 and stack[first - 1].pending:
             first -= 1
         for node in stack[first:]:
-            if not self._emit({"op": "enter", "loc": node.loc}):
-                return
+            self._emit({"op": "enter", "loc": node.loc})
             node.pending = False
 
-    def _emit(self, event: Mapping[str, object]) -> bool:
-        if not self._active:
-            return False
+    def _emit(self, event: Mapping[str, object]) -> None:
         self._flush_output()
-        if not self._active:
-            return False
-        return self._write(event)
+        self._sink.write(event)
 
     def _flush_output(self) -> None:
         stream = self._out_stream
@@ -248,13 +241,19 @@ class Runtime:
         text = self._out_text
         self._out_stream = None
         self._out_text = ""
-        self._write({"op": "out", "stream": stream, "text": text})
+        self._sink.write({"op": "out", "stream": stream, "text": text})
 
-    def _write(self, event: Mapping[str, object]) -> bool:
-        if not self._active:
-            return False
-        self._sink.write(event)
-        return True
+
+class _CaptureStream(io.TextIOBase):
+    __slots__ = ("_stream", "_write")
+
+    def __init__(self, write: Callable[[Stream, str], None], stream: Stream) -> None:
+        self._write = write
+        self._stream: Stream = stream
+
+    def write(self, text: str) -> int:
+        self._write(self._stream, text)
+        return len(text)
 
 
 def _format_value(value: object) -> str:
