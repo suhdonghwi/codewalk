@@ -12,7 +12,7 @@
 {"op":"value","loc":3,"value":{"ref":0}}
 {"op":"value","loc":4,"value":{"kind":"number","text":"5"}}
 {"op":"enter","loc":5}
-{"op":"value","name":"lo","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"lo","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"value","name":"hi","value":{"kind":"number","text":"4"}}
 {"op":"exit"}
 {"op":"enter","loc":7}
@@ -70,7 +70,7 @@
 {"op":"exit"}
 {"op":"enter","loc":32}
 {"op":"obj","id":1,"kind":"sequence","type":"list","items":[]}
-{"op":"value","name":"seen","value":{"ref":1}}
+{"op":"value","name":"seen","value":{"ref":1},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":33}
 {"op":"enter","loc":35}
@@ -142,7 +142,7 @@
 {"op":"enter","loc":42}
 {"op":"value","loc":41,"value":{"kind":"number","text":"3"}}
 {"op":"enter","loc":43}
-{"op":"value","name":"step","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"step","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":44}
 {"op":"exit"}
@@ -159,7 +159,7 @@
 {"op":"value","loc":41,"value":{"kind":"number","text":"1"}}
 {"op":"value","name":"last","value":{"kind":"number","text":"3"}}
 {"op":"enter","loc":43}
-{"op":"value","name":"step","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"step","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":44}
 {"op":"exit"}
@@ -172,11 +172,11 @@
 {"op":"exit"}
 {"op":"enter","loc":49}
 {"op":"obj","id":2,"kind":"sequence","type":"list","items":[]}
-{"op":"value","name":"heads","value":{"ref":2}}
+{"op":"value","name":"heads","value":{"ref":2},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":50}
 {"op":"obj","id":3,"kind":"sequence","type":"list","items":[]}
-{"op":"value","name":"tail","value":{"ref":3}}
+{"op":"value","name":"tail","value":{"ref":3},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":51}
 {"op":"enter","loc":54}
@@ -218,7 +218,7 @@
 {"op":"value","name":"tail","value":{"ref":3}}
 {"op":"exit"}
 {"op":"enter","loc":64}
-{"op":"value","name":"misses","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"misses","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":65}
 {"op":"enter","loc":67}

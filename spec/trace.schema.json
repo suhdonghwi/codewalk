@@ -349,6 +349,10 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "literal": {
+              "type": "boolean",
+              "const": true
             }
           },
           "required": [
@@ -409,6 +413,10 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "literal": {
+              "type": "boolean",
+              "const": true
             }
           },
           "required": [

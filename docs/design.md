@@ -166,12 +166,16 @@ for i in _cw_e(_cw_b(15), range(2)):
   nested scope closes over, and parameters the function never rebinds, whose
   objects the caller still holds. A scope that refers to `locals`, `eval` or
   the like keeps every name.
+  A value the statement writes out as a literal, like `found = True`, is
+  marked so the viewer can leave out its chip; it is still recorded, because
+  the sibling list reads an iteration's last value from these changes.
   Only the first thousand calls of a function watch their variables, so deep
   recursion stays cheap.
 - **Return values.** `return X` becomes `return _cw.returned(loc, X)`, which
   records a snapshot of `X` on the `return` statement as it was when it was
   returned, before a caller can change it. A bare `return` and a function that
-  ends without one record nothing.
+  ends without one record nothing. A literal one, like `return 1`, is marked
+  and not shown.
 - **Limits** belong to the runner. The tracer flushes the trace periodically,
   so a run killed at the time limit or byte cap keeps what it recorded.
 
@@ -245,7 +249,9 @@ state sits on a `(before)` row above its header rather than on it, limited to
 the values that change between iterations, the same ones the sibling list has
 columns for. The value a `return` handed back sits on a `(returned)` row below
 its statement, so it cannot be read as the value of the code it would
-otherwise follow, such as the call in `return n * fact(n - 1)`. On every label
+otherwise follow, such as the call in `return n * fact(n - 1)`. A value the
+code already spells out as a literal, like `found = True` or `return 1`, gets
+no chip or row. On every label
 row the chips follow the label, whatever the code around them. Long output
 expands into a panel below its line, and so does a value that holds an object:
 an inspector tree, like a browser console's, with a row per item, entry or

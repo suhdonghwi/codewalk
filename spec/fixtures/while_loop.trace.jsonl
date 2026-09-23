@@ -1,7 +1,7 @@
 {"codewalk":2,"sources":[{"file":"while_loop.py","text":"i = 0\nwhile i < 2:\n    print(i)\n    i += 1\nelse:\n    print(\"done\", i)\n"}],"literals":{"list":["[","]"],"tuple":["(",")"],"set":["{","}"],"dict":["{","}"]},"locs":[{"role":"block","file":0,"start":0,"end":69,"parent":null,"title":"while_loop.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":5,"parent":0},{"role":"stmt","file":0,"start":6,"end":18,"parent":0},{"role":"block","file":0,"start":6,"end":69,"parent":2,"title":"iteration","unit":"iteration","rebinds":["i"]},{"role":"stmt","file":0,"start":6,"end":18,"parent":3},{"role":"expr","file":0,"start":12,"end":17,"parent":4},{"role":"stmt","file":0,"start":23,"end":31,"parent":3},{"role":"expr","file":0,"start":23,"end":31,"parent":6},{"role":"stmt","file":0,"start":36,"end":42,"parent":3},{"role":"stmt","file":0,"start":53,"end":69,"parent":0},{"role":"expr","file":0,"start":53,"end":69,"parent":9},{"role":"stmt","file":0,"start":43,"end":48,"parent":0}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
-{"op":"value","name":"i","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"i","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":2}
 {"op":"enter","loc":3}

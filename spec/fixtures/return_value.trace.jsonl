@@ -11,7 +11,7 @@
 {"op":"enter","loc":13}
 {"op":"enter","loc":14}
 {"op":"obj","id":0,"kind":"sequence","type":"list","items":[{"kind":"number","text":"1"}]}
-{"op":"value","name":"items","value":{"ref":0}}
+{"op":"value","name":"items","value":{"ref":0},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":15}
 {"op":"return","value":{"ref":0}}

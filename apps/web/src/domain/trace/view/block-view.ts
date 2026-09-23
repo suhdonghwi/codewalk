@@ -165,15 +165,16 @@ function placeChanges(
       statement === undefined ? undefined : trace.header.locs[statement.loc];
 
     if (statement === undefined || loc?.role !== "stmt") continue;
+    const values = statement.values.filter(({ literal }) => !literal);
 
-    if (statement.values.length === 0) continue;
+    if (values.length === 0) continue;
     const iteration = iterationLoc(trace, statement);
 
     if (iteration === null) {
       const line = lineContaining(lines, loc.end);
 
       if (line === null) continue;
-      changes.set(line, [...(changes.get(line) ?? []), ...statement.values]);
+      changes.set(line, [...(changes.get(line) ?? []), ...values]);
       continue;
     }
 
@@ -184,7 +185,7 @@ function placeChanges(
 
     loopEnds.set(line, {
       indent,
-      changes: [...(loopEnds.get(line)?.changes ?? []), ...statement.values],
+      changes: [...(loopEnds.get(line)?.changes ?? []), ...values],
     });
   }
 
@@ -202,7 +203,14 @@ function returnedByLine(
   for (const child of node.children) {
     const statement = trace.nodes[child];
 
-    if (statement === undefined || statement.returned === null) continue;
+    if (
+      statement === undefined ||
+      statement.returned === null ||
+      statement.returned.literal
+    ) {
+      continue;
+    }
+
     const loc = trace.header.locs[statement.loc];
 
     if (loc === undefined) continue;
