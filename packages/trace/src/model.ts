@@ -15,6 +15,7 @@ export interface TraceNode {
   outputs: number[];
   values: ValueChunk[];
   exc: string | null;
+  jump: "break" | "return" | null;
 }
 
 export interface OutputChunk {

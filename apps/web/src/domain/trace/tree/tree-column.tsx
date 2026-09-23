@@ -6,7 +6,11 @@ import { useCanvasStore } from "@/domain/canvas/index.ts";
 import { SiblingList } from "./sibling-list.tsx";
 import { TITLE_BAR, type Measurement } from "./layout.ts";
 import { TraceWindow } from "./trace-window.tsx";
-import { siblingAfter, siblingColumns } from "../view/block-title.ts";
+import {
+  siblingAfter,
+  siblingColumns,
+  siblingEnding,
+} from "../view/block-title.ts";
 
 import type { ColumnLayout } from "./layout.ts";
 import type { PathColumn } from "./path.ts";
@@ -111,6 +115,7 @@ export function TreeColumn({
             blocks={column.blocks}
             after={siblingAfter(trace, column.blocks, columns)}
             columns={columns}
+            ending={siblingEnding(trace, column.blocks)}
             onChoose={(sibling) => onChoose(columnIndex, sibling)}
             selectedIndex={column.expandedIndex}
             trace={trace}

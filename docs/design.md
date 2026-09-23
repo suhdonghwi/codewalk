@@ -119,7 +119,11 @@ for i in _cw_e(_cw_b(15), range(2)):
   `case`) get a marker of their own, so a clause that never ran shows as not
   run. An `except` marker also closes the statement the exception interrupted
   with that exception, since the handler is running. `except` types are left
-  unwrapped, so evaluating them cannot close that statement first.
+  unwrapped, so evaluating them cannot close that statement first. `break`
+  and `return` get a `_cw.jump` marker instead, which tells the iteration
+  they run in that it is ending its loop. A `return` also ends every enclosing
+  iteration of the same call, unless an `except` catches an exception raised
+  while computing its value.
 - **Blocks** wrap module and function bodies (`_cw.block`) and loop bodies
   (`_cw.iteration`) in a `with`. That guarantees the block closes on `return`,
   `break`, `continue` and exceptions, and lets it see the exception that left
@@ -263,8 +267,11 @@ path: NodeId[]      // expanded blocks, root → deepest
 - The sibling list is a table with a row per sibling and a column per input
   value that differs between them. Reading down a column shows how the state
   evolves. If the last iteration changed the loop state, a pinned `after` row
-  shows the end state. The list and the window are top-aligned to the clicked
-  range, so switching siblings moves nothing on the canvas.
+  shows the end state. If a `break`, a `return` or an exception cut the loop
+  short, a pinned row below it says so (`ended by break`); a loop that ran
+  out of items or whose condition turned false has none. The list and the
+  window are top-aligned to the clicked range, so switching siblings moves
+  nothing on the canvas.
 - Clicking a site truncates `path` at its window and appends the site's first
   child. Clicking a row in a sibling list (or pressing ↑/↓) replaces that
   column's entry.
