@@ -5,8 +5,6 @@ export const TITLE_BAR = 28;
 
 const COLUMN_GAP = 64;
 
-const SIBLING_LIST_GAP = 8;
-
 export interface Measurement {
   block: NodeId;
   openSite: LocId | null;
@@ -29,12 +27,10 @@ export function sameMeasurement(
 export interface ColumnInput {
   measurement: Measurement | null;
   openSite: LocId | null;
-  siblingListWidth: number | null;
 }
 
 export interface ColumnLayout {
   x: number;
-  windowX: number;
   top: number;
   edge: { fromX: number; toX: number; y: number } | null;
 }
@@ -56,18 +52,14 @@ export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
   const layouts: ColumnLayout[] = [];
   let parent: ParentAnchor | null = null;
 
-  for (const { measurement, openSite, siblingListWidth } of columns) {
+  for (const { measurement, openSite } of columns) {
     if (measurement === null || (layouts.length > 0 && parent === null)) break;
 
     const x: number = parent === null ? 0 : parent.right + COLUMN_GAP;
     const top: number = parent === null ? 0 : parent.anchorY - TITLE_BAR / 2;
 
-    const windowX: number =
-      siblingListWidth === null ? x : x + siblingListWidth + SIBLING_LIST_GAP;
-
     layouts.push({
       x,
-      windowX,
       top,
       edge:
         parent === null
@@ -78,7 +70,7 @@ export function layoutTree(columns: ColumnInput[]): ColumnLayout[] {
     parent =
       measurement.anchorCenterY !== null && measurement.openSite === openSite
         ? {
-            right: windowX + measurement.width,
+            right: x + measurement.width,
             anchorY: top + measurement.anchorCenterY,
           }
         : null;

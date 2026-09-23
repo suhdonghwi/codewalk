@@ -35,7 +35,6 @@ interface SiblingListProps {
   height: number | null;
   resizeHandles: ReactNode;
   onChoose: (block: NodeId) => void;
-  onMeasureWidth: (width: number) => void;
 }
 
 function Cells({
@@ -85,9 +84,7 @@ export function SiblingList({
   height,
   resizeHandles,
   onChoose,
-  onMeasureWidth,
 }: SiblingListProps) {
-  const chromeRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const positioned = useRef(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -130,24 +127,6 @@ export function SiblingList({
     setScrollTop(element.scrollTop);
   }, [selectedIndex, viewportHeight, headerRows, headerHeight, afterHeight]);
 
-  useLayoutEffect(() => {
-    const element = chromeRef.current;
-
-    if (element === null) return;
-
-    const report = (): void => {
-      onMeasureWidth(element.offsetWidth);
-    };
-
-    report();
-    const observer = new ResizeObserver(report);
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [onMeasureWidth]);
-
   function chooseNeighbour(event: KeyboardEvent<HTMLDivElement>): void {
     const step =
       event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
@@ -183,7 +162,6 @@ export function SiblingList({
 
   return (
     <WindowChrome
-      chromeRef={chromeRef}
       className={cn("min-w-30", width === null && "w-max")}
       style={{ width: width ?? undefined }}
       title={siblingListTitle(trace, blocks)}

@@ -304,8 +304,8 @@ path: NodeId[]      // expanded block windows, root → deepest
   for loop state (loop targets and parameters have no
   "after"), and is left out when it would repeat the last row, as after a
   `while` loop's final failed check. The list
-  sizes to its columns
-  and is measured before its column is laid out. It has a bounded height
+  sizes to its columns, and the window sits right after it in the same row,
+  so the column is measured as a whole. It has a bounded height
   and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
   range, and an edge connects range → column. Choosing a sibling therefore moves
   nothing on the canvas, however long the loop.

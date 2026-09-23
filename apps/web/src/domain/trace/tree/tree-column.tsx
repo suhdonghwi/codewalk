@@ -1,9 +1,14 @@
 import type { HTMLAttributes } from "react";
+import { useLayoutEffect, useRef } from "react";
 
-import { ResizeHandles, type Size } from "@/domain/canvas/index.ts";
+import {
+  ResizeHandles,
+  useCanvasStore,
+  type Size,
+} from "@/domain/canvas/index.ts";
 
 import { SiblingList } from "./sibling-list.tsx";
-import type { Measurement } from "./layout.ts";
+import { TITLE_BAR, type Measurement } from "./layout.ts";
 import { TraceWindow } from "./trace-window.tsx";
 import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
 import { siblingAfter, siblingColumns } from "../view/block-title.ts";
@@ -16,6 +21,33 @@ const MINIMUM_SIZE: Record<ColumnPart, Size> = {
   window: { width: 160, height: 68 },
   siblings: { width: 120, height: 76 },
 };
+
+function measureColumn(
+  row: HTMLElement,
+  windowElement: HTMLElement,
+): Omit<Measurement, "block" | "openSite"> {
+  const rowBounds = row.getBoundingClientRect();
+  const bounds = windowElement.getBoundingClientRect();
+  const scale = useCanvasStore.getState().view.scale;
+  const anchor = windowElement.querySelector<HTMLElement>("[data-site-anchor]");
+  const anchorBounds = anchor?.getBoundingClientRect();
+
+  const height = bounds.height / scale;
+
+  return {
+    width: (bounds.right - rowBounds.left) / scale,
+    anchorCenterY:
+      anchorBounds === undefined
+        ? null
+        : Math.min(
+            height,
+            Math.max(
+              TITLE_BAR,
+              (anchorBounds.top + anchorBounds.height / 2 - bounds.top) / scale,
+            ),
+          ),
+  };
+}
 
 function columnResizeHandles(column: number, part: ColumnPart) {
   const { resizeColumn } = useTraceStore.getState();
@@ -39,7 +71,6 @@ interface TreeColumnProps {
   columnIndex: number;
   layout: ColumnLayout | undefined;
   onMeasure: (column: number, measurement: Measurement) => void;
-  onMeasureSiblings: (column: number, first: NodeId, width: number) => void;
   onToggleSite: (column: number, site: LocId) => void;
   onChoose: (column: number, block: NodeId) => void;
   rootTitlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
@@ -51,7 +82,6 @@ export function TreeColumn({
   columnIndex,
   layout,
   onMeasure,
-  onMeasureSiblings,
   onToggleSite,
   onChoose,
   rootTitlebarProps,
@@ -67,15 +97,49 @@ export function TreeColumn({
   );
 
   const columns = siblingColumns(trace, column.blocks);
-  const [firstBlock] = column.blocks;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
+  const { block, openSite } = column;
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const windowElement = windowRef.current;
+
+    if (row === null || windowElement === null) return;
+
+    const report = (): void => {
+      onMeasure(columnIndex, {
+        block,
+        openSite,
+        ...measureColumn(row, windowElement),
+      });
+    };
+
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(row);
+    observer.observe(windowElement);
+    windowElement.addEventListener("scroll", report, {
+      capture: true,
+      passive: true,
+    });
+
+    return () => {
+      observer.disconnect();
+      windowElement.removeEventListener("scroll", report, { capture: true });
+    };
+  }, [block, columnIndex, onMeasure, openSite]);
 
   return (
-    <>
-      {column.blocks.length > 1 && firstBlock !== undefined ? (
+    <div
+      className="absolute z-1 flex w-max items-start gap-2"
+      ref={rowRef}
+      style={{ left: layout?.x ?? 0, top: layout?.top ?? 0, visibility }}
+    >
+      {column.blocks.length > 1 ? (
         <div
-          className="absolute z-1 animate-tree-fade-in"
+          className="animate-tree-fade-in"
           key={`siblings:${column.blocks[0]}`}
-          style={{ left: layout?.x ?? 0, top: layout?.top ?? 0, visibility }}
         >
           <SiblingList
             blocks={column.blocks}
@@ -84,33 +148,24 @@ export function TreeColumn({
             height={siblingsSize.height}
             resizeHandles={columnResizeHandles(columnIndex, "siblings")}
             width={siblingsSize.width}
-            onChoose={(block) => onChoose(columnIndex, block)}
-            onMeasureWidth={(width) => {
-              onMeasureSiblings(columnIndex, firstBlock, width);
-            }}
+            onChoose={(sibling) => onChoose(columnIndex, sibling)}
             selectedIndex={column.expandedIndex}
             trace={trace}
           />
         </div>
       ) : null}
       <div
-        className="absolute z-1 animate-tree-fade-in"
+        className="animate-tree-fade-in"
         data-block={column.block}
         key={column.block}
-        style={{
-          left: layout?.windowX ?? 0,
-          top: layout?.top ?? 0,
-          visibility,
-        }}
+        ref={windowRef}
       >
         <TraceWindow
           block={column.block}
-          column={columnIndex}
           columns={columns}
           height={windowSize.height}
           resizeHandles={columnResizeHandles(columnIndex, "window")}
           width={windowSize.width}
-          onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(columnIndex, site)}
           openSite={column.openSite}
           position={{
@@ -121,6 +176,6 @@ export function TreeColumn({
           trace={trace}
         />
       </div>
-    </>
+    </div>
   );
 }

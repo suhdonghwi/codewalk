@@ -6,28 +6,18 @@ import { layoutTree, sameMeasurement, type Measurement } from "./layout.ts";
 import { pathColumns, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
-import { partSize, useTraceStore } from "../store.ts";
+import { useTraceStore } from "../store.ts";
 import { mountCodeHighlightStyle } from "../view/tokens.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
-interface SiblingWidth {
-  first: NodeId;
-  width: number;
-}
-
 export function TraceTree({ trace }: { trace: Trace }) {
   const path = useTraceStore((state) => state.path);
-  const columnSizes = useTraceStore((state) => state.columnSizes);
   const treeWindow = useCanvasStore((state) => state.windows.trace);
 
   const [measurements, setMeasurements] = useState<(Measurement | undefined)[]>(
     [],
   );
-
-  const [siblingWidths, setSiblingWidths] = useState<
-    (SiblingWidth | undefined)[]
-  >([]);
 
   const rootTitlebarProps = useWindowDrag("trace");
 
@@ -40,24 +30,10 @@ export function TraceTree({ trace }: { trace: Trace }) {
   const layouts = layoutTree(
     columns.map((column, index) => {
       const measurement = measurements[index];
-      const measuredList = siblingWidths[index];
-
-      const listWidth =
-        column.blocks.length > 1
-          ? (partSize(columnSizes, index, "siblings").width ??
-            (measuredList !== undefined &&
-            measuredList.first === column.blocks[0]
-              ? measuredList.width
-              : undefined))
-          : null;
 
       return {
-        measurement:
-          measurement?.block === column.block && listWidth !== undefined
-            ? measurement
-            : null,
+        measurement: measurement?.block === column.block ? measurement : null,
         openSite: column.openSite,
-        siblingListWidth: listWidth ?? null,
       };
     }),
   );
@@ -67,22 +43,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
       if (sameMeasurement(current[column], measurement)) return current;
       const next = [...current];
       next[column] = measurement;
-
-      return next;
-    });
-  }
-
-  function onMeasureSiblings(
-    column: number,
-    first: NodeId,
-    width: number,
-  ): void {
-    setSiblingWidths((current) => {
-      const previous = current[column];
-
-      if (previous?.first === first && previous.width === width) return current;
-      const next = [...current];
-      next[column] = { first, width };
 
       return next;
     });
@@ -116,7 +76,6 @@ export function TraceTree({ trace }: { trace: Trace }) {
           layout={layouts[columnIndex]}
           onChoose={chooseSibling}
           onMeasure={onMeasure}
-          onMeasureSiblings={onMeasureSiblings}
           onToggleSite={openSite}
           rootTitlebarProps={columnIndex === 0 ? rootTitlebarProps : undefined}
           trace={trace}
