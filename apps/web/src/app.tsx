@@ -3,26 +3,15 @@ import { useEffect } from "react";
 import { Canvas } from "@/domain/canvas/index.ts";
 import { EditorWindow } from "@/domain/editor/index.ts";
 import {
-  createFixtureRunner,
-  createHttpRunner,
   OutputWindow,
+  runTrace,
   StdinWindow,
   useRunStore,
 } from "@/domain/run/index.ts";
 import { TraceTree, useTraceStore } from "@/domain/trace/index.ts";
 import { TooltipProvider } from "@/ui/tooltip.tsx";
 
-import type { RunOutcome, TraceRunner } from "@/domain/run/index.ts";
-
-interface AppProps {
-  runner?: TraceRunner;
-}
-
-function defaultRunner(): TraceRunner {
-  return import.meta.env.VITE_RUNNER === "fixture"
-    ? createFixtureRunner()
-    : createHttpRunner();
-}
+import type { RunOutcome } from "@/domain/run/index.ts";
 
 function runShortcut(): string {
   return /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl↵";
@@ -35,9 +24,7 @@ function finishRun(outcome: RunOutcome): void {
     .resetForTrace(outcome.kind === "trace" ? outcome.trace : null);
 }
 
-export function App({ runner: injectedRunner }: AppProps) {
-  const runner = injectedRunner ?? defaultRunner();
-
+export function App() {
   const outcome = useRunStore((state) => state.outcome);
 
   function run(): void {
@@ -48,15 +35,8 @@ export function App({ runner: injectedRunner }: AppProps) {
     // The previous result stays on screen until the new one replaces it, so the
     // output window and the trace tree do not collapse and re-expand.
     useRunStore.getState().setRunning(true);
-    void runner
-      .run({ source: state.source, stdin: state.stdin })
+    void runTrace({ source: state.source, stdin: state.stdin })
       .then(finishRun)
-      .catch(() => {
-        finishRun({
-          kind: "unreachable",
-          message: "Runner failed",
-        });
-      })
       .finally(() => {
         useRunStore.getState().setRunning(false);
       });

@@ -255,12 +255,10 @@ describe("buildBlockView", () => {
     const trace = fixture("uninstrumented");
     const view = buildBlockView(trace, 0, []);
 
-    expect(line(view, 7).output).toEqual({
-      segments: [
-        { stream: "stdout", text: "generator\n" },
-        { stream: "stdout", text: "1" },
-      ],
-    });
+    expect(line(view, 7).output).toEqual([
+      { stream: "stdout", text: "generator\n" },
+      { stream: "stdout", text: "1" },
+    ]);
   });
 
   test("values stay in their owning block and follow the exact anchor span", () => {
@@ -321,15 +319,19 @@ describe("buildBlockView", () => {
       throw new Error("Missing fact fixture blocks");
     }
 
-    expect(buildBlockTitle(fact, 0)).toEqual({
+    expect(buildBlockTitle(fact, 0, { index: 0, count: 1 })).toEqual({
       text: "fact.py",
       hasException: false,
     });
-    expect(buildBlockTitle(fact, secondIteration)).toEqual({
+    expect(
+      buildBlockTitle(fact, secondIteration, { index: 1, count: 2 }),
+    ).toEqual({
       text: "iteration 2 (i = 1)",
       hasException: false,
     });
-    expect(buildBlockTitle(fact, firstFunction)).toEqual({
+    expect(
+      buildBlockTitle(fact, firstFunction, { index: 0, count: 1 }),
+    ).toEqual({
       text: "fact (n = 1)",
       hasException: false,
     });
@@ -339,7 +341,13 @@ describe("buildBlockView", () => {
     const callbackBlocks = blockNodes(callbacks, "key");
 
     expect(
-      callbackBlocks.map((block) => buildBlockTitle(callbacks, block).text),
+      callbackBlocks.map(
+        (block, index) =>
+          buildBlockTitle(callbacks, block, {
+            index,
+            count: callbackBlocks.length,
+          }).text,
+      ),
     ).toEqual(["key 1 (number = 1)", "key 2 (number = 2)"]);
   });
 });
@@ -351,9 +359,7 @@ test.each([
 ])(
   "inline output preview truncates $text at the specified boundary",
   ({ text, expected, expandable }) => {
-    const preview = previewInlineOutput({
-      segments: [{ stream: "stdout", text }],
-    });
+    const preview = previewInlineOutput([{ stream: "stdout", text }]);
 
     expect(preview).toEqual({
       segments: [{ stream: "stdout", text: expected }],

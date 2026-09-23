@@ -1,15 +1,7 @@
-import { exceptionOrigin, pathTo } from "@codewalk/trace";
+import { blockPath, exceptionOrigin } from "../views.ts";
 
 import type { Path } from "./path.ts";
-import type { NodeId, Trace } from "@codewalk/trace";
-
-function blockPath(trace: Trace, node: NodeId): Path {
-  const path = pathTo(trace, node).map((step) => step.block);
-
-  if (path.length === 0) throw new Error(`Node ${node} has no block path`);
-
-  return path;
-}
+import type { Trace } from "@codewalk/trace";
 
 export function outputPath(trace: Trace, chunk: number): Path {
   const output = trace.outputs[chunk];

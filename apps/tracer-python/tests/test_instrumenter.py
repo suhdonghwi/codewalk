@@ -2,7 +2,6 @@ import ast
 import json
 import subprocess
 import sys
-import time
 import tokenize
 from pathlib import Path
 
@@ -140,34 +139,6 @@ def test_instrumented_diverse_standard_library_and_language_constructs_compile()
         compile(instrument(tree, source, filename).tree, filename, "exec")
 
 
-@pytest.mark.parametrize("expression", ["repr(value)", "repr([value])"])
-def test_user_repr_calls_still_raise_after_entry_value_formatting(
-    tmp_path: Path, expression: str
-) -> None:
-    source = (
-        "class Box:\n"
-        "    def __repr__(self):\n"
-        "        raise SystemExit('broken')\n"
-        "def process(value):\n"
-        "    print('entered')\n"
-        "    try:\n"
-        f"        {expression}\n"
-        "    except SystemExit:\n"
-        "        print('caught')\n"
-        "process(Box())\n"
-        "print('finished')\n"
-    )
-    path = tmp_path / "prog.py"
-    path.write_text(source, encoding="utf-8")
-    events = [json.loads(line) for line in _trace(path).stdout.splitlines()]
-
-    assert (
-        "".join(event["text"] for event in events if event.get("op") == "out")
-        == "entered\ncaught\nfinished\n"
-    )
-    assert events[-1] == {"op": "end", "status": "ok"}
-
-
 def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -> None:
     source = (
         "def gather(𐐀: int, ﬀ: int, \U0001d499: str, /, "
@@ -266,38 +237,49 @@ def test_syntax_and_runtime_failures_have_source_only_diagnostics(
     assert str(tmp_path) not in rendered
 
 
-def test_event_limit_stops_an_infinite_program_at_the_exact_limit(
+def test_an_inconsistent_dedent_is_a_syntax_error_rather_than_a_tracer_crash(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "prog.py"
-    path.write_text("while True:\n    pass\n", encoding="utf-8")
-    started = time.monotonic()
-
-    result = _trace(path, "--max-events", "25", timeout=3)
-    events = [json.loads(line) for line in result.stdout.decode().splitlines()[1:]]
-
-    assert result.returncode == 0
-    assert time.monotonic() - started < 2
-    assert len(events[:-1]) == 25
-    assert events[-1] == {"op": "end", "status": "truncated"}
-
-
-def test_repeating_timer_escapes_a_bare_exception_handler(tmp_path: Path) -> None:
-    path = tmp_path / "prog.py"
-    path.write_text(
-        "while True:\n    try:\n        sum(range(20000))\n    except:\n        pass\n",
-        encoding="utf-8",
-    )
-
-    # The event limit is lifted so that only the time limit can end this run,
-    # however fast the machine produces events.
-    result = _trace(
-        path, "--time-limit", "0.15", "--max-events", "1000000000", timeout=5
-    )
+    path.write_text("if x:\n    a\n  b\n", encoding="utf-8")
+    result = _trace(path)
     end = json.loads(result.stdout.decode().splitlines()[-1])
 
     assert result.returncode == 0
-    assert end == {"op": "end", "status": "timeout"}
+    assert end["status"] == "syntax_error"
+    assert end["message"] == "unindent does not match any outer indentation level"
+
+
+def test_exception_formatting_neither_records_nor_raises_from_user_str(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "prog.py"
+    path.write_text(
+        "class Loud(Exception):\n"
+        "    def __str__(self):\n"
+        "        print('hidden')\n"
+        "        return 'loud'\n"
+        "class Broken(Exception):\n"
+        "    def __str__(self):\n"
+        "        raise ValueError('str failed')\n"
+        "def fail(error):\n"
+        "    raise error\n"
+        "try:\n"
+        "    fail(Broken())\n"
+        "except Broken:\n"
+        "    print('caught')\n"
+        "fail(Loud())\n",
+        encoding="utf-8",
+    )
+    events = [json.loads(line) for line in _trace(path).stdout.splitlines()[1:]]
+
+    assert [event["text"] for event in events if event["op"] == "out"] == ["caught\n"]
+    assert [event["exc"] for event in events if "exc" in event] == [
+        "Broken",
+        "Loud: loud",
+        "Loud: loud",
+    ]
+    assert events[-1]["traceback"].endswith("Loud: loud\n")
 
 
 _LANGUAGE_CONSTRUCTS = '''\

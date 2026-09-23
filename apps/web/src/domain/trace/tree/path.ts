@@ -1,10 +1,11 @@
-import { blockSites } from "@codewalk/trace";
+import { blockSites } from "../views.ts";
 
-import type { LocId, NodeId, Site, Trace } from "@codewalk/trace";
+import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export type Path = NodeId[];
 
 export interface PathColumn {
+  block: NodeId;
   blocks: NodeId[];
   expandedIndex: number;
   openSite: LocId | null;
@@ -14,47 +15,30 @@ export function initialPath(trace: Trace): Path {
   return trace.root === null ? [] : [trace.root];
 }
 
-function siteContaining(
-  trace: Trace,
-  block: NodeId,
-  child: NodeId,
-): Site | null {
-  return (
-    blockSites(trace, block).find((site) => site.blocks.includes(child)) ?? null
-  );
-}
+export function pathColumns(trace: Trace, path: Path): PathColumn[] {
+  let blocks = path.slice(0, 1);
 
-export function pathColumn(
-  trace: Trace,
-  path: Path,
-  column: number,
-): PathColumn | null {
-  const block = path[column];
+  return path.map((block, column) => {
+    const next = path[column + 1];
 
-  if (block === undefined) return null;
+    const site =
+      next === undefined
+        ? undefined
+        : blockSites(trace, block).find((candidate) =>
+            candidate.blocks.includes(next),
+          );
 
-  const next = path[column + 1];
+    const current = {
+      block,
+      blocks,
+      expandedIndex: blocks.indexOf(block),
+      openSite: site?.loc ?? null,
+    };
 
-  const openSite =
-    next === undefined
-      ? null
-      : (siteContaining(trace, block, next)?.loc ?? null);
+    blocks = site?.blocks ?? [];
 
-  if (column === 0) {
-    return { blocks: [block], expandedIndex: 0, openSite };
-  }
-
-  const parent = path[column - 1];
-
-  if (parent === undefined) return null;
-  const parentSite = siteContaining(trace, parent, block);
-
-  if (parentSite === null) return null;
-  const expandedIndex = parentSite.blocks.indexOf(block);
-
-  if (expandedIndex === -1) return null;
-
-  return { blocks: parentSite.blocks, expandedIndex, openSite };
+    return current;
+  });
 }
 
 export function toggleSite(
@@ -66,15 +50,18 @@ export function toggleSite(
   const block = path[column];
 
   if (block === undefined) return path;
-  const current = pathColumn(trace, path, column);
 
-  if (current?.openSite === site) return path.slice(0, column + 1);
-
-  const selectedSite = blockSites(trace, block).find(
+  const selected = blockSites(trace, block).find(
     (candidate) => candidate.loc === site,
   );
 
-  const firstBlock = selectedSite?.blocks[0];
+  const next = path[column + 1];
+
+  if (next !== undefined && selected?.blocks.includes(next)) {
+    return path.slice(0, column + 1);
+  }
+
+  const firstBlock = selected?.blocks[0];
 
   return firstBlock === undefined
     ? path

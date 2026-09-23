@@ -46,15 +46,9 @@ class _Instrumenter:
         ast.fix_missing_locations(node)
         return node
 
-    def _body(
-        self, statements: list[ast.stmt], block: int, *, docstring: bool = False
-    ) -> list[ast.stmt]:
+    def _body(self, statements: list[ast.stmt], block: int) -> list[ast.stmt]:
         result: list[ast.stmt] = []
-        index = 0
-        if docstring and statements and _is_docstring(statements[0]):
-            result.append(statements[0])
-            index = 1
-        for statement in statements[index:]:
+        for statement in statements:
             result.extend(self._statement(statement, block))
         return result
 
@@ -77,8 +71,8 @@ class _Instrumenter:
                 unit="call",
             )
             values = self._parameter_values(node.args, statement)
-            doc = node.body[:1] if node.body and _is_docstring(node.body[0]) else []
-            body = self._body(node.body[len(doc) :], function)
+            doc, rest = _split_docstring(node.body)
+            body = self._body(rest, function)
             node.body = [
                 *doc,
                 self._block_wrapper("block", function, [*values, *body], node),
@@ -92,7 +86,8 @@ class _Instrumenter:
             node.bases = [self._expression(item, statement) for item in node.bases]
             for keyword in node.keywords:
                 keyword.value = self._expression(keyword.value, statement)
-            node.body = self._body(node.body, block, docstring=True)
+            doc, rest = _split_docstring(node.body)
+            node.body = [*doc, *self._body(rest, block)]
         elif isinstance(node, ast.While):
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
@@ -383,6 +378,11 @@ def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     value = ast.Name(id=name, ctx=ast.Load())
     statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
     return ast.copy_location(statement, owner)
+
+
+def _split_docstring(body: list[ast.stmt]) -> tuple[list[ast.stmt], list[ast.stmt]]:
+    count = 1 if body and _is_docstring(body[0]) else 0
+    return body[:count], body[count:]
 
 
 def _is_docstring(node: ast.stmt) -> bool:

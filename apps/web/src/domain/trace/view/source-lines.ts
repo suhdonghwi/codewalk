@@ -4,20 +4,6 @@ export interface SourceLine {
   to: number;
 }
 
-function countLineBreaks(text: string, end: number): number {
-  let count = 0;
-
-  for (let index = 0; index < end; index += 1) {
-    if (text[index] === "\n") count += 1;
-  }
-
-  return count;
-}
-
-function sourceLineNumber(source: string, position: number): number {
-  return countLineBreaks(source, position) + 1;
-}
-
 export function sourceLines(
   source: string,
   start: number,
@@ -28,10 +14,9 @@ export function sourceLines(
 
   const endBreak = source.indexOf("\n", end);
   const displayEnd = endBreak === -1 ? source.length : endBreak;
-  const firstNumber = sourceLineNumber(source, displayStart);
   const lines: SourceLine[] = [];
   let lineStart = displayStart;
-  let number = firstNumber;
+  let number = source.slice(0, displayStart).split("\n").length;
 
   while (lineStart <= displayEnd) {
     const nextBreak = source.indexOf("\n", lineStart);
@@ -51,12 +36,11 @@ export function sourceLines(
 }
 
 export function lineContaining(
-  source: string,
   lines: SourceLine[],
   position: number,
 ): number | null {
-  const number = sourceLineNumber(source, position);
-  const line = lines.find((candidate) => candidate.number === number);
-
-  return line?.number ?? null;
+  return (
+    lines.find((line) => line.from <= position && position <= line.to)
+      ?.number ?? null
+  );
 }

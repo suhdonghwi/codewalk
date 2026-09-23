@@ -3,29 +3,16 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { z } from "zod";
-
-import { RunnerError, type RunRequest, type Runner } from "./runner.ts";
+import type { RunRequest, Runner } from "./runner.ts";
 
 const STDERR_LIMIT = 8 * 1024;
 
 const TRUNCATED_END = '{"op":"end","status":"truncated"}\n';
 
-const TIMEOUT_END = '{"op":"end","status":"timeout"}\n';
-
-const HeaderSchema = z.object({ codewalk: z.literal(1) });
-
-const EndSchema = z.object({
-  op: z.literal("end"),
-  status: z.enum(["ok", "exception", "truncated", "timeout", "syntax_error"]),
-});
-
 export interface SubprocessRunnerOptions {
   pythonPath: string;
   timeLimit: number;
-  maxEvents: number;
   maxTraceBytes: number;
-  killGraceMs: number;
   tempRoot?: string;
 }
 
@@ -36,31 +23,6 @@ function killProcessGroup(pid: number | undefined): void {
     process.kill(-pid, "SIGKILL");
   } catch {
     // The process group may already have exited between the check and signal.
-  }
-}
-
-function hasHeader(trace: string): boolean {
-  const newline = trace.indexOf("\n");
-
-  if (newline < 0) return false;
-
-  try {
-    return HeaderSchema.safeParse(JSON.parse(trace.slice(0, newline))).success;
-  } catch {
-    return false;
-  }
-}
-
-function hasEnd(trace: string): boolean {
-  const lines = trace.split("\n");
-  const lastLine = lines.at(-2);
-
-  if (lastLine === undefined) return false;
-
-  try {
-    return EndSchema.safeParse(JSON.parse(lastLine)).success;
-  } catch {
-    return false;
   }
 }
 
@@ -90,19 +52,7 @@ export class SubprocessRunner implements Runner {
 
       const child = spawn(
         this.#options.pythonPath,
-        [
-          "-I",
-          "-m",
-          "codewalk",
-          "run",
-          "main.py",
-          "--trace-fd",
-          "3",
-          "--time-limit",
-          String(this.#options.timeLimit),
-          "--max-events",
-          String(this.#options.maxEvents),
-        ],
+        ["-I", "-m", "codewalk", "run", "main.py", "--trace-fd", "3"],
         {
           cwd: directory,
           detached: true,
@@ -129,7 +79,7 @@ export class SubprocessRunner implements Runner {
         traceStream === null ||
         traceStream === undefined
       ) {
-        throw new RunnerError("Tracer pipes were not created");
+        throw new Error("Tracer pipes were not created");
       }
 
       const traceChunks: Buffer[] = [];
@@ -169,35 +119,28 @@ export class SubprocessRunner implements Runner {
       childStdin.on("error", () => undefined);
       childStdin.end(request.stdin);
 
-      const hardKill = setTimeout(
+      const timeout = setTimeout(
         () => killProcessGroup(child.pid),
-        this.#options.timeLimit * 1_000 + this.#options.killGraceMs,
+        this.#options.timeLimit * 1_000,
       );
 
       try {
         await closed;
       } finally {
-        clearTimeout(hardKill);
+        clearTimeout(timeout);
       }
 
       const stderr = stderrTail.toString("utf8");
       const trace = completeLines(Buffer.concat(traceChunks, traceBytes));
 
-      if (!hasHeader(trace)) {
-        console.error("Tracer failed before producing a header", {
-          error: spawnError,
-          exitCode: child.exitCode,
-          signal: child.signalCode,
-          stderr,
-        });
-        throw new RunnerError("Tracer did not produce a trace", {
-          cause: spawnError ?? undefined,
-        });
+      if (trace === "") {
+        throw new Error(
+          `Tracer did not produce a trace (exit ${child.exitCode}, signal ${child.signalCode}): ${stderr}`,
+          { cause: spawnError ?? undefined },
+        );
       }
 
-      if (traceExceeded) return trace + TRUNCATED_END;
-
-      return hasEnd(trace) ? trace : trace + TIMEOUT_END;
+      return traceExceeded ? trace + TRUNCATED_END : trace;
     } finally {
       killProcessGroup(childPid);
       await rm(directory, { recursive: true, force: true });

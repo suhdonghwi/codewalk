@@ -13,7 +13,6 @@ const RESIZE_HANDLE = "absolute z-4 touch-none";
 interface CanvasWindowProps {
   id: ResizableWindowId;
   title: string;
-  titleIndicator?: ReactNode;
   titleAction?: ReactNode;
   minimumSize: Size;
   children: ReactNode;
@@ -28,7 +27,6 @@ interface WindowChromeProps {
   style?: CSSProperties | undefined;
   chromeRef?: Ref<HTMLElement> | undefined;
   titlebarProps?: HTMLAttributes<HTMLDivElement> | undefined;
-  titlebarClassName?: string | undefined;
 }
 
 export function WindowChrome({
@@ -40,7 +38,6 @@ export function WindowChrome({
   style,
   chromeRef,
   titlebarProps,
-  titlebarClassName,
 }: WindowChromeProps) {
   return (
     <section
@@ -56,8 +53,7 @@ export function WindowChrome({
         {...titlebarProps}
         className={cn(
           "flex h-titlebar flex-none cursor-default items-center justify-between border-b border-window-border pt-px pr-1 pl-2 text-xs leading-none font-medium text-neutral-500 select-none",
-          titlebarClassName,
-          titlebarProps?.className,
+          titlebarProps !== undefined && "cursor-grab active:cursor-grabbing",
         )}
       >
         <span className="inline-flex items-center gap-1.5">
@@ -124,7 +120,6 @@ export function ResizeHandles({
 export function CanvasWindow({
   id,
   title,
-  titleIndicator,
   titleAction,
   minimumSize,
   children,
@@ -148,8 +143,6 @@ export function CanvasWindow({
         style={{ width: size.width, height: size.height }}
         title={title}
         titleAction={titleAction}
-        titleIndicator={titleIndicator}
-        titlebarClassName="cursor-grab active:cursor-grabbing"
         titlebarProps={titlebarProps}
       >
         {children}

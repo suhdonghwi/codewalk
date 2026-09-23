@@ -75,9 +75,28 @@ const cases: OutputCase[] = [
     expected: [{ kind: "notice", text: "Invalid trace (line 7): bad event" }],
   },
   {
-    name: "hides transport details when the server is unreachable",
-    outcome: { kind: "unreachable", message: "connection refused" },
+    name: "reports an unreachable server",
+    outcome: { kind: "unreachable" },
     expected: [{ kind: "notice", text: "Could not reach the server" }],
+  },
+  {
+    name: "reports a request the server rejected for its size",
+    outcome: { kind: "failed", status: 413 },
+    expected: [
+      { kind: "notice", text: "The program or its input is too large to run" },
+    ],
+  },
+  {
+    name: "reports a gateway that could not reach the server as unreachable",
+    outcome: { kind: "failed", status: 502 },
+    expected: [{ kind: "notice", text: "Could not reach the server" }],
+  },
+  {
+    name: "reports a server that failed to run the program",
+    outcome: { kind: "failed", status: 500 },
+    expected: [
+      { kind: "notice", text: "The server could not run the program" },
+    ],
   },
 ];
 

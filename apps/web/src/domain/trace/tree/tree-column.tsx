@@ -2,13 +2,15 @@ import type { HTMLAttributes } from "react";
 
 import { ResizeHandles, type Size } from "@/domain/canvas/index.ts";
 
-import {
-  MeasuredTraceWindow,
-  type Measurement,
-} from "./measured-trace-window.tsx";
 import { SiblingList } from "./sibling-list.tsx";
-import { SIBLING_LIST_WIDTH } from "./layout.ts";
-import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
+import type { Measurement } from "./layout.ts";
+import { TraceWindow } from "./trace-window.tsx";
+import {
+  partSize,
+  siblingListWidth,
+  useTraceStore,
+  type ColumnPart,
+} from "../store.ts";
 
 import type { ColumnLayout } from "./layout.ts";
 import type { PathColumn } from "./path.ts";
@@ -39,7 +41,6 @@ interface TreeColumnProps {
   trace: Trace;
   column: PathColumn;
   columnIndex: number;
-  expandedBlock: NodeId;
   layout: ColumnLayout | undefined;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (column: number, site: LocId) => void;
@@ -51,7 +52,6 @@ export function TreeColumn({
   trace,
   column,
   columnIndex,
-  expandedBlock,
   layout,
   onMeasure,
   onToggleSite,
@@ -64,8 +64,12 @@ export function TreeColumn({
     partSize(state.columnSizes, columnIndex, "window"),
   );
 
-  const siblingsSize = useTraceStore((state) =>
-    partSize(state.columnSizes, columnIndex, "siblings"),
+  const siblingsHeight = useTraceStore(
+    (state) => partSize(state.columnSizes, columnIndex, "siblings").height,
+  );
+
+  const siblingsWidth = useTraceStore((state) =>
+    siblingListWidth(state.columnSizes, columnIndex),
   );
 
   return (
@@ -78,9 +82,9 @@ export function TreeColumn({
         >
           <SiblingList
             blocks={column.blocks}
-            height={siblingsSize.height}
+            height={siblingsHeight}
             resizeHandles={columnResizeHandles(columnIndex, "siblings")}
-            width={siblingsSize.width ?? SIBLING_LIST_WIDTH}
+            width={siblingsWidth}
             onChoose={(block) => onChoose(columnIndex, block)}
             selectedIndex={column.expandedIndex}
             trace={trace}
@@ -89,17 +93,16 @@ export function TreeColumn({
       ) : null}
       <div
         className="absolute z-1 animate-tree-fade-in"
-        data-block={expandedBlock}
-        key={expandedBlock}
+        data-block={column.block}
+        key={column.block}
         style={{
           left: layout?.windowX ?? 0,
           top: layout?.top ?? 0,
           visibility,
         }}
       >
-        <MeasuredTraceWindow
-          block={expandedBlock}
-          className=""
+        <TraceWindow
+          block={column.block}
           column={columnIndex}
           height={windowSize.height}
           resizeHandles={columnResizeHandles(columnIndex, "window")}
@@ -107,9 +110,10 @@ export function TreeColumn({
           onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(columnIndex, site)}
           openSite={column.openSite}
-          titlebarClassName={
-            columnIndex === 0 ? "cursor-grab active:cursor-grabbing" : undefined
-          }
+          position={{
+            index: column.expandedIndex,
+            count: column.blocks.length,
+          }}
           titlebarProps={columnIndex === 0 ? rootTitlebarProps : undefined}
           trace={trace}
         />

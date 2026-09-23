@@ -50,7 +50,7 @@ class SourceMap:
         try:
             while True:
                 self._tokens.append(next(tokens))
-        except (StopIteration, tokenize.TokenError):
+        except (StopIteration, tokenize.TokenError, SyntaxError):
             pass
         self._token_starts = [token.start for token in self._tokens]
 

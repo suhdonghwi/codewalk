@@ -29,6 +29,16 @@ function endNotice(end: End): OutputSegment | null {
     .exhaustive();
 }
 
+function failureNotice(status: number): string {
+  if (status === 400 || status === 413) {
+    return "The program or its input is too large to run";
+  }
+
+  if (status >= 502 && status <= 504) return "Could not reach the server";
+
+  return "The server could not run the program";
+}
+
 export function outputSegments(outcome: RunOutcome | null): OutputSegment[] {
   if (outcome === null) return [];
 
@@ -43,6 +53,10 @@ export function outputSegments(outcome: RunOutcome | null): OutputSegment[] {
 
   if (outcome.kind === "unreachable") {
     return [{ kind: "notice", text: "Could not reach the server" }];
+  }
+
+  if (outcome.kind === "failed") {
+    return [{ kind: "notice", text: failureNotice(outcome.status) }];
   }
 
   const segments: OutputSegment[] = outcome.trace.outputs.map(

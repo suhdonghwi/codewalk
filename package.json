@@ -10,11 +10,12 @@
     "format": "prettier --check .",
     "knip": "knip",
     "lint": "oxlint --type-aware .",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p packages/trace && tsc --noEmit -p apps/server && tsc --noEmit -p apps/web"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.83.0",
+    "@stylistic/eslint-plugin": "5.10.0",
     "@types/node": "24.13.5",
     "knip": "6.37.0",
     "oxlint": "1.83.0",

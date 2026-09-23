@@ -21,7 +21,7 @@ import {
 
 import { editorTheme } from "./editor-theme.ts";
 import { codeHighlightStyle } from "./highlight.ts";
-import { syntaxErrorExtension } from "./syntax-error.ts";
+import { syntaxErrorField } from "./syntax-error.ts";
 
 const leaveRunShortcutToApp: KeyBinding = { key: "Mod-Enter", run: () => true };
 
@@ -43,7 +43,7 @@ export function editorExtensions(
     bracketMatching(),
     closeBrackets(),
     syntaxHighlighting(codeHighlightStyle),
-    syntaxErrorExtension,
+    syntaxErrorField,
     editorTheme,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) onChange(update.state.doc.toString());

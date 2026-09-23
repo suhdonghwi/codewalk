@@ -40,9 +40,8 @@ The web dev server accepts `*.ts.net` host names for this. Arguments after `--`
 go to Vite (`mise run dev:web -- --port 5174`).
 
 `mise run dev` executes the code you run **unsandboxed**, with your user's
-privileges. The server therefore only listens on loopback and refuses any other
-`HOST` unless `CODEWALK_ALLOW_UNSANDBOXED=1` is set. Do not expose the dev servers
-to a network you do not trust; sandboxing (nsjail) is a later step.
+privileges. The server therefore only listens on loopback. Do not expose the dev
+servers to a network you do not trust; sandboxing (nsjail) is a later step.
 
 Run all checks or apply automatic fixes:
 

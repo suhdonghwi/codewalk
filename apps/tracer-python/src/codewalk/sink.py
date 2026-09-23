@@ -37,13 +37,6 @@ class JsonlSink:
             return
         line = json.dumps(dict(event), ensure_ascii=False, separators=(",", ":"))
         self._file.write(f"{line}\n")
-        if op == "end":
-            # The process may be killed without ever closing the sink (a program
-            # that keeps looping after truncation); the last word must not be lost.
-            self._file.flush()
 
     def flush(self) -> None:
         self._file.flush()
-
-    def close(self) -> None:
-        self._file.close()

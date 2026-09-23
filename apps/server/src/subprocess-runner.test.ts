@@ -7,7 +7,6 @@ import { afterEach, expect, test } from "vitest";
 
 import { parseTrace, type Trace } from "@codewalk/trace";
 
-import { RunnerError } from "./runner.ts";
 import {
   SubprocessRunner,
   type SubprocessRunnerOptions,
@@ -40,9 +39,7 @@ function options(
   return {
     pythonPath: PYTHON,
     timeLimit: 1,
-    maxEvents: 1_000_000_000,
     maxTraceBytes: 1024 * 1024,
-    killGraceMs: 1_000,
     tempRoot: root,
     ...overrides,
   };
@@ -116,50 +113,25 @@ print(value, os.getenv("${sentinel}", "absent"))
   }
 });
 
-test("an infinite loop stops cooperatively before the hard-kill grace", async () => {
+test("a program past the time limit is killed with its process group and ends as timeout", async () => {
   const root = await tempRoot();
-
-  const runner = new SubprocessRunner(
-    options(root, { timeLimit: 0.2, killGraceMs: 5_000 }),
-  );
-
+  const marker = `codewalk-child-${crypto.randomUUID()}`;
+  const runner = new SubprocessRunner(options(root));
   const started = performance.now();
 
   const text = await runner.run({
-    source: "import time\nwhile True:\n    time.sleep(0.01)\n",
-    stdin: "",
-  });
-
-  const elapsed = performance.now() - started;
-
-  expect(traceFrom(text).end).toEqual({ status: "timeout" });
-  expect(elapsed).toBeLessThan(2_000);
-});
-
-test("the hard-kill backstop terminates the whole process group and leaves a parseable timeout", async () => {
-  const root = await tempRoot();
-  const marker = `codewalk-child-${crypto.randomUUID()}`;
-
-  const runner = new SubprocessRunner(
-    // The kill timer starts at spawn, so the window must also cover interpreter
-    // start-up under a loaded machine (the full check runs everything at once):
-    // too tight and the tracer dies before it has written its header.
-    options(root, { timeLimit: 0.5, killGraceMs: 3_000 }),
-  );
-
-  const text = await runner.run({
-    source: `import hashlib
-import signal
-import subprocess
+    source: `import subprocess
 import sys
-signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGALRM})
+import time
 subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "${marker}"])
-hashlib.pbkdf2_hmac("sha256", b"password", b"salt", 2_000_000_000)
+while True:
+    time.sleep(0.01)
 `,
     stdin: "",
   });
 
   expect(traceFrom(text).end).toEqual({ status: "timeout" });
+  expect(performance.now() - started).toBeLessThan(5_000);
   await expectProcessGone(marker);
 }, 15_000);
 
@@ -179,7 +151,7 @@ test("an output flood is cut at a complete line and ends as truncated", async ()
   );
 });
 
-test("a runner that cannot start throws RunnerError and removes its temp directory", async () => {
+test("a runner that cannot start rejects and removes its temp directory", async () => {
   const root = await tempRoot();
 
   const runner = new SubprocessRunner(
@@ -188,6 +160,6 @@ test("a runner that cannot start throws RunnerError and removes its temp directo
 
   await expect(
     runner.run({ source: "print('never')\n", stdin: "" }),
-  ).rejects.toBeInstanceOf(RunnerError);
+  ).rejects.toThrow("Tracer did not produce a trace");
   expect(await readdir(root)).toEqual([]);
 });

@@ -1,4 +1,3 @@
-import type { Tree } from "@lezer/common";
 import { highlightTree } from "@lezer/highlight";
 import { parser } from "@lezer/python";
 import { StyleModule } from "style-mod";
@@ -11,18 +10,18 @@ export interface Token {
   classes: string;
 }
 
-function collectTokens(tree: Tree): Token[] {
+export function tokenizePython(source: string): Token[] {
   const tokens: Token[] = [];
 
-  highlightTree(tree, codeHighlightStyle, (from, to, classes) => {
-    tokens.push({ from, to, classes });
-  });
+  highlightTree(
+    parser.parse(source),
+    codeHighlightStyle,
+    (from, to, classes) => {
+      tokens.push({ from, to, classes });
+    },
+  );
 
   return tokens;
-}
-
-export function tokenizePython(source: string): Token[] {
-  return collectTokens(parser.parse(source));
 }
 
 export function mountCodeHighlightStyle(root: Document): void {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const TRACE_FORMAT_VERSION = 1;
+const TRACE_FORMAT_VERSION = 1;
 
 const RoleSchema = z.enum(["block", "stmt", "expr"]);
 
@@ -131,13 +131,7 @@ export type NodeId = number;
 
 export type Role = z.infer<typeof RoleSchema>;
 
-export function isBlockRole(role: Role | undefined): boolean {
-  return role === "block";
-}
-
 export type Loc = z.infer<typeof LocSchema>;
-
-export type Source = z.infer<typeof SourceSchema>;
 
 export type Header = z.infer<typeof HeaderSchema>;
 

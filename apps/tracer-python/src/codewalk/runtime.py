@@ -1,12 +1,15 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
+import io
 import reprlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from types import TracebackType
 from typing import Literal
 
-from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
+
+type Stream = Literal["stdout", "stderr"]
 
 _VALUE_TEXT_LIMIT = 48
 
@@ -17,8 +20,6 @@ class _ValueRepr(reprlib.Repr):
             return f"<{type(x).__name__}>"
         try:
             text = repr(x)
-        except ExecutionStopped:
-            raise
         except BaseException:
             return f"<{type(x).__name__}>"
         if len(text) > self.maxother:
@@ -38,14 +39,6 @@ _VALUE_REPR = _ValueRepr(
     maxother=40,
     fillvalue="…",
 )
-
-
-class ExecutionStopped(BaseException):
-    """Raised inside the traced program to end it: time limit or truncation."""
-
-    def __init__(self, status: str) -> None:
-        super().__init__(status)
-        self.status = status
 
 
 class _Node:
@@ -87,27 +80,16 @@ class Runtime:
         self,
         parents: Sequence[int | None],
         sink: EventSink,
-        *,
-        max_events: int,
     ) -> None:
         self._parents = parents
         self._sink = sink
-        self._max_events = max_events
-        self._event_count = 0
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
-        self._truncated = False
-        # False once the trace has ended (finished or truncated) and while a
-        # value is formatted; a plain attribute because it is read several
-        # times per event.
+        # False once the trace has ended and while `render` runs user
+        # formatting code; a plain attribute because it is read on every event.
         self._active = True
-        self._stop: str | None = None
         self._exhausted = False
-
-    @property
-    def truncated(self) -> bool:
-        return self._truncated
 
     def block(self, loc: int) -> _BlockContext:
         return _BlockContext(self, loc, repair=False)
@@ -123,30 +105,17 @@ class Runtime:
         self._exhausted = False
         return exhausted
 
-    def request_stop(self, status: str) -> None:
-        """Make every following statement marker raise `ExecutionStopped`.
-
-        A single asynchronous raise can be swallowed by the program's own bare
-        `except:`. Markers sit before each statement, including the `try`
-        itself and the statements of its handlers, so raising from all of them
-        gets out within a statement or two.
-        """
-        self._stop = status
-
     def stmt(self, loc: int) -> None:
-        if self._stop is not None:
-            raise ExecutionStopped(self._stop)
         if not self._active:
             return
         self._repair(self._parents[loc])
-        if self._active and self._emit({"op": "enter", "loc": loc}):
-            self._stack.append(_Node(loc, block=False, pending=False))
+        self._emit({"op": "enter", "loc": loc})
+        self._stack.append(_Node(loc, block=False, pending=False))
 
     def begin(self, loc: int) -> int:
         if self._active:
             self._repair(self._parents[loc])
-            if self._active:
-                self._stack.append(_Node(loc, block=False, pending=True))
+            self._stack.append(_Node(loc, block=False, pending=True))
         return loc
 
     def end[T](self, loc: int, value: T) -> T:
@@ -164,7 +133,7 @@ class Runtime:
         else:
             return value
 
-        while self._active and len(self._stack) > match:
+        while len(self._stack) > match:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
@@ -173,44 +142,47 @@ class Runtime:
     def value(self, loc: int, value: object) -> None:
         if not self._active:
             return
+        self._emit(
+            {"op": "value", "loc": loc, "text": self.render(_format_value, value)}
+        )
+
+    def render[T](self, format_: Callable[[T], str], subject: T) -> str:
+        active = self._active
         self._active = False
         try:
-            text = _format_value(value)
+            return format_(subject)
         finally:
-            self._active = True
-        self._emit({"op": "value", "loc": loc, "text": text})
+            self._active = active
 
     def out(self, stream: Stream, text: str) -> None:
         if not self._active or not self._stack:
             return
         self._materialize()
-        if not self._active or not self._stack:
-            return
         if self._out_stream == stream:
             self._out_text += text
             return
         self._flush_output()
-        if self._active:
-            self._out_stream = stream
-            self._out_text = text
+        self._out_stream = stream
+        self._out_text = text
 
-    def capture_output(self) -> OutputCapture:
-        return OutputCapture(self.out)
+    @contextmanager
+    def capture_output(self) -> Iterator[None]:
+        with (
+            redirect_stdout(_CaptureStream(self.out, "stdout")),
+            redirect_stderr(_CaptureStream(self.out, "stderr")),
+        ):
+            yield
 
     def finish(self, status: str, **fields: object) -> None:
         if not self._active:
             return
         self._flush_output()
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
-        if not self._active:
-            return
-        event: dict[str, object] = {"op": "end", "status": status}
-        event.update(fields)
-        if self._emit(event):
-            self._active = False
+        self._emit({"op": "end", "status": status, **fields})
+        self._active = False
 
     def _enter_block(self, loc: int, *, repair: bool) -> _Node | None:
         if not self._active:
@@ -218,8 +190,7 @@ class Runtime:
         if repair:
             self._repair(self._parents[loc])
         self._materialize()
-        if not self._active or not self._emit({"op": "enter", "loc": loc}):
-            return None
+        self._emit({"op": "enter", "loc": loc})
         node = _Node(loc, block=True, pending=False)
         self._stack.append(node)
         return node
@@ -227,19 +198,20 @@ class Runtime:
     def _exit_block(self, target: _Node | None, exc: BaseException | None) -> None:
         if not self._active or target is None:
             return
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack.pop()
             if node is target:
-                if exc is None or isinstance(exc, ExecutionStopped):
+                if exc is None:
                     self._emit({"op": "exit"})
                 else:
-                    self._emit({"op": "exit", "exc": _exception_summary(exc)})
+                    summary = self.render(_exception_summary, exc)
+                    self._emit({"op": "exit", "exc": summary})
                 return
             if not node.pending:
                 self._emit({"op": "exit"})
 
     def _repair(self, parent: int | None) -> None:
-        while self._active and self._stack:
+        while self._stack:
             node = self._stack[-1]
             if node.loc == parent or node.block:
                 return
@@ -255,17 +227,12 @@ class Runtime:
         while first > 0 and stack[first - 1].pending:
             first -= 1
         for node in stack[first:]:
-            if not self._emit({"op": "enter", "loc": node.loc}):
-                return
+            self._emit({"op": "enter", "loc": node.loc})
             node.pending = False
 
-    def _emit(self, event: Mapping[str, object]) -> bool:
-        if not self._active:
-            return False
+    def _emit(self, event: Mapping[str, object]) -> None:
         self._flush_output()
-        if not self._active:
-            return False
-        return self._write(event)
+        self._sink.write(event)
 
     def _flush_output(self) -> None:
         stream = self._out_stream
@@ -274,30 +241,24 @@ class Runtime:
         text = self._out_text
         self._out_stream = None
         self._out_text = ""
-        self._write({"op": "out", "stream": stream, "text": text})
+        self._sink.write({"op": "out", "stream": stream, "text": text})
 
-    def _write(self, event: Mapping[str, object]) -> bool:
-        if not self._active:
-            return False
-        if self._event_count >= self._max_events:
-            self._sink.write({"op": "end", "status": "truncated"})
-            self._truncated = True
-            self._active = False
-            self._stop = "truncated"
-            self._stack.clear()
-            self._out_stream = None
-            self._out_text = ""
-            return False
-        self._sink.write(event)
-        self._event_count += 1
-        return True
+
+class _CaptureStream(io.TextIOBase):
+    __slots__ = ("_stream", "_write")
+
+    def __init__(self, write: Callable[[Stream, str], None], stream: Stream) -> None:
+        self._write = write
+        self._stream: Stream = stream
+
+    def write(self, text: str) -> int:
+        self._write(self._stream, text)
+        return len(text)
 
 
 def _format_value(value: object) -> str:
     try:
         text = _VALUE_REPR.repr(value)
-    except ExecutionStopped:
-        raise
     except BaseException:
         text = f"<{type(value).__name__}>"
     text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
@@ -308,7 +269,10 @@ def _format_value(value: object) -> str:
 
 def _exception_summary(exc: BaseException) -> str:
     name = type(exc).__name__
-    message = str(exc)
+    try:
+        message = str(exc)
+    except BaseException:
+        return name
     if not message:
         return name
     first_line = message.splitlines()[0]

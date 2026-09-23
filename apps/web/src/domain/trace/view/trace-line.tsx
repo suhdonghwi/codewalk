@@ -5,7 +5,7 @@ import { cn } from "@/ui/utils.ts";
 import { InlineChip } from "./inline-chip.tsx";
 import { previewInlineOutput } from "./inline-output.ts";
 
-import type { InlineOutput, Line } from "./block-view.ts";
+import type { InlineSegment, Line } from "./block-view.ts";
 import type { Span } from "./spans.ts";
 import type { LocId } from "@codewalk/trace";
 
@@ -20,7 +20,7 @@ interface TraceLineProps {
 }
 
 interface SegmentsProps {
-  segments: InlineOutput["segments"];
+  segments: InlineSegment[];
 }
 
 const STATE_CLASSES: Record<Span["state"], string> = {
@@ -162,7 +162,7 @@ export function TraceLine({
       </div>
       {expanded && line.output !== null ? (
         <pre className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
-          <Segments segments={line.output.segments} />
+          <Segments segments={line.output} />
         </pre>
       ) : null}
     </div>
