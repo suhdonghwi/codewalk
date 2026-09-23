@@ -7,11 +7,17 @@ export interface Span {
   classes: string;
   state: StatementState;
   sites: LocId[];
+  value: string | null;
 }
 
 export interface LocatedState {
   loc: Loc;
   state: StatementState;
+}
+
+export interface ValueAnchor {
+  end: number;
+  text: string;
 }
 
 interface SiteLoc {
@@ -87,6 +93,7 @@ export function spansForLine(
   states: LocatedState[],
   nestedBlocks: Loc[],
   sites: SiteLoc[],
+  values: ValueAnchor[],
 ): Span[] {
   if (line.from === line.to) return [];
 
@@ -116,6 +123,10 @@ export function spansForLine(
     }
   }
 
+  for (const { end } of values) {
+    if (end > line.from && end < line.to) boundaries.add(end);
+  }
+
   const points = [...boundaries].sort((left, right) => left - right);
   const spans: Span[] = [];
 
@@ -140,6 +151,7 @@ export function spansForLine(
       classes: token?.classes ?? "",
       state: stateAt(from, states, nestedBlocks),
       sites: coveredSites,
+      value: values.find((value) => value.end === to)?.text ?? null,
     });
   }
 

@@ -5,7 +5,7 @@ import { lineContaining, sourceLines } from "./source-lines.ts";
 import { siteLocs, spansForLine } from "./spans.ts";
 
 import type { SourceLine } from "./source-lines.ts";
-import type { LocatedState, Span } from "./spans.ts";
+import type { LocatedState, Span, ValueAnchor } from "./spans.ts";
 import type { Token } from "./tokens.ts";
 import type { NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
@@ -132,6 +132,12 @@ export function buildBlockView(
   const outputs = outputsByLine(trace, sites, lines, source.text);
   const exceptions = exceptionByLine(trace, block, node, lines, source.text);
 
+  const values: ValueAnchor[] = node.values.flatMap(({ loc: locId, text }) => {
+    const anchor = trace.header.locs[locId];
+
+    return anchor === undefined ? [] : [{ end: anchor.end, text }];
+  });
+
   return {
     lines: lines.map((line) => ({
       number: line.number,
@@ -142,6 +148,7 @@ export function buildBlockView(
         states,
         nestedBlocks,
         clickableSites,
+        values,
       ),
       output: outputs.get(line.number) ?? null,
       exception: exceptions.get(line.number) ?? null,

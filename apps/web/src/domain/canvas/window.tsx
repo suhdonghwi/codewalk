@@ -61,7 +61,7 @@ export function WindowChrome({
         )}
       >
         <span className="inline-flex items-center gap-1.5">
-          <span>{title}</span>
+          <span className="font-code">{title}</span>
           {titleIndicator}
         </span>
         {titleAction}

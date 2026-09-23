@@ -56,19 +56,19 @@ describe("trace paths", () => {
     const trace = fixture("fact");
     const paths: Path[] = [initialPath(trace)];
 
-    paths.push(toggleSite(trace, paths.at(-1) ?? [], 0, 12));
+    paths.push(toggleSite(trace, paths.at(-1) ?? [], 0, 13));
     paths.push(selectSibling(paths.at(-1) ?? [], 1, 12));
-    paths.push(toggleSite(trace, paths.at(-1) ?? [], 1, 17));
-    paths.push(toggleSite(trace, paths.at(-1) ?? [], 2, 10));
+    paths.push(toggleSite(trace, paths.at(-1) ?? [], 1, 19));
+    paths.push(toggleSite(trace, paths.at(-1) ?? [], 2, 11));
 
     expect(paths).toEqual([[0], [0, 3], [0, 12], [0, 12, 16], [0, 12, 16, 23]]);
     expect(pathColumn(trace, paths[4] ?? [], 1)).toEqual({
       blocks: [3, 12],
       expandedIndex: 1,
-      openSite: 17,
+      openSite: 19,
     });
 
-    const closed = toggleSite(trace, paths[4] ?? [], 2, 10);
+    const closed = toggleSite(trace, paths[4] ?? [], 2, 11);
 
     expect(closed).toEqual([0, 12, 16]);
 
@@ -77,7 +77,7 @@ describe("trace paths", () => {
 
   test("switching a callback sibling truncates descendants and selecting it again preserves the path", () => {
     const trace = fixture("native_callback");
-    const opened = toggleSite(trace, initialPath(trace), 0, 9);
+    const opened = toggleSite(trace, initialPath(trace), 0, 10);
     const withImpossibleDepth = [...opened, 99];
     const switched = selectSibling(withImpossibleDepth, 1, 9);
 

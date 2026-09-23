@@ -1,11 +1,43 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
+import reprlib
 from collections.abc import Mapping, Sequence
 from types import TracebackType
 from typing import Literal
 
 from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
+
+_VALUE_TEXT_LIMIT = 48
+
+
+class _ValueRepr(reprlib.Repr):
+    def repr_instance(self, x: object, level: int) -> str:
+        if type(x).__repr__ is object.__repr__:
+            return f"<{type(x).__name__}>"
+        try:
+            text = repr(x)
+        except ExecutionStopped:
+            raise
+        except BaseException:
+            return f"<{type(x).__name__}>"
+        if len(text) > self.maxother:
+            head = (self.maxother - len(self.fillvalue)) // 2
+            tail = self.maxother - len(self.fillvalue) - head
+            return f"{text[:head]}{self.fillvalue}{text[-tail:]}"
+        return text
+
+
+_VALUE_REPR = _ValueRepr(
+    maxlevel=2,
+    maxlist=6,
+    maxtuple=6,
+    maxset=6,
+    maxdict=6,
+    maxstring=40,
+    maxother=40,
+    fillvalue="…",
+)
 
 
 class ExecutionStopped(BaseException):
@@ -66,8 +98,9 @@ class Runtime:
         self._out_stream: Stream | None = None
         self._out_text = ""
         self._truncated = False
-        # False once the trace has ended (finished or truncated); a plain
-        # attribute because it is read several times per event.
+        # False once the trace has ended (finished or truncated) and while a
+        # value is formatted; a plain attribute because it is read several
+        # times per event.
         self._active = True
         self._stop: str | None = None
         self._exhausted = False
@@ -136,6 +169,16 @@ class Runtime:
             if not node.pending:
                 self._emit({"op": "exit"})
         return value
+
+    def value(self, loc: int, value: object) -> None:
+        if not self._active:
+            return
+        self._active = False
+        try:
+            text = _format_value(value)
+        finally:
+            self._active = True
+        self._emit({"op": "value", "loc": loc, "text": text})
 
     def out(self, stream: Stream, text: str) -> None:
         if not self._active or not self._stack:
@@ -248,6 +291,19 @@ class Runtime:
         self._sink.write(event)
         self._event_count += 1
         return True
+
+
+def _format_value(value: object) -> str:
+    try:
+        text = _VALUE_REPR.repr(value)
+    except ExecutionStopped:
+        raise
+    except BaseException:
+        text = f"<{type(value).__name__}>"
+    text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+    if len(text) > _VALUE_TEXT_LIMIT:
+        return f"{text[: _VALUE_TEXT_LIMIT - 1]}…"
+    return text
 
 
 def _exception_summary(exc: BaseException) -> str:

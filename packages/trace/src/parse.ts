@@ -249,6 +249,7 @@ export function parseTrace(jsonl: string): ParseResult {
           parent: parentId,
           children: [],
           outputs: [],
+          values: [],
           exc: null,
         });
 
@@ -290,6 +291,33 @@ export function parseTrace(jsonl: string): ParseResult {
         const outputId = outputs.length;
         outputs.push({ node: nodeId, stream, text });
         nodes[nodeId]?.outputs.push(outputId);
+
+        return null;
+      })
+      .with({ op: "value" }, ({ loc, text }) => {
+        const valueLoc = header.locs[loc];
+
+        if (valueLoc === undefined) {
+          return structureError(index + 1, `value has out-of-range loc ${loc}`);
+        }
+
+        if (valueLoc.role !== "expr") {
+          return structureError(index + 1, "value loc is not an expr");
+        }
+
+        const nodeId = open.at(-1);
+
+        if (nodeId === undefined) {
+          return structureError(index + 1, "value has no open node");
+        }
+
+        const node = nodes[nodeId];
+
+        if (node === undefined || !isBlockRole(header.locs[node.loc]?.role)) {
+          return structureError(index + 1, "value is not attached to a block");
+        }
+
+        node.values.push({ loc, text });
 
         return null;
       })

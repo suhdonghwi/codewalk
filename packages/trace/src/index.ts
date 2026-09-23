@@ -25,6 +25,7 @@ export type {
   Trace,
   TraceNode,
   TraceParseError,
+  ValueChunk,
 } from "./model.ts";
 
 export type { PathStep, Site, StatementState } from "./views.ts";

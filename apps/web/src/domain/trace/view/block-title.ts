@@ -9,7 +9,7 @@ export interface BlockTitle {
 
 interface BlockContext {
   node: TraceNode;
-  loc: Loc;
+  loc: Extract<Loc, { role: "block" }>;
 }
 
 export function requireBlock(trace: Trace, block: NodeId): BlockContext {
@@ -74,22 +74,26 @@ export function buildBlockTitle(
 
   if (source === undefined) throw new Error(`Block ${block} has no source`);
 
-  let text: string;
+  const position = knownPosition ?? siblingPosition(trace, block);
 
-  if (loc.kind === "module") {
-    text = source.file;
-  } else {
-    const position = knownPosition ?? siblingPosition(trace, block);
-    const index = position?.index ?? 0;
+  const indexedTitle =
+    position !== null && position.count > 1
+      ? `${loc.title} ${position.index + 1}`
+      : loc.title;
 
-    if (loc.kind === "iteration") {
-      text = `iteration ${index}`;
-    } else {
-      const name = loc.name ?? loc.kind;
-      text =
-        position !== null && position.count > 1 ? `${name} · ${index}` : name;
-    }
-  }
+  const entries = node.values.flatMap((value) => {
+    const anchor = trace.header.locs[value.loc];
+
+    if (anchor === undefined) return [];
+    const name = source.text.slice(anchor.start, anchor.end);
+
+    return [`${name} = ${value.text}`];
+  });
+
+  const text =
+    entries.length === 0
+      ? indexedTitle
+      : `${indexedTitle} (${entries.join(", ")})`;
 
   return {
     text,
@@ -99,7 +103,8 @@ export function buildBlockTitle(
 
 export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {
   const first = blocks[0];
-  const kind = first === undefined ? null : requireBlock(trace, first).loc.kind;
 
-  return `${blocks.length} ${kind === "iteration" ? "iterations" : "calls"}`;
+  if (first === undefined) throw new Error("A sibling list needs a block");
+
+  return `${blocks.length} ${requireBlock(trace, first).loc.unit}s`;
 }

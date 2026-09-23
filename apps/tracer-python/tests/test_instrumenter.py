@@ -72,7 +72,7 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
                     assert parent_role in {"stmt", "expr"}
             else:
                 assert role == "block"
-            if role in {"stmt", "expr"} or locs[loc]["kind"] == "iteration":
+            if role in {"stmt", "expr"} or locs[loc]["unit"] == "iteration":
                 assert stack
                 assert stack[-1] == locs[loc]["parent"]
             stack.append(loc)
@@ -85,6 +85,10 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
             assert stack
             if event["stream"] == "stdout":
                 output.append(event["text"])
+        elif event["op"] == "value":
+            assert stack
+            assert locs[event["loc"]]["role"] == "expr"
+            assert locs[stack[-1]]["role"] == "block"
     assert not stack
 
     plain = subprocess.run(
@@ -133,7 +137,96 @@ def test_instrumented_diverse_standard_library_and_language_constructs_compile()
 
     for filename, source in sources:
         tree = ast.parse(source, filename=filename)
-        compile(instrument(tree, source).tree, filename, "exec")
+        compile(instrument(tree, source, filename).tree, filename, "exec")
+
+
+@pytest.mark.parametrize("expression", ["repr(value)", "repr([value])"])
+def test_user_repr_calls_still_raise_after_entry_value_formatting(
+    tmp_path: Path, expression: str
+) -> None:
+    source = (
+        "class Box:\n"
+        "    def __repr__(self):\n"
+        "        raise SystemExit('broken')\n"
+        "def process(value):\n"
+        "    print('entered')\n"
+        "    try:\n"
+        f"        {expression}\n"
+        "    except SystemExit:\n"
+        "        print('caught')\n"
+        "process(Box())\n"
+        "print('finished')\n"
+    )
+    path = tmp_path / "prog.py"
+    path.write_text(source, encoding="utf-8")
+    events = [json.loads(line) for line in _trace(path).stdout.splitlines()]
+
+    assert (
+        "".join(event["text"] for event in events if event.get("op") == "out")
+        == "entered\ncaught\nfinished\n"
+    )
+    assert events[-1] == {"op": "end", "status": "ok"}
+
+
+def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -> None:
+    source = (
+        "def gather(𐐀: int, ﬀ: int, \U0001d499: str, /, "
+        "first=1, *args: str, named=True, **kwargs: int):\n"
+        "    return first\n"
+    )
+    encoded = source.encode("utf-16-le")
+    result = instrument(ast.parse(source), source, "main.py")
+    definition = next(
+        index
+        for index, loc in enumerate(result.locs)
+        if loc["role"] == "stmt"
+        and source[loc["start"] : loc["end"]].startswith("def ")
+    )
+    parameter_ranges = [
+        encoded[loc["start"] * 2 : loc["end"] * 2].decode("utf-16-le")
+        for loc in result.locs
+        if loc["role"] == "expr" and loc["parent"] == definition
+    ]
+
+    assert parameter_ranges == [
+        "𐐀",
+        "ﬀ",
+        "\U0001d499",
+        "first",
+        "args",
+        "named",
+        "kwargs",
+    ]
+
+
+def test_loop_entry_values_capture_only_destructured_names_in_source_order(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "class Box:\n    pass\n"
+        "box = Box()\nitems = [None]\n"
+        "for first, [second, *rest], box.attr, items[0] in "
+        "[(1, [2, 3, 4], 5, 6)]:\n    pass\n"
+    )
+    path = tmp_path / "prog.py"
+    path.write_text(source, encoding="utf-8")
+    lines = _trace(path).stdout.decode().splitlines()
+    locs = json.loads(lines[0])["locs"]
+    events = [json.loads(line) for line in lines[1:]]
+    iteration = next(
+        index for index, loc in enumerate(locs) if loc.get("unit") == "iteration"
+    )
+    entered = events.index({"op": "enter", "loc": iteration})
+    values = [event for event in events if event["op"] == "value"]
+
+    assert [
+        (source[locs[event["loc"]]["start"] : locs[event["loc"]]["end"]], event["text"])
+        for event in values
+    ] == [("first", "1"), ("second", "2"), ("rest", "[3, 4]")]
+    assert events[entered + 1 : entered + 4] == values
+    assert all(
+        locs[event["loc"]]["parent"] == locs[iteration]["parent"] for event in values
+    )
 
 
 def test_syntax_and_runtime_failures_have_source_only_diagnostics(

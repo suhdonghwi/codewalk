@@ -4,17 +4,32 @@ export const TRACE_FORMAT_VERSION = 1;
 
 const RoleSchema = z.enum(["block", "stmt", "expr"]);
 
-const LocSchema = z
+const BlockLocSchema = z
   .object({
-    role: RoleSchema,
-    kind: z.string(),
-    name: z.string().optional(),
+    role: z.literal("block"),
+    title: z.string(),
+    unit: z.string(),
     file: z.number().int().nonnegative(),
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),
     parent: z.number().int().nonnegative().nullable(),
   })
   .strict();
+
+const NonBlockLocSchema = z
+  .object({
+    role: z.enum(["stmt", "expr"]),
+    file: z.number().int().nonnegative(),
+    start: z.number().int().nonnegative(),
+    end: z.number().int().nonnegative(),
+    parent: z.number().int().nonnegative().nullable(),
+  })
+  .strict();
+
+const LocSchema = z.discriminatedUnion("role", [
+  BlockLocSchema,
+  NonBlockLocSchema,
+]);
 
 const SourceSchema = z
   .object({
@@ -86,6 +101,14 @@ const OutEventSchema = z
   })
   .strict();
 
+const ValueEventSchema = z
+  .object({
+    op: z.literal("value"),
+    loc: z.number().int().nonnegative(),
+    text: z.string(),
+  })
+  .strict();
+
 const EndEventSchema = z.discriminatedUnion("status", [
   OkEndSchema.extend({ op: z.literal("end") }),
   TruncatedEndSchema.extend({ op: z.literal("end") }),
@@ -98,6 +121,7 @@ export const EventSchema = z.union([
   EnterEventSchema,
   ExitEventSchema,
   OutEventSchema,
+  ValueEventSchema,
   EndEventSchema,
 ]);
 
