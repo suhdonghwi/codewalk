@@ -5,7 +5,11 @@ import {
   statementStates,
 } from "../views.ts";
 
-import { lineContaining, sourceLines } from "./source-lines.ts";
+import {
+  lineContaining,
+  sourceLines,
+  trimCommonIndent,
+} from "./source-lines.ts";
 import { siteLocs, spansForLine } from "./spans.ts";
 
 import type { SourceLine } from "./source-lines.ts";
@@ -140,7 +144,12 @@ export function buildBlockView(
   tokens: Token[],
 ): BlockView {
   const { node, loc, source } = requireBlock(trace, block);
-  const lines = sourceLines(source, loc.start, loc.end);
+
+  const lines = trimCommonIndent(
+    source,
+    sourceLines(source, loc.start, loc.end),
+  );
+
   const sites = blockSites(trace, block);
 
   const states: LocatedState[] = statementStates(trace, block).flatMap(
