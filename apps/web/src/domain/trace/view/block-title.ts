@@ -1,4 +1,4 @@
-import { blockSites, blockValues } from "@codewalk/trace";
+import { blockSites } from "@codewalk/trace";
 
 import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
@@ -81,7 +81,7 @@ export function buildBlockTitle(
       ? `${loc.title} ${position.index + 1}`
       : loc.title;
 
-  const entries = blockValues(trace, block).flatMap((value) => {
+  const entries = node.values.flatMap((value) => {
     const anchor = trace.header.locs[value.loc];
 
     if (anchor === undefined) return [];

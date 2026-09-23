@@ -4,7 +4,6 @@ export { parseTrace } from "./parse.ts";
 
 export {
   blockSites,
-  blockValues,
   exceptionOrigin,
   pathTo,
   statementStates,

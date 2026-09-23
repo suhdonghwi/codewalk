@@ -182,8 +182,6 @@ as is a `value` event with no open block node.
 **Output window** — all `out` events concatenated in file order. Each chunk
 remembers its node, so clicking output resolves to a path from the root.
 
-**Block values** — all values attached directly to a block, in file order.
-
 **Path to a node** — the chain of `block` ancestors of a node is the list of
 windows to open; the chain of sites between them is the list of ranges to
 highlight.

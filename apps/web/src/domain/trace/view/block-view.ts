@@ -1,9 +1,4 @@
-import {
-  blockSites,
-  blockValues,
-  exceptionOrigin,
-  statementStates,
-} from "@codewalk/trace";
+import { blockSites, exceptionOrigin, statementStates } from "@codewalk/trace";
 
 import { requireBlock } from "./block-title.ts";
 import { lineContaining, sourceLines } from "./source-lines.ts";
@@ -42,14 +37,14 @@ interface AnchoredValue {
 
 function valuesByLine(
   trace: Trace,
-  block: NodeId,
+  node: TraceNode,
   blockLoc: Loc,
   lines: SourceLine[],
   source: string,
 ): Map<number, AnchoredValue[]> {
   const result = new Map<number, AnchoredValue[]>();
 
-  for (const value of blockValues(trace, block)) {
+  for (const value of node.values) {
     const loc = trace.header.locs[value.loc];
 
     if (
@@ -200,7 +195,7 @@ export function buildBlockView(
 
   const outputs = outputsByLine(trace, sites, lines, source.text);
   const exceptions = exceptionByLine(trace, block, node, lines, source.text);
-  const values = valuesByLine(trace, block, loc, lines, source.text);
+  const values = valuesByLine(trace, node, loc, lines, source.text);
 
   return {
     lines: lines.map((line) => {

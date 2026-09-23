@@ -2,7 +2,7 @@ import { match, P } from "ts-pattern";
 
 import { isBlockRole } from "./schema.ts";
 
-import type { Trace, TraceNode, ValueChunk } from "./model.ts";
+import type { Trace, TraceNode } from "./model.ts";
 import type { LocId, NodeId, Role } from "./schema.ts";
 
 export interface PathStep {
@@ -129,12 +129,6 @@ export function blockSites(trace: Trace, block: NodeId): Site[] {
   for (const child of blockNode.children) visit(child);
 
   return sites;
-}
-
-export function blockValues(trace: Trace, block: NodeId): ValueChunk[] {
-  if (!isBlockRole(nodeRole(trace, block))) return [];
-
-  return trace.nodes[block]?.values ?? [];
 }
 
 function nearestBlockLoc(trace: Trace, locId: LocId): LocId | null {

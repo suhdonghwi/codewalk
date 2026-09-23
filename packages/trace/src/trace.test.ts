@@ -4,7 +4,6 @@ import { describe, expect, test } from "vitest";
 
 import {
   blockSites,
-  blockValues,
   exceptionOrigin,
   parseTrace,
   pathTo,
@@ -122,7 +121,6 @@ test("the fact fixture produces the documented paths, sites, and statement state
     { loc: 5, nodes: [18], blocks: [], outputs: [2] },
     { loc: 11, nodes: [22], blocks: [23], outputs: [] },
   ]);
-  expect(blockValues(trace, 16)).toEqual([{ loc: 3, text: "2" }]);
   expect(statementStates(trace, 16)).toEqual([
     { loc: 1, state: "inert" },
     { loc: 4, state: "lit" },
