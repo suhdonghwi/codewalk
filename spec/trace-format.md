@@ -182,8 +182,9 @@ Range conventions:
     Python records these for the variables a block's code mentions, local or
     global, but not functions, classes or modules. A loop statement is a
     statement of its parent block, so the values on it are the loop's end
-    state; its own loop targets are left out. Calls of one function beyond
-    its first 1000 record none.
+    state, taken before any `else` clause runs; its own loop targets are left
+    out. The viewer places them after the loop's body. Calls of one function
+    beyond its first 1000 record none.
 - `obj` — the state of an object, referenced from values by `id`. It attaches
   to no node. See [Objects](#objects).
 - `end` — last line. `status`:

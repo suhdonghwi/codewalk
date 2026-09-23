@@ -121,6 +121,10 @@ export function TraceLine({
     ...changeEntries,
   ];
 
+  const loopEndEntries: OpenValue[] = (line.loopEnd?.changes ?? []).map(
+    (entry, index) => ({ key: `loop-end:${index}`, entry }),
+  );
+
   const isOpen = ({ key }: OpenValue) => openKeys.includes(key);
 
   function changeChip({ key, entry }: OpenValue) {
@@ -274,6 +278,25 @@ export function TraceLine({
           <Segments segments={line.output} />
         </pre>
       ) : null}
+      {line.loopEnd === null ? null : (
+        <>
+          <div className={cn(rowClasses(true), "hover:bg-neutral-50")}>
+            <div className="flex items-baseline pr-[2ch]">
+              <span
+                aria-hidden
+                className="sticky left-0 z-2 w-gutter flex-none"
+              />
+              <span className="pl-2.5 text-neutral-400">
+                {line.loopEnd.indent}(after loop)
+              </span>
+            </div>
+            <div className="flex items-baseline gap-[1ch] pr-4">
+              {loopEndEntries.map(changeChip)}
+            </div>
+          </div>
+          <ValuePanel trace={trace} values={loopEndEntries.filter(isOpen)} />
+        </>
+      )}
     </div>
   );
 }

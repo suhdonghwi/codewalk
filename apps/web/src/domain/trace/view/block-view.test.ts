@@ -399,6 +399,42 @@ describe("buildBlockView", () => {
     ).toEqual(["['a']"]);
   });
 
+  test("a loop's end state follows its body at the header's indent, before any else clause", () => {
+    const whileLoop = fixture("while_loop");
+    const loopState = fixture("loop_state");
+    const [search] = blockNodes(loopState, "search");
+
+    if (whileLoop.root === null || search === undefined) {
+      throw new Error("Missing loop fixtures");
+    }
+
+    const moduleView = buildBlockView(whileLoop, whileLoop.root, []);
+    const searchView = buildBlockView(loopState, search, []);
+
+    const loopEnds = (trace: Trace, view: BlockView) =>
+      view.groups
+        .flat()
+        .flatMap(({ number, changes, loopEnd }) => [
+          ...changes.map((change) => `${number}: ${change.name}`),
+          ...(loopEnd?.changes.map(
+            (change) =>
+              `after ${number}: ${JSON.stringify(loopEnd.indent)} ${change.name} → ${shown(trace, change)}`,
+          ) ?? []),
+        ]);
+
+    expect(loopEnds(whileLoop, moduleView)).toEqual([
+      "1: i",
+      'after 4: "" i → 2',
+    ]);
+    expect(loopEnds(loopState, searchView)).toEqual([
+      "2: lo",
+      "2: hi",
+      'after 8: "    " lo → 2',
+      'after 8: "    " hi → 2',
+      'after 8: "    " mid → 1',
+    ]);
+  });
+
   test("a window splits into paragraphs at blank lines, each keeping the blank lines that follow it", () => {
     const trace = fixture("loop_state");
 
