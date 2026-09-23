@@ -27,6 +27,8 @@ _MAX_OBJECTS = 200
 
 _MAX_TEXT = 200
 
+_SHORT_INTEGER = 10**_MAX_TEXT
+
 _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
 
 _OPAQUE = (
@@ -222,11 +224,8 @@ def _primitive(value: object) -> Primitive | None:
 def _integer(value: int) -> Primitive:
     size = abs(value)
     sign = "-" if value < 0 else ""
-    if size.bit_length() <= 600:
-        text = repr(size)
-        if len(text) <= _MAX_TEXT:
-            return Primitive("number", f"{sign}{text}")
-        return Primitive("number", f"{sign}{text[:_MAX_TEXT]}…", len(text))
+    if size < _SHORT_INTEGER:
+        return Primitive("number", repr(value))
     digits = math.floor((size.bit_length() - 1) * math.log10(2)) + 1
     if 10 ** (digits - 1) > size:
         digits -= 1

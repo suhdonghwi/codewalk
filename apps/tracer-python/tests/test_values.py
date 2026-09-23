@@ -20,17 +20,18 @@ def test_long_text_is_cut_to_one_line_and_keeps_its_full_length() -> None:
         def __repr__(self) -> str:
             return "first\r\nsecond\nthird\rfourth" + "x" * 500
 
-    root, events = _define(["a" * 1000, 10**1000, -(10**300), Multiline()])
+    root, events = _define(["a" * 1000, 10**1000, -(10**300), 10**190, Multiline()])
 
     items = events[0]["items"]
     assert isinstance(items, list)
-    text, huge, negative = items[:3]
+    text, huge, negative, whole = items[:4]
     assert text["text"] == f"'{'a' * 200}…'"
     assert text["length"] == 1000
     assert huge["text"] == f"1{'0' * 199}…"
     assert huge["length"] == 1001
     assert negative["text"] == f"-1{'0' * 199}…"
     assert negative["length"] == 301
+    assert whole == {"kind": "number", "text": f"1{'0' * 190}"}
     assert root == {"ref": 0}
     record_text = events[1]["text"]
     assert isinstance(record_text, str)
