@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { buildBlockTitle } from "./block-title.ts";
+import { buildBlockTitle, type SiblingPosition } from "./block-title.ts";
 import { buildBlockView } from "./block-view.ts";
 import { mountCodeHighlightStyle, tokenizePython } from "./tokens.ts";
 import { TraceLine } from "./trace-line.tsx";
@@ -14,6 +14,7 @@ import type { LocId, NodeId, Trace } from "@codewalk/trace";
 interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
+  position: SiblingPosition;
   expanded: boolean;
   width?: number | null;
   height?: number | null;
@@ -113,6 +114,7 @@ function ExpandedBody({
 export function TraceWindow({
   trace,
   block,
+  position,
   expanded,
   width = null,
   height = null,
@@ -124,7 +126,7 @@ export function TraceWindow({
   titlebarClassName,
   className = "",
 }: TraceWindowProps) {
-  const title = useMemo(() => buildBlockTitle(trace, block), [trace, block]);
+  const title = buildBlockTitle(trace, block, position);
 
   return (
     <WindowChrome

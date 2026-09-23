@@ -39,7 +39,6 @@ interface TreeColumnProps {
   trace: Trace;
   column: PathColumn;
   columnIndex: number;
-  expandedBlock: NodeId;
   layout: ColumnLayout | undefined;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (column: number, site: LocId) => void;
@@ -51,7 +50,6 @@ export function TreeColumn({
   trace,
   column,
   columnIndex,
-  expandedBlock,
   layout,
   onMeasure,
   onToggleSite,
@@ -89,8 +87,8 @@ export function TreeColumn({
       ) : null}
       <div
         className="absolute z-1 animate-tree-fade-in"
-        data-block={expandedBlock}
-        key={expandedBlock}
+        data-block={column.block}
+        key={column.block}
         style={{
           left: layout?.windowX ?? 0,
           top: layout?.top ?? 0,
@@ -98,7 +96,7 @@ export function TreeColumn({
         }}
       >
         <MeasuredTraceWindow
-          block={expandedBlock}
+          block={column.block}
           className=""
           column={columnIndex}
           height={windowSize.height}
@@ -107,6 +105,10 @@ export function TreeColumn({
           onMeasure={onMeasure}
           onToggleSite={(site) => onToggleSite(columnIndex, site)}
           openSite={column.openSite}
+          position={{
+            index: column.expandedIndex,
+            count: column.blocks.length,
+          }}
           titlebarClassName={
             columnIndex === 0 ? "cursor-grab active:cursor-grabbing" : undefined
           }

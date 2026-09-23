@@ -1,6 +1,3 @@
-import { blockSites } from "../views.ts";
-
-import type { Site } from "../views.ts";
 import type { Loc, NodeId, Trace, TraceNode } from "@codewalk/trace";
 
 export interface BlockTitle {
@@ -24,63 +21,23 @@ export function requireBlock(trace: Trace, block: NodeId): BlockContext {
   return { node, loc };
 }
 
-function containingBlock(trace: Trace, nodeId: NodeId | null): NodeId | null {
-  let current = nodeId;
-
-  while (current !== null) {
-    const node = trace.nodes[current];
-
-    if (node === undefined) return null;
-
-    if (trace.header.locs[node.loc]?.role === "block") return current;
-
-    current = node.parent;
-  }
-
-  return null;
-}
-
-function blockSite(trace: Trace, block: NodeId): Site | null {
-  const parent = trace.nodes[block]?.parent ?? null;
-  const parentNode = parent === null ? undefined : trace.nodes[parent];
-  const owner = containingBlock(trace, parentNode?.parent ?? null);
-
-  if (parentNode === undefined || owner === null) return null;
-
-  return (
-    blockSites(trace, owner).find((site) => site.loc === parentNode.loc) ?? null
-  );
-}
-
 export interface SiblingPosition {
   index: number;
   count: number;
 }
 
-function siblingPosition(trace: Trace, block: NodeId): SiblingPosition | null {
-  const site = blockSite(trace, block);
-
-  return site === null
-    ? null
-    : { index: site.blocks.indexOf(block), count: site.blocks.length };
-}
-
 export function buildBlockTitle(
   trace: Trace,
   block: NodeId,
-  knownPosition: SiblingPosition | null = null,
+  position: SiblingPosition,
 ): BlockTitle {
   const { node, loc } = requireBlock(trace, block);
   const source = trace.header.sources[loc.file];
 
   if (source === undefined) throw new Error(`Block ${block} has no source`);
 
-  const position = knownPosition ?? siblingPosition(trace, block);
-
   const indexedTitle =
-    position !== null && position.count > 1
-      ? `${loc.title} ${position.index + 1}`
-      : loc.title;
+    position.count > 1 ? `${loc.title} ${position.index + 1}` : loc.title;
 
   const entries = node.values.flatMap((value) => {
     const anchor = trace.header.locs[value.loc];

@@ -4,7 +4,7 @@ import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
 import { layoutableColumns, layoutTree, SIBLING_LIST_WIDTH } from "./layout.ts";
 import { sameMeasurement, type Measurement } from "./measured-trace-window.tsx";
-import { pathColumn, selectSibling, toggleSite } from "./path.ts";
+import { pathColumns, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
 import { partSize, useTraceStore } from "../store.ts";
@@ -22,16 +22,14 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   const rootTitlebarProps = useWindowDrag("trace");
 
-  const columns = path.map((_, column) => pathColumn(trace, path, column));
+  const columns = pathColumns(trace, path);
 
   // A measurement stays usable for its own column while the open site changes;
   // only the anchor it carries goes stale (see `layoutableColumns`).
   const columnMeasurements = columns.map((column, index) => {
     const measurement = measurements[index];
 
-    return column !== null &&
-      measurement !== undefined &&
-      measurement.block === path[index]
+    return measurement !== undefined && measurement.block === column.block
       ? measurement
       : null;
   });
@@ -50,9 +48,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
     columnMeasurements.slice(0, layoutable).flatMap((measurement, index) => {
       const column = columns[index];
 
-      if (measurement === null || column === null || column === undefined) {
-        return [];
-      }
+      if (measurement === null || column === undefined) return [];
 
       return [
         {
@@ -91,9 +87,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
     useTraceStore.getState().setPath(next);
   }
 
-  if (path.length === 0 || columns.some((column) => column === null)) {
-    return null;
-  }
+  if (path.length === 0) return null;
 
   return (
     <div
@@ -108,16 +102,10 @@ export function TraceTree({ trace }: { trace: Trace }) {
         path={path}
       />
       {columns.map((column, columnIndex) => {
-        if (column === null) return null;
-        const expandedBlock = path[columnIndex];
-
-        if (expandedBlock === undefined) return null;
-
         return (
           <TreeColumn
             column={column}
             columnIndex={columnIndex}
-            expandedBlock={expandedBlock}
             key={columnIndex}
             layout={layouts[columnIndex]}
             onChoose={chooseSibling}

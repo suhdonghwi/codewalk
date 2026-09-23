@@ -5,6 +5,7 @@ import { useCanvasStore } from "@/domain/canvas/index.ts";
 import { TITLE_BAR } from "./layout.ts";
 import { TraceWindow } from "../view/trace-window.tsx";
 
+import type { SiblingPosition } from "../view/block-title.ts";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -20,6 +21,7 @@ interface MeasuredTraceWindowProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
+  position: SiblingPosition;
   column: number;
   className: string;
   width: number | null;
@@ -61,6 +63,7 @@ export function MeasuredTraceWindow({
   trace,
   block,
   openSite,
+  position,
   column,
   className,
   width,
@@ -107,6 +110,7 @@ export function MeasuredTraceWindow({
       width={width}
       onToggleSite={onToggleSite}
       openSite={openSite}
+      position={position}
       titlebarProps={titlebarProps}
       titlebarClassName={titlebarClassName}
       trace={trace}
