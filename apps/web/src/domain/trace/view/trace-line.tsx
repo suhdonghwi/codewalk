@@ -63,12 +63,6 @@ export function TraceLine({
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
 
-  const annotated =
-    line.values.length > 0 ||
-    line.changes.length > 0 ||
-    line.output !== null ||
-    line.exception !== null;
-
   return (
     <div
       className="col-span-full grid grid-cols-subgrid"
@@ -77,9 +71,7 @@ export function TraceLine({
       <div
         className={cn(
           "col-span-full grid min-h-code-line grid-cols-subgrid items-baseline whitespace-pre",
-          line.exception === null
-            ? annotated && "hover:bg-neutral-50"
-            : "bg-exception/8",
+          line.exception === null ? "hover:bg-neutral-50" : "bg-exception/8",
         )}
         data-site-anchor={anchor || undefined}
       >

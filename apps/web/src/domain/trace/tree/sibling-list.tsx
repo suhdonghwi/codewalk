@@ -263,7 +263,7 @@ export function SiblingList({
             <div
               className={cn(
                 row,
-                "absolute inset-x-0 border-t border-window-border text-neutral-400 italic",
+                "absolute inset-x-0 border-t border-window-border text-neutral-400",
               )}
               style={{
                 gridTemplateColumns: template,

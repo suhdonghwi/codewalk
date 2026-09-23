@@ -261,8 +261,9 @@ held at the window's top or bottom edge once the line scrolls out of view.
   statement made (`lo → 8`) — sits in a column to
   the right of the code: the window body is a grid whose first column is as
   wide as the longest line, so these chips line up and read top to bottom as
-  the block's data beside its code. Hovering a line with chips highlights the
-  whole row.
+  the block's data beside its code. Chips are a little shorter than a code
+  line, so chips on consecutive lines keep a gap. Hovering any line highlights
+  its whole row.
 
   Title bar: the trace's `title`, with ` N` appended by the viewer when the site
   ran several blocks (a callback, a call in a comprehension). Iteration windows
