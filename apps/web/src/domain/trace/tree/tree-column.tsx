@@ -1,26 +1,16 @@
 import type { HTMLAttributes } from "react";
 import { useLayoutEffect, useRef } from "react";
 
-import {
-  ResizeHandles,
-  useCanvasStore,
-  type Size,
-} from "@/domain/canvas/index.ts";
+import { useCanvasStore } from "@/domain/canvas/index.ts";
 
 import { SiblingList } from "./sibling-list.tsx";
 import { TITLE_BAR, type Measurement } from "./layout.ts";
 import { TraceWindow } from "./trace-window.tsx";
-import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
 import { siblingAfter, siblingColumns } from "../view/block-title.ts";
 
 import type { ColumnLayout } from "./layout.ts";
 import type { PathColumn } from "./path.ts";
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
-
-const MINIMUM_SIZE: Record<ColumnPart, Size> = {
-  window: { width: 160, height: 68 },
-  siblings: { width: 120, height: 76 },
-};
 
 function measureColumn(
   row: HTMLElement,
@@ -49,22 +39,6 @@ function measureColumn(
   };
 }
 
-function columnResizeHandles(column: number, part: ColumnPart) {
-  const { resizeColumn } = useTraceStore.getState();
-
-  return (
-    <ResizeHandles
-      minimumSize={MINIMUM_SIZE[part]}
-      onReset={(axes) => {
-        resizeColumn(column, part, axes, null);
-      }}
-      onResize={(size, axes) => {
-        resizeColumn(column, part, axes, size);
-      }}
-    />
-  );
-}
-
 interface TreeColumnProps {
   trace: Trace;
   column: PathColumn;
@@ -87,14 +61,6 @@ export function TreeColumn({
   rootTitlebarProps,
 }: TreeColumnProps) {
   const visibility = layout === undefined ? "hidden" : "visible";
-
-  const windowSize = useTraceStore((state) =>
-    partSize(state.columnSizes, columnIndex, "window"),
-  );
-
-  const siblingsSize = useTraceStore((state) =>
-    partSize(state.columnSizes, columnIndex, "siblings"),
-  );
 
   const columns = siblingColumns(trace, column.blocks);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -145,9 +111,6 @@ export function TreeColumn({
             blocks={column.blocks}
             after={siblingAfter(trace, column.blocks, columns)}
             columns={columns}
-            height={siblingsSize.height}
-            resizeHandles={columnResizeHandles(columnIndex, "siblings")}
-            width={siblingsSize.width}
             onChoose={(sibling) => onChoose(columnIndex, sibling)}
             selectedIndex={column.expandedIndex}
             trace={trace}
@@ -163,9 +126,6 @@ export function TreeColumn({
         <TraceWindow
           block={column.block}
           columns={columns}
-          height={windowSize.height}
-          resizeHandles={columnResizeHandles(columnIndex, "window")}
-          width={windowSize.width}
           onToggleSite={(site) => onToggleSite(columnIndex, site)}
           openSite={column.openSite}
           position={{

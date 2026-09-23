@@ -208,7 +208,9 @@ also validated against `spec/trace.schema.json`.
 Hand-made infinite canvas (pan/zoom) and window components — no React Flow; the
 layout and interaction logic is too custom. A wheel over content that
 scrolls (editor, sibling list) belongs to that content, also once it has reached
-its end; only a wheel over nothing scrollable pans.
+its end; only a wheel over nothing scrollable pans. A pan holds for the rest
+of the wheel gesture (until the wheel pauses for 150 ms), so a window moving
+under the cursor does not stop it.
 
 Movable objects on the canvas: the **editor** window, the **stdin** window, the
 **output** window, and the **trace tree** (dragged by its root window). Windows
@@ -217,18 +219,16 @@ automatically and moves as one rigid unit, so users cannot wreck its shape.
 
 Default placement: editor at the origin; stdin and output in a column to its
 left (the editor grows downward with its content, so nothing sits below it); the
-trace root to the right of the editor, growing rightwards. While the trace tree
-is still at its default spot it stays docked to the editor's right edge.
+trace root to the right of the editor, growing rightwards.
 
-Every window resizes from its right edge, bottom edge and corner (invisible
-handles) and scrolls inside once its content no longer fits. The editor, stdin
-and output windows always have a fixed size. Windows in the trace tree size to
-their content until resized, and are resized **per column**: a column's trace
-window and its sibling list each keep their width and height while the column
-shows a different sibling or site, and the layout follows the new sizes.
-Double-clicking a handle returns that axis to fitting the content. When a
-resized window scrolls, its child column stays attached to the clicked line,
-held at the window's top or bottom edge once the line scrolls out of view.
+Windows cannot be resized. Each window's size follows a fixed rule, and its
+content scrolls inside once it no longer fits. The stdin and output windows
+have a fixed size. The editor has a fixed width, and its height follows its
+line count between 12 and 40 lines. Windows in the trace tree size to their
+content up to a cap: a trace window up to 45rem wide and 30 lines tall, a
+sibling list up to 45rem wide and 10 rows tall. When a trace window scrolls,
+its child column stays attached to the clicked line, held at the window's top
+or bottom edge once the line scrolls out of view.
 
 ### Windows
 

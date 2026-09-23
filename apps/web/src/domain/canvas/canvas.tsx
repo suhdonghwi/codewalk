@@ -8,6 +8,8 @@ import type { Point, ViewTransform } from "./view.ts";
 
 const GRID_PITCH = 24;
 
+const PAN_LATCH_MS = 150;
+
 interface CanvasProps {
   children: ReactNode;
 }
@@ -81,6 +83,7 @@ export function Canvas({ children }: CanvasProps) {
     if (canvas === null || world === null) return;
     const canvasElement: HTMLDivElement = canvas;
     const worldElement: HTMLDivElement = world;
+    let lastPan = -Infinity;
 
     function applyView(): void {
       const view = useCanvasStore.getState().view;
@@ -108,12 +111,10 @@ export function Canvas({ children }: CanvasProps) {
         return;
       }
 
-      const route = routeWheel(
-        event.target,
-        canvasElement,
-        event.deltaX,
-        event.deltaY,
-      );
+      const route =
+        event.timeStamp - lastPan < PAN_LATCH_MS
+          ? "pan"
+          : routeWheel(event.target, canvasElement, event.deltaX, event.deltaY);
 
       if (route === "scroll") return;
 
@@ -121,6 +122,7 @@ export function Canvas({ children }: CanvasProps) {
 
       if (route === "hold") return;
 
+      lastPan = event.timeStamp;
       const view = useCanvasStore.getState().view;
       useCanvasStore.getState().setView({
         ...view,

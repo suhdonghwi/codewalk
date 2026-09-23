@@ -1,8 +1,7 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes } from "react";
 import { useMemo, useState } from "react";
 
 import { WindowChrome } from "@/domain/canvas/index.ts";
-import { cn } from "@/ui/utils.ts";
 
 import {
   buildBlockTitle,
@@ -16,15 +15,14 @@ import { requireBlock } from "../views.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
+const MAX_VISIBLE_LINES = 30;
+
 interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   position: SiblingPosition;
   columns: SiblingColumn[];
   openSite: LocId | null;
-  width: number | null;
-  height: number | null;
-  resizeHandles: ReactNode;
   titlebarProps: HTMLAttributes<HTMLDivElement> | undefined;
   onToggleSite: (site: LocId) => void;
 }
@@ -43,7 +41,6 @@ interface WindowBodyProps {
   block: NodeId;
   openSite: LocId | null;
   columns: SiblingColumn[];
-  fitsContent: boolean;
   onToggleSite: (site: LocId) => void;
 }
 
@@ -52,7 +49,6 @@ function WindowBody({
   block,
   openSite,
   columns,
-  fitsContent,
   onToggleSite,
 }: WindowBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
@@ -73,10 +69,10 @@ function WindowBody({
 
   return (
     <div
-      className={cn(
-        "code-surface min-h-0 overflow-auto",
-        fitsContent && "max-w-trace",
-      )}
+      className="code-surface min-h-0 max-w-trace overflow-auto"
+      style={{
+        maxHeight: `calc(${MAX_VISIBLE_LINES} * var(--spacing-code-line) + 1rem)`,
+      }}
     >
       <div className="grid w-max min-w-full grid-cols-[max-content_minmax(max-content,1fr)] py-2">
         <div
@@ -108,9 +104,6 @@ export function TraceWindow({
   position,
   columns,
   openSite,
-  width,
-  height,
-  resizeHandles,
   titlebarProps,
   onToggleSite,
 }: TraceWindowProps) {
@@ -118,11 +111,7 @@ export function TraceWindow({
 
   return (
     <WindowChrome
-      className={cn(
-        "flex max-h-max flex-col",
-        width === null && "w-max max-w-trace",
-      )}
-      style={{ width: width ?? undefined, height: height ?? undefined }}
+      className="flex w-max max-w-trace flex-col"
       title={title.text}
       titleIndicator={titleIndicator(title.hasException)}
       titlebarProps={titlebarProps}
@@ -130,12 +119,10 @@ export function TraceWindow({
       <WindowBody
         block={block}
         columns={columns}
-        fitsContent={width === null}
         onToggleSite={onToggleSite}
         openSite={openSite}
         trace={trace}
       />
-      {resizeHandles}
     </WindowChrome>
   );
 }

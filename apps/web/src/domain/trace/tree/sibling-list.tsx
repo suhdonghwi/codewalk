@@ -1,9 +1,8 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
-import { TITLE_BAR } from "./layout.ts";
 import {
   buildBlockTitle,
   siblingCells,
@@ -31,9 +30,6 @@ interface SiblingListProps {
   columns: SiblingColumn[];
   after: SiblingCell[] | null;
   selectedIndex: number;
-  width: number | null;
-  height: number | null;
-  resizeHandles: ReactNode;
   onChoose: (block: NodeId) => void;
 }
 
@@ -80,9 +76,6 @@ export function SiblingList({
   columns,
   after,
   selectedIndex,
-  width,
-  height,
-  resizeHandles,
   onChoose,
 }: SiblingListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,13 +88,10 @@ export function SiblingList({
 
   const contentHeight = (blocks.length + headerRows + afterRows) * ROW_HEIGHT;
 
-  const viewportHeight =
-    height === null
-      ? Math.min(
-          contentHeight,
-          (MAX_VISIBLE_ROWS + headerRows + afterRows) * ROW_HEIGHT,
-        )
-      : Math.min(contentHeight, height - TITLE_BAR);
+  const viewportHeight = Math.min(
+    contentHeight,
+    (MAX_VISIBLE_ROWS + headerRows + afterRows) * ROW_HEIGHT,
+  );
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
@@ -162,12 +152,11 @@ export function SiblingList({
 
   return (
     <WindowChrome
-      className={cn("min-w-30", width === null && "w-max")}
-      style={{ width: width ?? undefined }}
+      className="w-max max-w-trace min-w-30"
       title={siblingListTitle(trace, blocks)}
     >
       <div
-        className="overflow-y-auto overscroll-contain font-code text-xs font-medium"
+        className="overflow-auto overscroll-contain font-code text-xs font-medium"
         data-sibling-list
         onKeyDown={chooseNeighbour}
         onScroll={(event) => {
@@ -256,7 +245,6 @@ export function SiblingList({
           )}
         </div>
       </div>
-      {resizeHandles}
     </WindowChrome>
   );
 }

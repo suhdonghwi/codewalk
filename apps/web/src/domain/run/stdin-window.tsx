@@ -4,8 +4,6 @@ import { CanvasWindow } from "@/domain/canvas/index.ts";
 
 import { useRunStore } from "./store.ts";
 
-const MINIMUM_SIZE = { width: 200, height: 96 };
-
 export function StdinWindow() {
   const stdin = useRunStore((state) => state.stdin);
 
@@ -14,7 +12,7 @@ export function StdinWindow() {
   }
 
   return (
-    <CanvasWindow id="stdin" minimumSize={MINIMUM_SIZE} title="stdin">
+    <CanvasWindow id="stdin" className="h-[158px] w-80" title="stdin">
       <textarea
         aria-label="stdin"
         className="code-surface m-0 block min-h-0 w-full flex-1 resize-none overflow-auto rounded-none border-0 px-2 py-2 whitespace-pre outline-none"

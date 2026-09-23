@@ -1,8 +1,16 @@
 import { EditorView } from "@codemirror/view";
 
+const MIN_LINES = 12;
+
+const MAX_LINES = 40;
+
+function linesHeight(lines: number): string {
+  return `calc(${lines} * var(--spacing-code-line) + 16px)`;
+}
+
 export const editorTheme = EditorView.theme({
   "&": {
-    height: "100%",
+    maxHeight: linesHeight(MAX_LINES),
     color: "var(--color-code-foreground)",
     backgroundColor: "#ffffff",
     fontFamily: "var(--font-code)",
@@ -16,6 +24,9 @@ export const editorTheme = EditorView.theme({
     overflow: "auto",
     fontFamily: "inherit",
     lineHeight: "inherit",
+  },
+  ".cm-content, .cm-gutter": {
+    minHeight: linesHeight(MIN_LINES),
   },
   ".cm-content": {
     minWidth: "max-content",
