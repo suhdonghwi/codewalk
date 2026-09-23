@@ -137,7 +137,7 @@ def test_instrumented_diverse_standard_library_and_language_constructs_compile()
 
     for filename, source in sources:
         tree = ast.parse(source, filename=filename)
-        compile(instrument(tree, source).tree, filename, "exec")
+        compile(instrument(tree, source, filename).tree, filename, "exec")
 
 
 @pytest.mark.parametrize("expression", ["repr(value)", "repr([value])"])
@@ -175,7 +175,7 @@ def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -
         "    return first\n"
     )
     encoded = source.encode("utf-16-le")
-    result = instrument(ast.parse(source), source)
+    result = instrument(ast.parse(source), source, "main.py")
     definition = next(
         index
         for index, loc in enumerate(result.locs)

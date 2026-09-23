@@ -8,12 +8,7 @@ from typing import Literal
 from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
 
-_VALUE_MAX_LEVEL = 2
-_VALUE_MAX_ITEMS = 6
-_VALUE_MAX_STRING = 40
-_VALUE_MAX_OTHER = 40
 _VALUE_TEXT_LIMIT = 80
-_VALUE_FILL = "…"
 
 
 class _ValueRepr(reprlib.Repr):
@@ -31,6 +26,18 @@ class _ValueRepr(reprlib.Repr):
             tail = self.maxother - len(self.fillvalue) - head
             return f"{text[:head]}{self.fillvalue}{text[-tail:]}"
         return text
+
+
+_VALUE_REPR = _ValueRepr(
+    maxlevel=2,
+    maxlist=6,
+    maxtuple=6,
+    maxset=6,
+    maxdict=6,
+    maxstring=40,
+    maxother=40,
+    fillvalue="…",
+)
 
 
 class ExecutionStopped(BaseException):
@@ -288,23 +295,14 @@ class Runtime:
 
 def _format_value(value: object) -> str:
     try:
-        text = _ValueRepr(
-            maxlevel=_VALUE_MAX_LEVEL,
-            maxlist=_VALUE_MAX_ITEMS,
-            maxtuple=_VALUE_MAX_ITEMS,
-            maxset=_VALUE_MAX_ITEMS,
-            maxdict=_VALUE_MAX_ITEMS,
-            maxstring=_VALUE_MAX_STRING,
-            maxother=_VALUE_MAX_OTHER,
-            fillvalue=_VALUE_FILL,
-        ).repr(value)
+        text = _VALUE_REPR.repr(value)
     except ExecutionStopped:
         raise
     except BaseException:
         text = f"<{type(value).__name__}>"
     text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
     if len(text) > _VALUE_TEXT_LIMIT:
-        return f"{text[: _VALUE_TEXT_LIMIT - len(_VALUE_FILL)]}{_VALUE_FILL}"
+        return f"{text[: _VALUE_TEXT_LIMIT - 1]}…"
     return text
 
 

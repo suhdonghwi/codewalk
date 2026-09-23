@@ -22,9 +22,7 @@ class Instrumented:
     locs: list[Loc]
 
 
-def instrument(
-    tree: ast.Module, source: str, source_name: str = "main.py"
-) -> Instrumented:
+def instrument(tree: ast.Module, source: str, source_name: str) -> Instrumented:
     transformer = _Instrumenter(source, source_name)
     return Instrumented(transformer.module(tree), transformer.locs)
 
