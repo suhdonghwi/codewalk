@@ -53,9 +53,6 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
         "_cw_b": runtime.begin,
         "_cw_e": runtime.end,
     }
-    old_argv = sys.argv
-    old_path = sys.path
-    old_handler = signal.getsignal(signal.SIGALRM)
     sys.argv = [str(path)]
     sys.path = [str(path.resolve().parent), *sys.path[1:]]
     linecache.cache[source_name] = (
@@ -73,26 +70,20 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
     # what was recorded until then.
     signal.signal(signal.SIGALRM, flush)
     signal.setitimer(signal.ITIMER_REAL, _FLUSH_SECONDS, _FLUSH_SECONDS)
-    try:
-        with runtime.capture_output():
+    with runtime.capture_output():
+        try:
             try:
-                try:
-                    exec(code, globals_)
-                finally:
-                    signal.setitimer(signal.ITIMER_REAL, 0)
-            except SystemExit:
-                runtime.finish("ok")
-            except BaseException as error:
-                rendered = runtime.render(_format_traceback, error)
-                runtime.finish("exception", traceback=rendered)
-            else:
-                runtime.finish("ok")
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, old_handler)
-        sys.argv = old_argv
-        sys.path = old_path
-        sink.flush()
+                exec(code, globals_)
+            finally:
+                signal.setitimer(signal.ITIMER_REAL, 0)
+        except SystemExit:
+            runtime.finish("ok")
+        except BaseException as error:
+            rendered = runtime.render(_format_traceback, error)
+            runtime.finish("exception", traceback=rendered)
+        else:
+            runtime.finish("ok")
+    sink.flush()
 
 
 def _header(source_name: str, source: str, locs: list[Loc]) -> dict[str, object]:

@@ -11,23 +11,9 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
     run_parser = subparsers.add_parser("run")
     run_parser.add_argument("path", type=Path)
-    run_parser.add_argument("--trace-fd", type=_nonnegative_int, default=1)
+    run_parser.add_argument("--trace-fd", type=int, default=1)
     args = parser.parse_args()
-
-    if not args.path.is_file():
-        run_parser.error(f"file does not exist: {args.path}")
-
-    try:
-        run(args.path, trace_fd=args.trace_fd)
-    except OSError as error:
-        run_parser.error(str(error))
-
-
-def _nonnegative_int(value: str) -> int:
-    number = int(value)
-    if number < 0:
-        raise argparse.ArgumentTypeError("must be non-negative")
-    return number
+    run(args.path, trace_fd=args.trace_fd)
 
 
 if __name__ == "__main__":
