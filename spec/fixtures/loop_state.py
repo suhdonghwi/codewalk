@@ -25,3 +25,11 @@ for n in [3, 1]:
     if n > 1:
         last = n
     print(last)
+
+heads = []
+tail = []
+for i in range(3):
+    if i < 2:
+        heads.append(i)
+    else:
+        tail.append(i)

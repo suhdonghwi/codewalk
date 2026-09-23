@@ -84,12 +84,13 @@ export function siblingColumns(
       : blockExitValues(trace, last);
 
   return names.flatMap((name) => {
-    const varies = valuesByBlock.some(
-      (values) => values.get(name) !== first?.get(name),
-    );
+    const carried = isCarried(trace, blocks, name);
+
+    const varies =
+      valuesByBlock.some((values) => values.get(name) !== first?.get(name)) ||
+      (carried && exit.get(name) !== first?.get(name));
 
     if (blocks.length > 1 && !varies) return [];
-    const carried = isCarried(trace, blocks, name);
 
     let width = Math.max(
       name.length,
