@@ -1,17 +1,17 @@
-import type { InlineOutput } from "./block-view.ts";
+import type { InlineSegment } from "./block-view.ts";
 
 export interface OutputPreview {
-  segments: InlineOutput["segments"];
+  segments: InlineSegment[];
   expandable: boolean;
 }
 
 const PREVIEW_LENGTH = 48;
 
 function takeSegments(
-  segments: InlineOutput["segments"],
+  segments: InlineSegment[],
   length: number,
-): InlineOutput["segments"] {
-  const taken: InlineOutput["segments"] = [];
+): InlineSegment[] {
+  const taken: InlineSegment[] = [];
   let remaining = length;
 
   for (const segment of segments) {
@@ -25,16 +25,16 @@ function takeSegments(
   return taken;
 }
 
-export function previewInlineOutput(output: InlineOutput): OutputPreview {
-  const text = output.segments.map((segment) => segment.text).join("");
+export function previewInlineOutput(output: InlineSegment[]): OutputPreview {
+  const text = output.map((segment) => segment.text).join("");
   const firstBreak = text.indexOf("\n");
   const firstLineLength = firstBreak === -1 ? text.length : firstBreak;
   const expandable = firstBreak !== -1 || text.length > PREVIEW_LENGTH;
 
-  if (!expandable) return { segments: output.segments, expandable: false };
+  if (!expandable) return { segments: output, expandable: false };
 
   const shownLength = Math.min(firstLineLength, PREVIEW_LENGTH);
-  const segments = takeSegments(output.segments, shownLength);
+  const segments = takeSegments(output, shownLength);
   const last = segments.at(-1);
 
   if (last === undefined) {

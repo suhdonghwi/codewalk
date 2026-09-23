@@ -16,7 +16,7 @@ export interface LocatedState {
   state: StatementState;
 }
 
-export interface ValueAnchor {
+interface ValueAnchor {
   end: number;
   text: string;
 }
@@ -28,28 +28,6 @@ interface SiteLoc {
 
 function covers(loc: Pick<Loc, "start" | "end">, position: number): boolean {
   return loc.start <= position && position < loc.end;
-}
-
-function rangeOverlaps(
-  range: Pick<Loc, "start" | "end"> | Token,
-  from: number,
-  to: number,
-): boolean {
-  const start = "start" in range ? range.start : range.from;
-  const end = "end" in range ? range.end : range.to;
-
-  return start < to && end > from;
-}
-
-function addRangeBoundaries(
-  boundaries: Set<number>,
-  start: number,
-  end: number,
-  line: SourceLine,
-): void {
-  if (start > line.from && start < line.to) boundaries.add(start);
-
-  if (end > line.from && end < line.to) boundaries.add(end);
 }
 
 function stateAt(
@@ -87,56 +65,40 @@ export function siteLocs(trace: Trace, sites: Site[]): SiteLoc[] {
   });
 }
 
-export function spansForLine(
-  source: string,
-  line: SourceLine,
-  tokens: Token[],
-  states: LocatedState[],
-  nestedBlocks: Loc[],
-  sites: SiteLoc[],
-  values: ValueAnchor[],
-): Span[] {
+export interface SpanContext {
+  source: string;
+  tokens: Token[];
+  states: LocatedState[];
+  nestedBlocks: Loc[];
+  sites: SiteLoc[];
+  values: ValueAnchor[];
+}
+
+export function spansForLine(context: SpanContext, line: SourceLine): Span[] {
   if (line.from === line.to) return [];
 
-  const boundaries = new Set([line.from, line.to]);
+  const { source, tokens, states, nestedBlocks, sites, values } = context;
+  const ranges = [...states, ...sites].map(({ loc }) => loc);
 
-  for (const token of tokens) {
-    if (rangeOverlaps(token, line.from, line.to)) {
-      addRangeBoundaries(boundaries, token.from, token.to, line);
-    }
-  }
+  const inside = (point: number): boolean =>
+    point > line.from && point < line.to;
 
-  for (const { loc } of states) {
-    if (rangeOverlaps(loc, line.from, line.to)) {
-      addRangeBoundaries(boundaries, loc.start, loc.end, line);
-    }
-  }
+  const points = [
+    ...new Set([
+      line.from,
+      line.to,
+      ...tokens.flatMap(({ from, to }) => [from, to]).filter(inside),
+      ...[...ranges, ...nestedBlocks]
+        .flatMap(({ start, end }) => [start, end])
+        .filter(inside),
+      ...values.map(({ end }) => end).filter(inside),
+    ]),
+  ].sort((left, right) => left - right);
 
-  for (const loc of nestedBlocks) {
-    if (rangeOverlaps(loc, line.from, line.to)) {
-      addRangeBoundaries(boundaries, loc.start, loc.end, line);
-    }
-  }
-
-  for (const { loc } of sites) {
-    if (rangeOverlaps(loc, line.from, line.to)) {
-      addRangeBoundaries(boundaries, loc.start, loc.end, line);
-    }
-  }
-
-  for (const { end } of values) {
-    if (end > line.from && end < line.to) boundaries.add(end);
-  }
-
-  const points = [...boundaries].sort((left, right) => left - right);
   const spans: Span[] = [];
+  let from = line.from;
 
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const from = points[index];
-    const to = points[index + 1];
-
-    if (from === undefined || to === undefined || from === to) continue;
-
+  for (const to of points.slice(1)) {
     const token = tokens.find(
       (candidate) => candidate.from <= from && candidate.to >= to,
     );
@@ -154,6 +116,7 @@ export function spansForLine(
       sites: coveredSites,
       value: values.find((value) => value.end === to)?.text ?? null,
     });
+    from = to;
   }
 
   return spans;

@@ -1,6 +1,13 @@
 import { match, P } from "ts-pattern";
 
-import type { LocId, NodeId, Role, Trace } from "@codewalk/trace";
+import type {
+  Loc,
+  LocId,
+  NodeId,
+  Role,
+  Trace,
+  TraceNode,
+} from "@codewalk/trace";
 
 export interface Site {
   loc: LocId;
@@ -9,6 +16,29 @@ export interface Site {
 }
 
 export type StatementState = "lit" | "dimmed" | "inert";
+
+interface BlockContext {
+  node: TraceNode;
+  loc: Extract<Loc, { role: "block" }>;
+  source: string;
+}
+
+export function requireBlock(trace: Trace, block: NodeId): BlockContext {
+  const node = trace.nodes[block];
+  const loc = node === undefined ? undefined : trace.header.locs[node.loc];
+  const source = loc === undefined ? undefined : trace.header.sources[loc.file];
+
+  if (
+    node === undefined ||
+    loc === undefined ||
+    loc.role !== "block" ||
+    source === undefined
+  ) {
+    throw new Error(`Node ${block} is not a block`);
+  }
+
+  return { node, loc, source: source.text };
+}
 
 function nodeRole(trace: Trace, node: NodeId): Role | undefined {
   const traceNode = trace.nodes[node];

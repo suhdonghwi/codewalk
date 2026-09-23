@@ -1,24 +1,10 @@
-import type { Loc, NodeId, Trace, TraceNode } from "@codewalk/trace";
+import { requireBlock } from "../views.ts";
+
+import type { NodeId, Trace } from "@codewalk/trace";
 
 export interface BlockTitle {
   text: string;
   hasException: boolean;
-}
-
-interface BlockContext {
-  node: TraceNode;
-  loc: Extract<Loc, { role: "block" }>;
-}
-
-export function requireBlock(trace: Trace, block: NodeId): BlockContext {
-  const node = trace.nodes[block];
-  const loc = node === undefined ? undefined : trace.header.locs[node.loc];
-
-  if (node === undefined || loc === undefined || loc.role !== "block") {
-    throw new Error(`Node ${block} is not a block`);
-  }
-
-  return { node, loc };
 }
 
 export interface SiblingPosition {
@@ -31,10 +17,7 @@ export function buildBlockTitle(
   block: NodeId,
   position: SiblingPosition,
 ): BlockTitle {
-  const { node, loc } = requireBlock(trace, block);
-  const source = trace.header.sources[loc.file];
-
-  if (source === undefined) throw new Error(`Block ${block} has no source`);
+  const { node, loc, source } = requireBlock(trace, block);
 
   const indexedTitle =
     position.count > 1 ? `${loc.title} ${position.index + 1}` : loc.title;
@@ -43,7 +26,7 @@ export function buildBlockTitle(
     const anchor = trace.header.locs[value.loc];
 
     if (anchor === undefined) return [];
-    const name = source.text.slice(anchor.start, anchor.end);
+    const name = source.slice(anchor.start, anchor.end);
 
     return [`${name} = ${value.text}`];
   });

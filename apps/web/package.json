@@ -14,7 +14,6 @@
     "@codemirror/state": "6.7.5",
     "@codemirror/view": "6.43.12",
     "@codewalk/trace": "workspace:*",
-    "@lezer/common": "1.5.2",
     "@lezer/highlight": "1.2.3",
     "@lezer/python": "1.1.19",
     "@radix-ui/react-tooltip": "1.2.16",

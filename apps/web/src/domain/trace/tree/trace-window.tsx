@@ -9,6 +9,7 @@ import { buildBlockTitle, type SiblingPosition } from "../view/block-title.ts";
 import { buildBlockView } from "../view/block-view.ts";
 import { tokenizePython } from "../view/tokens.ts";
 import { TraceLine } from "../view/trace-line.tsx";
+import { requireBlock } from "../views.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
@@ -24,16 +25,6 @@ interface TraceWindowProps {
   titlebarProps: HTMLAttributes<HTMLDivElement> | undefined;
   onMeasure: (column: number, measurement: Measurement) => void;
   onToggleSite: (site: LocId) => void;
-}
-
-function blockSource(trace: Trace, block: NodeId): string {
-  const node = trace.nodes[block];
-  const loc = node === undefined ? undefined : trace.header.locs[node.loc];
-  const source = loc === undefined ? undefined : trace.header.sources[loc.file];
-
-  if (source === undefined) throw new Error(`Block ${block} has no source`);
-
-  return source.text;
 }
 
 function measureWindow(
@@ -86,7 +77,7 @@ function WindowBody({
   onToggleSite,
 }: WindowBodyProps) {
   const [hoveredSite, setHoveredSite] = useState<LocId | null>(null);
-  const source = blockSource(trace, block);
+  const { source } = requireBlock(trace, block);
   const tokens = useMemo(() => tokenizePython(source), [source]);
 
   const view = useMemo(

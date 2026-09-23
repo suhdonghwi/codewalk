@@ -255,12 +255,10 @@ describe("buildBlockView", () => {
     const trace = fixture("uninstrumented");
     const view = buildBlockView(trace, 0, []);
 
-    expect(line(view, 7).output).toEqual({
-      segments: [
-        { stream: "stdout", text: "generator\n" },
-        { stream: "stdout", text: "1" },
-      ],
-    });
+    expect(line(view, 7).output).toEqual([
+      { stream: "stdout", text: "generator\n" },
+      { stream: "stdout", text: "1" },
+    ]);
   });
 
   test("values stay in their owning block and follow the exact anchor span", () => {
@@ -361,9 +359,7 @@ test.each([
 ])(
   "inline output preview truncates $text at the specified boundary",
   ({ text, expected, expandable }) => {
-    const preview = previewInlineOutput({
-      segments: [{ stream: "stdout", text }],
-    });
+    const preview = previewInlineOutput([{ stream: "stdout", text }]);
 
     expect(preview).toEqual({
       segments: [{ stream: "stdout", text: expected }],
