@@ -156,8 +156,13 @@ for i in _cw_e(_cw_b(15), range(2)):
   every name it bound or whose snapshot changed. So `mid = (lo + hi) // 2` is
   recorded even when `mid` keeps its value, and `remember(seen, w)` records
   `seen` because it changed. A loop is a single statement of its parent block,
-  so the parent sees the loop's end state. Only the first thousand calls of a
-  function watch their variables, so deep recursion stays cheap.
+  so the parent sees the loop's end state, limited to what the loop hands on:
+  the names code after it may read before assigning them, found by a backward
+  liveness walk over the scope, plus names that outlive the frame (globals and
+  nonlocals it declares, names nested functions read, parameters it never
+  rebinds). A scope that calls `locals`, `eval` or the like keeps every name.
+  Only the first thousand calls of a function watch their variables, so deep
+  recursion stays cheap.
 - **Limits** belong to the runner. The tracer flushes the trace periodically,
   so a run killed at the time limit or byte cap keeps what it recorded.
 

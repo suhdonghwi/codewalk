@@ -1,8 +1,12 @@
-"""Static analysis of the state a loop iteration takes in."""
+"""Static analysis of the state a loop takes in and hands on."""
 
 import ast
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 type Assigned = set[str] | None
+
+type Live = frozenset[str]
 
 _COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
@@ -20,6 +24,8 @@ _COMPOUND = (
     ast.While,
     ast.With,
 )
+
+_DYNAMIC_SCOPE = frozenset({"dir", "eval", "exec", "globals", "locals", "vars"})
 
 
 def loop_state(loop: ast.For | ast.While) -> list[str]:
@@ -42,6 +48,24 @@ def loop_assigns(loop: ast.For | ast.While) -> set[str]:
     for statement in loop.body:
         assigns.visit(statement)
     return set(assigns.names)
+
+
+def live_after_loops(
+    body: list[ast.stmt], parameters: Sequence[str] = ()
+) -> dict[ast.stmt, Live]:
+    """Names the scope may still read once each loop in its body has ended."""
+    scope = _Scope()
+    for statement in body:
+        scope.visit(statement)
+    if scope.dynamic:
+        return {}
+    assigns = _Assigns()
+    for statement in body:
+        assigns.visit(statement)
+    kept = {name for name in parameters if name not in assigns.names}
+    live = _Live(frozenset(scope.declared | scope.captured | kept))
+    live.block(body, frozenset(), _Exits())
+    return live.after
 
 
 def statement_bindings(node: ast.stmt) -> list[str]:
@@ -356,3 +380,177 @@ class _Assigns(_Bindings):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         self.names[node.name] = None
+
+
+@dataclass(frozen=True)
+class _Exits:
+    brk: Live = frozenset()
+    cont: Live = frozenset()
+    ret: Live = frozenset()
+    throw: Live = frozenset()
+
+
+class _Live:
+    def __init__(self, escaping: Live) -> None:
+        self.escaping = escaping
+        self.after: dict[ast.stmt, Live] = {}
+
+    def block(self, statements: list[ast.stmt], out: Live, exits: _Exits) -> Live:
+        for statement in reversed(statements):
+            out = self.statement(statement, out, exits) | exits.throw
+        return out
+
+    def statement(self, node: ast.stmt, out: Live, exits: _Exits) -> Live:
+        if isinstance(node, ast.Return):
+            return _loads(node) | exits.ret
+        if isinstance(node, ast.Raise):
+            return _loads(node)
+        if isinstance(node, ast.Break):
+            return exits.brk
+        if isinstance(node, ast.Continue):
+            return exits.cont
+        if isinstance(node, ast.If):
+            return (
+                _loads(node.test)
+                | self.block(node.body, out, exits)
+                | self.block(node.orelse, out, exits)
+            )
+        if isinstance(node, (ast.While, ast.For)):
+            return self._loop(node, out, exits)
+        if isinstance(node, (ast.With, ast.AsyncWith)):
+            bound: set[str] = set()
+            reads: set[str] = set()
+            for item in node.items:
+                reads |= _loads(item.context_expr)
+                if item.optional_vars is not None:
+                    reads |= _loads(item.optional_vars)
+                    _bind_names(item.optional_vars, bound)
+            return (self.block(node.body, out, exits) - bound) | reads
+        if isinstance(node, (ast.Try, ast.TryStar)):
+            return self._try(node, out, exits)
+        if isinstance(node, ast.Match):
+            live = _loads(node.subject) | out
+            for case in node.cases:
+                live |= _loads(case.pattern) | self.block(case.body, out, exits)
+                if case.guard is not None:
+                    live |= _loads(case.guard)
+            return live
+        if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name):
+            return out | _loads(node) | {node.target.id}
+        return (out - _kills(node)) | _loads(node)
+
+    def _loop(self, node: ast.While | ast.For, out: Live, exits: _Exits) -> Live:
+        ended = self.block(node.orelse, out, exits)
+        self.after[node] = ended | out | self.escaping
+        targets: set[str] = set()
+        if isinstance(node, ast.For):
+            _bind_names(node.target, targets)
+            entry = ended | _loads(node.target)
+        else:
+            entry = ended | _loads(node.test)
+        head: Live = frozenset()
+        while True:
+            inner = _Exits(out, head, exits.ret, exits.throw)
+            reached = entry | (self.block(node.body, head, inner) - targets)
+            if reached == head:
+                break
+            head = reached
+        return _loads(node.iter) | head if isinstance(node, ast.For) else head
+
+    def _try(self, node: ast.Try | ast.TryStar, out: Live, exits: _Exits) -> Live:
+        def through_finally(live: Live) -> Live:
+            return self.block(node.finalbody, live, exits)
+
+        inner = _Exits(
+            through_finally(exits.brk),
+            through_finally(exits.cont),
+            through_finally(exits.ret),
+            through_finally(exits.throw),
+        )
+        after = through_finally(out)
+        handlers: Live = frozenset()
+        for handler in node.handlers:
+            caught = self.block(handler.body, after, inner)
+            if handler.name is not None:
+                caught -= {handler.name}
+            if handler.type is not None:
+                caught |= _loads(handler.type)
+            handlers |= caught
+        orelse = self.block(node.orelse, after, inner)
+        guarded = _Exits(inner.brk, inner.cont, inner.ret, inner.throw | handlers)
+        return self.block(node.body, orelse, guarded)
+
+
+def _loads(node: ast.AST) -> Live:
+    names: set[str] = set()
+    pending = [node]
+    while pending:
+        current = pending.pop()
+        if isinstance(current, ast.Name):
+            if isinstance(current.ctx, ast.Load):
+                names.add(current.id)
+        elif isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            pending.extend(current.decorator_list)
+            pending.append(current.args)
+            if current.returns is not None:
+                pending.append(current.returns)
+        elif isinstance(current, ast.Lambda):
+            pending.append(current.args)
+        else:
+            pending.extend(ast.iter_child_nodes(current))
+    return frozenset(names)
+
+
+def _kills(node: ast.stmt) -> set[str]:
+    bound: set[str] = set()
+    if isinstance(node, ast.Assign):
+        for target in node.targets:
+            _bind_names(target, bound)
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        _bind_names(node.target, bound)
+    elif isinstance(node, ast.Delete):
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                bound.add(target.id)
+    elif isinstance(node, (ast.Import, ast.ImportFrom)):
+        for alias in node.names:
+            if alias.name != "*":
+                bound.add(alias.asname or alias.name.split(".")[0])
+    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        bound.add(node.name)
+    return bound
+
+
+class _Scope(ast.NodeVisitor):
+    def __init__(self) -> None:
+        self.declared: set[str] = set()
+        self.captured: set[str] = set()
+        self.dynamic = False
+
+    def visit_Global(self, node: ast.Global) -> None:
+        self.declared.update(node.names)
+
+    def visit_Nonlocal(self, node: ast.Nonlocal) -> None:
+        self.declared.update(node.names)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        if isinstance(node.func, ast.Name) and node.func.id in _DYNAMIC_SCOPE:
+            self.dynamic = True
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._nested(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._nested(node)
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        self._nested(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._nested(node)
+
+    def _nested(self, node: ast.AST) -> None:
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
+                self.captured.add(child.id)

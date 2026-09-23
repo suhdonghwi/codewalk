@@ -2,7 +2,7 @@ import ast
 
 import pytest
 
-from codewalk.liveness import loop_assigns, loop_state
+from codewalk.liveness import live_after_loops, loop_assigns, loop_state
 
 
 @pytest.mark.parametrize(
@@ -62,3 +62,57 @@ def test_loop_assigns_only_rebinding_in_the_enclosing_scope(
     assert isinstance(loop, (ast.For, ast.While))
 
     assert loop_assigns(loop) == assigns
+
+
+@pytest.mark.parametrize(
+    ("source", "line", "live"),
+    [
+        (
+            "def f():\n    queue = make()\n    while queue:\n"
+            "        node = queue.pop()\n        if node:\n            return node\n"
+            "    return None\n",
+            3,
+            set(),
+        ),
+        (
+            "for row in rows:\n    if best:\n        use(best)\n    for x in row:\n"
+            "        best = x\n        tmp = x\n",
+            4,
+            {"best", "use"},
+        ),
+        (
+            "for x in xs:\n    total = x\ntry:\n    risky()\nexcept E:\n"
+            "    print(total)\n",
+            1,
+            {"risky", "E", "print", "total"},
+        ),
+        (
+            "def fill(out, n):\n    while n:\n        out.append(n)\n        n -= 1\n",
+            2,
+            {"out"},
+        ),
+        (
+            "for x in xs:\n    table = x\ndef lookup():\n    return table\nlookup()\n",
+            1,
+            {"table"},
+        ),
+        ("for x in xs:\n    y = x\nprint(locals())\n", 1, None),
+    ],
+)
+def test_live_after_a_loop_is_what_later_code_or_the_caller_may_read(
+    source: str, line: int, live: set[str] | None
+) -> None:
+    tree = ast.parse(source)
+    first = tree.body[0]
+    scope = first if isinstance(first, ast.FunctionDef) else tree
+    parameters = (
+        [argument.arg for argument in first.args.args]
+        if isinstance(first, ast.FunctionDef)
+        else []
+    )
+
+    after = live_after_loops(scope.body, parameters)
+
+    assert next(
+        (names for loop, names in after.items() if loop.lineno == line), None
+    ) == (None if live is None else frozenset(live))
