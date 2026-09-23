@@ -174,6 +174,28 @@ grace 85
 `,
   },
   {
+    name: "Caught exceptions",
+    source: `prices = {"apple": 3, "pear": 4}
+
+def price(name):
+    return prices[name]
+
+def total(order):
+    result = 0
+    for name, count in order:
+        try:
+            result += price(name) * int(count)
+        except KeyError:
+            print("unknown item", name)
+        except ValueError:
+            print("bad count", count)
+    return result
+
+print(total([("apple", "2"), ("kiwi", "1"), ("pear", "x")]))
+`,
+    stdin: "",
+  },
+  {
     name: "Uncaught exception",
     source: `def average(numbers):
     return sum(numbers) / len(numbers)
