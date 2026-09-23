@@ -224,7 +224,7 @@ column to the right of the code, so the block's data reads top to bottom beside
 its code. Long output expands into a panel below its line, and so does a value
 that holds an object: an inspector tree, like a browser console's, with a row
 per item, entry or field. An object reached twice within one value is badged
-with its id, so aliasing shows. A value's preview fits a character budget; a
+with its id, so aliasing shows. A value's preview is highlighted with the code's colours and fits a character budget; a
 nested object that does not fit collapses to its brackets, and the trace
 header's plain type per kind decides which type names are shown. A value that
 is the same in every sibling is faded. The line an exception came from is tinted and

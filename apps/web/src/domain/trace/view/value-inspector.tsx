@@ -3,7 +3,13 @@ import { useState } from "react";
 import { cn } from "@/ui/utils.ts";
 
 import { Disclosure } from "./inline-chip.tsx";
-import { preview, sharedObjects, valueChildren } from "./values.ts";
+import { PreviewText } from "./preview-text.tsx";
+import {
+  pieceText,
+  previewPieces,
+  sharedObjects,
+  valueChildren,
+} from "./values.ts";
 
 import type { ValueRow as Row } from "./values.ts";
 import type { ObjectId, Trace, Value } from "@codewalk/trace";
@@ -42,7 +48,7 @@ function Badge({ value, shared }: { value: Value; shared: Set<ObjectId> }) {
 function ValueRow({ trace, row, at, depth, shared }: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const expandable = valueChildren(trace, row.value, at) !== null;
-  const keyWidth = row.key === null ? 0 : row.key.length + 2;
+  const keyWidth = row.key === null ? 0 : pieceText(row.key).length + 2;
   const budget = ROW_WIDTH - depth * 2 - keyWidth - 2;
 
   const content = (
@@ -53,10 +59,12 @@ function ValueRow({ trace, row, at, depth, shared }: RowProps) {
         <span className="mr-[0.25ch] inline-block w-[1em]" />
       )}
       {row.key === null ? null : (
-        <span className="mr-[1ch] text-neutral-500">{row.key}:</span>
+        <span className="mr-[1ch] text-neutral-500">
+          <PreviewText pieces={row.key} />:
+        </span>
       )}
-      <span className="text-inline-value">
-        {preview(trace, row.value, at, budget)}
+      <span className="text-syntax-name">
+        <PreviewText pieces={previewPieces(trace, row.value, at, budget)} />
       </span>
       <Badge shared={shared} value={row.value} />
     </>

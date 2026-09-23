@@ -174,7 +174,6 @@ export function TraceLine({
                       className="mx-[0.5ch]"
                       entry={span.value}
                       expanded={openKeys.includes(`anchor:${index}`)}
-                      label="="
                       onToggle={() => {
                         toggleValue(`anchor:${index}`);
                       }}

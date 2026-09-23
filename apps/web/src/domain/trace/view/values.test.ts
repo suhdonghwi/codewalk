@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import { parseTrace } from "@codewalk/trace";
 import { expect, test } from "vitest";
 
-import { preview, sharedObjects, valueChildren } from "./values.ts";
+import {
+  pieceText,
+  preview,
+  previewPieces,
+  sharedObjects,
+  valueChildren,
+} from "./values.ts";
 
 import type { Trace, ValueChunk } from "@codewalk/trace";
 
@@ -84,15 +90,46 @@ test("children are keyed rows, and an object reached twice is shared", () => {
 
   const [entry] = valueChildren(trace, counts.value, counts.at)?.rows ?? [];
 
-  expect(valueChildren(trace, pair.value, pair.at)).toEqual({
-    rows: [
-      { key: "0", value: { ref: 0 } },
-      { key: "1", value: { ref: 0 } },
-    ],
-    more: 0,
-  });
+  const rows = valueChildren(trace, pair.value, pair.at)?.rows ?? [];
+
+  expect(
+    rows.map(({ key, value }) => ({ key: pieceText(key ?? []), value })),
+  ).toEqual([
+    { key: "0", value: { ref: 0 } },
+    { key: "1", value: { ref: 0 } },
+  ]);
   expect([...sharedObjects(trace, pair.value, pair.at)]).toEqual([0]);
   expect([...sharedObjects(trace, head.value, head.at)]).toEqual([3]);
-  expect(entry?.key).toBe("'a'");
+  expect(pieceText(entry?.key ?? [])).toBe("'a'");
   expect(entry?.value).toEqual({ ref: 6 });
+});
+
+test("preview pieces mark literals, punctuation, type names and elisions", () => {
+  const trace = fixture("object_identity");
+  const counts = chunks(trace, "counts").at(-1);
+  const shared = chunks(trace, "shared").at(-1);
+
+  if (counts === undefined || shared === undefined) {
+    throw new Error("missing values");
+  }
+
+  expect(previewPieces(trace, counts.value, counts.at, 80)).toEqual([
+    { kind: "punctuation", text: "{" },
+    { kind: "string", text: "'a'" },
+    { kind: "punctuation", text: ": " },
+    { kind: "punctuation", text: "{" },
+    { kind: "number", text: "1" },
+    { kind: "punctuation", text: ", " },
+    { kind: "number", text: "2" },
+    { kind: "punctuation", text: "}" },
+    { kind: "punctuation", text: "}" },
+  ]);
+  expect(previewPieces(trace, shared.value, shared.at, 10)).toEqual([
+    { kind: "punctuation", text: "[" },
+    { kind: "type", text: "Point" },
+    { kind: "punctuation", text: "(" },
+    { kind: "muted", text: "…" },
+    { kind: "punctuation", text: ")" },
+    { kind: "punctuation", text: "]" },
+  ]);
 });

@@ -3,8 +3,16 @@ import { match } from "ts-pattern";
 
 import type { HeapObject, ObjectId, Trace, Value } from "@codewalk/trace";
 
+export type PieceKind =
+  "number" | "string" | "keyword" | "punctuation" | "type" | "muted" | "plain";
+
+export interface Piece {
+  kind: PieceKind;
+  text: string;
+}
+
 export interface ValueRow {
-  key: string | null;
+  key: Piece[] | null;
   value: Value;
 }
 
@@ -14,9 +22,9 @@ export interface ValueChildren {
 }
 
 interface Layout {
-  opening: string;
-  closing: string;
-  parts: ((budget: number) => string)[];
+  opening: Piece[];
+  closing: Piece[];
+  parts: ((budget: number) => Piece[])[];
   total: number;
 }
 
@@ -24,10 +32,34 @@ export const PREVIEW_BUDGET = 40;
 
 const KEY_BUDGET = 24;
 
-function cut(text: string, budget: number): string {
-  return text.length > budget
-    ? `${text.slice(0, Math.max(budget - 1, 0))}…`
-    : text;
+const PRIMITIVE_PIECES = {
+  number: "number",
+  string: "string",
+  boolean: "keyword",
+  null: "keyword",
+} as const;
+
+function piece(kind: PieceKind, text: string): Piece {
+  return { kind, text };
+}
+
+function width(pieces: Piece[]): number {
+  return pieces.reduce((total, { text }) => total + text.length, 0);
+}
+
+export function pieceText(pieces: Piece[]): string {
+  return pieces.map(({ text }) => text).join("");
+}
+
+function cut({ kind, text }: Piece, budget: number): Piece[] {
+  return [
+    piece(
+      kind,
+      text.length > budget
+        ? `${text.slice(0, Math.max(budget - 1, 0))}…`
+        : text,
+    ),
+  ];
 }
 
 function typeLabel(trace: Trace, object: HeapObject): string | null {
@@ -46,79 +78,95 @@ function typeLabel(trace: Trace, object: HeapObject): string | null {
 function layout(
   trace: Trace,
   object: HeapObject,
-  write: (value: Value, budget: number) => string,
+  write: (value: Value, budget: number) => Piece[],
 ): Layout {
   const label = typeLabel(trace, object);
-  const prefix = label === null ? "" : `${label} `;
+
+  const prefix =
+    label === null ? [] : [piece("type", label), piece("plain", " ")];
 
   return match(object)
     .with({ kind: "sequence" }, { kind: "set" }, ({ kind, items, length }) => ({
-      opening: `${prefix}${kind === "set" ? "{" : "["}`,
-      closing: kind === "set" ? "}" : "]",
+      opening: [...prefix, piece("punctuation", kind === "set" ? "{" : "[")],
+      closing: [piece("punctuation", kind === "set" ? "}" : "]")],
       parts: items.map((item) => (budget: number) => write(item, budget)),
       total: length ?? items.length,
     }))
     .with({ kind: "mapping" }, ({ entries, length }) => ({
-      opening: `${prefix}{`,
-      closing: "}",
+      opening: [...prefix, piece("punctuation", "{")],
+      closing: [piece("punctuation", "}")],
       parts: entries.map(([key, item]) => (budget: number) => {
-        const shown = `${write(key, Math.min(budget, KEY_BUDGET))}: `;
+        const shown = [
+          ...write(key, Math.min(budget, KEY_BUDGET)),
+          piece("punctuation", ": "),
+        ];
 
-        return `${shown}${write(item, budget - shown.length)}`;
+        return [...shown, ...write(item, budget - width(shown))];
       }),
       total: length ?? entries.length,
     }))
     .with({ kind: "record" }, ({ type, fields, length }) => ({
-      opening: `${type}(`,
-      closing: ")",
-      parts: fields.map(
-        ([name, item]) =>
-          (budget: number) =>
-            `${name}=${write(item, budget - name.length - 1)}`,
-      ),
+      opening: [piece("type", type), piece("punctuation", "(")],
+      closing: [piece("punctuation", ")")],
+      parts: fields.map(([name, item]) => (budget: number) => [
+        piece("plain", name),
+        piece("punctuation", "="),
+        ...write(item, budget - name.length - 1),
+      ]),
       total: length ?? fields.length,
     }))
     .with({ kind: "opaque" }, ({ text }) => ({
-      opening: text,
-      closing: "",
+      opening: [piece("plain", text)],
+      closing: [],
       parts: [],
       total: 0,
     }))
     .exhaustive();
 }
 
-function more(count: number): string {
-  return `… ${count} more`;
+function more(count: number): Piece {
+  return piece("muted", `… ${count} more`);
 }
 
-function joinWithin(framing: Layout, budget: number): string {
-  let text = framing.opening;
+const SEPARATOR = piece("punctuation", ", ");
+
+function joinWithin(framing: Layout, budget: number): Piece[] {
+  const closing = width(framing.closing);
+  let pieces = [...framing.opening];
 
   for (const [index, part] of framing.parts.entries()) {
-    const separator = index === 0 ? "" : ", ";
+    const separator = index === 0 ? [] : [SEPARATOR];
     const remaining = framing.total - index - 1;
-    const reserve = remaining > 0 ? `, ${more(remaining)}`.length : 0;
-    const room = budget - text.length - separator.length - reserve;
-    const piece = part(room - framing.closing.length);
-    const candidate = `${text}${separator}${piece}`;
 
-    if (
-      index > 0 &&
-      candidate.length + reserve + framing.closing.length > budget
-    ) {
-      return `${text}, ${more(framing.total - index)}${framing.closing}`;
+    const reserve =
+      remaining > 0 ? SEPARATOR.text.length + more(remaining).text.length : 0;
+
+    const room = budget - width(pieces) - width(separator) - reserve;
+    const candidate = [...pieces, ...separator, ...part(room - closing)];
+
+    if (index > 0 && width(candidate) + reserve + closing > budget) {
+      return [
+        ...pieces,
+        SEPARATOR,
+        more(framing.total - index),
+        ...framing.closing,
+      ];
     }
 
-    text = candidate;
+    pieces = candidate;
   }
 
   const shown = framing.parts.length;
 
   if (shown < framing.total) {
-    text = `${text}${shown === 0 ? "" : ", "}${more(framing.total - shown)}`;
+    pieces = [
+      ...pieces,
+      ...(shown === 0 ? [] : [SEPARATOR]),
+      more(framing.total - shown),
+    ];
   }
 
-  return `${text}${framing.closing}`;
+  return [...pieces, ...framing.closing];
 }
 
 function collapsed(
@@ -126,18 +174,21 @@ function collapsed(
   value: Value,
   at: number,
   budget: number,
-): string {
-  if (!("ref" in value)) return cut(value.text, budget);
+): Piece[] {
+  if (!("ref" in value)) {
+    return cut(piece(PRIMITIVE_PIECES[value.kind], value.text), budget);
+  }
 
   const object = objectAt(trace, value.ref, at);
 
-  if (object === null) return "…";
+  if (object === null) return [piece("muted", "…")];
 
-  if (object.text !== undefined) return cut(object.text, budget);
+  if (object.text !== undefined)
+    return cut(piece("plain", object.text), budget);
 
-  const { opening, closing } = layout(trace, object, () => "");
+  const { opening, closing } = layout(trace, object, () => []);
 
-  return `${opening}…${closing}`;
+  return [...opening, piece("muted", "…"), ...closing];
 }
 
 function writeValue(
@@ -146,7 +197,7 @@ function writeValue(
   at: number,
   budget: number,
   open: Set<ObjectId>,
-): string {
+): Piece[] {
   if (!("ref" in value)) return collapsed(trace, value, at, budget);
 
   const object = objectAt(trace, value.ref, at);
@@ -158,21 +209,30 @@ function writeValue(
   const nested = (item: Value, room: number) => {
     const whole = writeValue(trace, item, at, Number.POSITIVE_INFINITY, open);
 
-    return whole.length <= room ? whole : collapsed(trace, item, at, room);
+    return width(whole) <= room ? whole : collapsed(trace, item, at, room);
   };
 
   const framing = layout(trace, object, nested);
 
   if (open.has(value.ref)) {
-    return `${framing.opening}…${framing.closing}`;
+    return [...framing.opening, piece("muted", "…"), ...framing.closing];
   }
 
   open.add(value.ref);
   const whole = joinWithin(framing, Number.POSITIVE_INFINITY);
-  const text = whole.length <= budget ? whole : joinWithin(framing, budget);
+  const pieces = width(whole) <= budget ? whole : joinWithin(framing, budget);
   open.delete(value.ref);
 
-  return text;
+  return pieces;
+}
+
+export function previewPieces(
+  trace: Trace,
+  value: Value,
+  at: number,
+  budget: number,
+): Piece[] {
+  return writeValue(trace, value, at, budget, new Set());
 }
 
 export function preview(
@@ -181,7 +241,7 @@ export function preview(
   at: number,
   budget: number,
 ): string {
-  return writeValue(trace, value, at, budget, new Set());
+  return pieceText(previewPieces(trace, value, at, budget));
 }
 
 export function valueKey(trace: Trace, value: Value, at: number): string {
@@ -201,7 +261,10 @@ export function valueChildren(
 
   const children = match(object)
     .with({ kind: "sequence" }, ({ items, length }) => ({
-      rows: items.map((item, index) => ({ key: String(index), value: item })),
+      rows: items.map((item, index) => ({
+        key: [piece("plain", String(index))],
+        value: item,
+      })),
       more: (length ?? items.length) - items.length,
     }))
     .with({ kind: "set" }, ({ items, length }) => ({
@@ -210,13 +273,16 @@ export function valueChildren(
     }))
     .with({ kind: "mapping" }, ({ entries, length }) => ({
       rows: entries.map(([key, item]) => ({
-        key: preview(trace, key, at, KEY_BUDGET),
+        key: previewPieces(trace, key, at, KEY_BUDGET),
         value: item,
       })),
       more: (length ?? entries.length) - entries.length,
     }))
     .with({ kind: "record" }, ({ fields, length }) => ({
-      rows: fields.map(([name, item]) => ({ key: name, value: item })),
+      rows: fields.map(([name, item]) => ({
+        key: [piece("plain", name)],
+        value: item,
+      })),
       more: (length ?? fields.length) - fields.length,
     }))
     .with({ kind: "opaque" }, () => ({ rows: [], more: 0 }))

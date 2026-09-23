@@ -1,14 +1,15 @@
 import { cn } from "@/ui/utils.ts";
 
 import { InlineChip } from "./inline-chip.tsx";
-import { preview, PREVIEW_BUDGET, valueChildren } from "./values.ts";
+import { PreviewText } from "./preview-text.tsx";
+import { PREVIEW_BUDGET, previewPieces, valueChildren } from "./values.ts";
 
 import type { LineValue } from "./block-view.ts";
 import type { Trace } from "@codewalk/trace";
 
 interface ValueChipProps {
   trace: Trace;
-  label: string;
+  label?: string;
   entry: LineValue;
   expanded: boolean;
   faded?: boolean;
@@ -35,7 +36,10 @@ export function ValueChip({
       onToggle={onToggle}
       tone="value"
     >
-      {label} {preview(trace, entry.value, entry.at, PREVIEW_BUDGET)}
+      {label === undefined ? null : `${label} `}
+      <PreviewText
+        pieces={previewPieces(trace, entry.value, entry.at, PREVIEW_BUDGET)}
+      />
     </InlineChip>
   );
 }

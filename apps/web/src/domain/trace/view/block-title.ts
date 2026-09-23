@@ -1,6 +1,13 @@
 import { requireBlock } from "../views.ts";
 
-import { preview, PREVIEW_BUDGET, valueKey } from "./values.ts";
+import {
+  pieceText,
+  PREVIEW_BUDGET,
+  previewPieces,
+  valueKey,
+} from "./values.ts";
+
+import type { Piece } from "./values.ts";
 
 import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
@@ -10,7 +17,7 @@ export interface BlockTitle {
 }
 
 export interface SiblingCell {
-  text: string | null;
+  pieces: Piece[] | null;
   repeated: boolean;
 }
 
@@ -48,10 +55,13 @@ function keyOf(trace: Trace, chunk: ValueChunk | undefined): string | null {
   return chunk === undefined ? null : valueKey(trace, chunk.value, chunk.at);
 }
 
-function cellText(trace: Trace, chunk: ValueChunk | undefined): string | null {
+function cellPieces(
+  trace: Trace,
+  chunk: ValueChunk | undefined,
+): Piece[] | null {
   return chunk === undefined
     ? null
-    : preview(trace, chunk.value, chunk.at, PREVIEW_BUDGET);
+    : previewPieces(trace, chunk.value, chunk.at, PREVIEW_BUDGET);
 }
 
 function blockExitValues(trace: Trace, block: NodeId): Shown {
@@ -114,7 +124,7 @@ export function siblingColumns(
     if (blocks.length > 1 && !varies) return [];
 
     const shown = (chunk: ValueChunk | undefined) =>
-      textWidth(cellText(trace, chunk) ?? "");
+      textWidth(pieceText(cellPieces(trace, chunk) ?? []));
 
     let width = Math.max(textWidth(name), carried ? shown(exit.get(name)) : 0);
 
@@ -158,7 +168,7 @@ export function siblingCells(
     const key = keyOf(trace, values.get(name));
 
     return {
-      text: cellText(trace, values.get(name)),
+      pieces: cellPieces(trace, values.get(name)),
       repeated: key !== null && keyOf(trace, previous?.get(name)) === key,
     };
   });
@@ -180,12 +190,12 @@ export function siblingAfter(
     const key = keyOf(trace, chunk);
 
     return {
-      text: cellText(trace, chunk),
+      pieces: cellPieces(trace, chunk),
       repeated: key !== null && keyOf(trace, entry.get(name)) === key,
     };
   });
 
-  return cells.some(({ text, repeated }) => text !== null && !repeated)
+  return cells.some(({ pieces, repeated }) => pieces !== null && !repeated)
     ? cells
     : null;
 }

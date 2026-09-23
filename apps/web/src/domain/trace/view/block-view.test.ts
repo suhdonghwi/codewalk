@@ -17,7 +17,9 @@ import {
 } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 import { sourceLines, trimCommonIndent } from "./source-lines.ts";
-import { preview } from "./values.ts";
+import { pieceText, preview } from "./values.ts";
+
+import type { SiblingCell } from "./block-title.ts";
 
 import type { NodeId, Trace } from "@codewalk/trace";
 
@@ -58,6 +60,15 @@ function line(view: BlockView, number: number) {
   if (found === undefined) throw new Error(`Missing line ${number}`);
 
   return found;
+}
+
+function cellTexts(cells: SiblingCell[] | null) {
+  return (
+    cells?.map(({ pieces, repeated }) => ({
+      text: pieces === null ? null : pieceText(pieces),
+      repeated,
+    })) ?? null
+  );
 }
 
 function shown(trace: Trace, { value, at }: LineValue): string {
@@ -458,11 +469,13 @@ describe("buildBlockView", () => {
     ).toEqual(["lo", "hi"]);
     expect(
       lastIterations.map((_, index) =>
-        siblingCells(
-          trace,
-          lastIterations,
-          index,
-          siblingColumns(trace, lastIterations),
+        cellTexts(
+          siblingCells(
+            trace,
+            lastIterations,
+            index,
+            siblingColumns(trace, lastIterations),
+          ),
         ),
       ),
     ).toEqual([
@@ -476,11 +489,13 @@ describe("buildBlockView", () => {
       ],
     ]);
     expect(
-      siblingCells(
-        trace,
-        searchIterations,
-        2,
-        siblingColumns(trace, searchIterations),
+      cellTexts(
+        siblingCells(
+          trace,
+          searchIterations,
+          2,
+          siblingColumns(trace, searchIterations),
+        ),
       ),
     ).toEqual([
       { text: "2", repeated: false },
@@ -496,16 +511,24 @@ test("the after row shows a loop's end state only when its last iteration change
   const wordIterations = iterations.slice(3, 7);
 
   expect(
-    siblingAfter(trace, wordIterations, siblingColumns(trace, wordIterations)),
+    cellTexts(
+      siblingAfter(
+        trace,
+        wordIterations,
+        siblingColumns(trace, wordIterations),
+      ),
+    ),
   ).toEqual([
     { text: null, repeated: false },
     { text: "['a', 'b', 'c']", repeated: false },
   ]);
   expect(
-    siblingAfter(
-      trace,
-      searchIterations,
-      siblingColumns(trace, searchIterations),
+    cellTexts(
+      siblingAfter(
+        trace,
+        searchIterations,
+        siblingColumns(trace, searchIterations),
+      ),
     ),
   ).toBeNull();
 });
@@ -516,7 +539,7 @@ test("a variable that only the last iteration changes still gets a column and an
   const columns = siblingColumns(trace, splitIterations);
 
   expect(columns.map(({ name }) => name)).toEqual(["i", "heads", "tail"]);
-  expect(siblingAfter(trace, splitIterations, columns)).toEqual([
+  expect(cellTexts(siblingAfter(trace, splitIterations, columns))).toEqual([
     { text: null, repeated: false },
     { text: "[0, 1]", repeated: true },
     { text: "[2]", repeated: false },

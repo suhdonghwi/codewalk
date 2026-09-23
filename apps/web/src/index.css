@@ -53,8 +53,16 @@
   --color-run: #3c9a5f;
   --color-inline-output: #7a5426;
   --color-inline-output-surface: #fbe9cf;
-  --color-inline-value: #5b4f8a;
-  --color-inline-value-surface: #ece8f6;
+  --color-inline-value: #5c6169;
+  --color-inline-value-surface: #eeeff0;
+  --color-syntax-comment: var(--syntax-comment);
+  --color-syntax-keyword: var(--syntax-keyword);
+  --color-syntax-name: var(--syntax-name);
+  --color-syntax-type: var(--syntax-type);
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-punctuation: var(--syntax-punctuation);
+  --color-syntax-invalid: var(--syntax-invalid);
   --color-window-border: #e5e5e5;
   --color-line-number: #bdbdbd;
   --color-gutter-divider: #eeeeee;
@@ -90,6 +98,14 @@
 }
 
 :root {
+  --syntax-comment: #737373;
+  --syntax-keyword: #75556f;
+  --syntax-name: #30343b;
+  --syntax-type: #3f6470;
+  --syntax-string: #61714a;
+  --syntax-number: #8a6846;
+  --syntax-punctuation: #666b73;
+  --syntax-invalid: #a14343;
   --background: #fafafa;
   --foreground: #262626;
   --card: oklch(1 0 0);
