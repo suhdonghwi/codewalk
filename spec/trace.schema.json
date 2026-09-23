@@ -27,25 +27,25 @@
             "additionalProperties": false
           }
         },
-        "plain": {
+        "literals": {
           "type": "object",
-          "properties": {
-            "sequence": {
-              "type": "string"
-            },
-            "set": {
-              "type": "string"
-            },
-            "mapping": {
-              "type": "string"
-            }
+          "propertyNames": {
+            "type": "string"
           },
-          "required": [
-            "sequence",
-            "set",
-            "mapping"
-          ],
-          "additionalProperties": false
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          }
         },
         "locs": {
           "type": "array",
@@ -157,7 +157,7 @@
       "required": [
         "codewalk",
         "sources",
-        "plain",
+        "literals",
         "locs"
       ],
       "additionalProperties": false

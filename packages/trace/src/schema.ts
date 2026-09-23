@@ -42,9 +42,7 @@ export const HeaderSchema = z
   .object({
     codewalk: z.literal(TRACE_FORMAT_VERSION),
     sources: z.array(SourceSchema),
-    plain: z
-      .object({ sequence: z.string(), set: z.string(), mapping: z.string() })
-      .strict(),
+    literals: z.record(z.string(), z.tuple([z.string(), z.string()])),
     locs: z.array(LocSchema),
   })
   .strict();

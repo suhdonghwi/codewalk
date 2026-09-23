@@ -14,7 +14,7 @@ import type { Loc, Role, Trace } from "@codewalk/trace";
 
 interface TestHeader {
   readonly codewalk: 2;
-  readonly plain: Trace["header"]["plain"];
+  readonly literals: Trace["header"]["literals"];
   readonly sources: readonly { readonly file: string; readonly text: string }[];
   readonly locs: readonly Loc[];
 }
@@ -37,7 +37,7 @@ function header(locs: readonly Loc[], text = "x"): TestHeader {
   return {
     codewalk: 2,
     sources: [{ file: "main.py", text }],
-    plain: { sequence: "list", set: "set", mapping: "dict" },
+    literals: {},
     locs,
   };
 }

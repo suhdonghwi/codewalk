@@ -25,7 +25,7 @@ class RequestTraceRunner implements Runner {
   async run(request: RunRequest): Promise<string> {
     return `${JSON.stringify({
       codewalk: 2,
-      plain: { sequence: "list", set: "set", mapping: "dict" },
+      literals: {},
       sources: [
         {
           file: "main.py",

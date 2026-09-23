@@ -9,7 +9,7 @@ function traceOutcome(end: End, outputs: OutputChunk[] = []): RunOutcome {
     header: {
       codewalk: 2,
       sources: [],
-      plain: { sequence: "list", set: "set", mapping: "dict" },
+      literals: {},
       locs: [],
     },
     nodes: [],

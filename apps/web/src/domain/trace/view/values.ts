@@ -62,17 +62,27 @@ function cut({ kind, text }: Piece, budget: number): Piece[] {
   ];
 }
 
-function typeLabel(trace: Trace, object: HeapObject): string | null {
-  return match(object)
-    .with({ kind: "record" }, { kind: "opaque" }, ({ type }) => type)
-    .with(
-      { kind: "sequence" },
-      { kind: "set" },
-      { kind: "mapping" },
-      (plain) =>
-        plain.type === trace.header.plain[plain.kind] ? null : plain.type,
-    )
-    .exhaustive();
+function brackets(
+  trace: Trace,
+  { kind, type }: { kind: "sequence" | "set" | "mapping"; type: string },
+): Pick<Layout, "opening" | "closing"> {
+  const literal = trace.header.literals[type];
+
+  if (literal !== undefined) {
+    return {
+      opening: [piece("punctuation", literal[0])],
+      closing: [piece("punctuation", literal[1])],
+    };
+  }
+
+  return {
+    opening: [
+      piece("type", type),
+      piece("plain", " "),
+      piece("punctuation", kind === "sequence" ? "[" : "{"),
+    ],
+    closing: [piece("punctuation", kind === "sequence" ? "]" : "}")],
+  };
 }
 
 function layout(
@@ -80,22 +90,17 @@ function layout(
   object: HeapObject,
   write: (value: Value, budget: number) => Piece[],
 ): Layout {
-  const label = typeLabel(trace, object);
-
-  const prefix =
-    label === null ? [] : [piece("type", label), piece("plain", " ")];
-
   return match(object)
-    .with({ kind: "sequence" }, { kind: "set" }, ({ kind, items, length }) => ({
-      opening: [...prefix, piece("punctuation", kind === "set" ? "{" : "[")],
-      closing: [piece("punctuation", kind === "set" ? "}" : "]")],
-      parts: items.map((item) => (budget: number) => write(item, budget)),
-      total: length ?? items.length,
+    .with({ kind: "sequence" }, { kind: "set" }, (collection) => ({
+      ...brackets(trace, collection),
+      parts: collection.items.map(
+        (item) => (budget: number) => write(item, budget),
+      ),
+      total: collection.length ?? collection.items.length,
     }))
-    .with({ kind: "mapping" }, ({ entries, length }) => ({
-      opening: [...prefix, piece("punctuation", "{")],
-      closing: [piece("punctuation", "}")],
-      parts: entries.map(([key, item]) => (budget: number) => {
+    .with({ kind: "mapping" }, (mapping) => ({
+      ...brackets(trace, mapping),
+      parts: mapping.entries.map(([key, item]) => (budget: number) => {
         const shown = [
           ...write(key, Math.min(budget, KEY_BUDGET)),
           piece("punctuation", ": "),
@@ -103,7 +108,7 @@ function layout(
 
         return [...shown, ...write(item, budget - width(shown))];
       }),
-      total: length ?? entries.length,
+      total: mapping.length ?? mapping.entries.length,
     }))
     .with({ kind: "record" }, ({ type, fields, length }) => ({
       opening: [piece("type", type), piece("punctuation", "(")],

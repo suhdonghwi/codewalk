@@ -59,12 +59,14 @@ test("a nested object that does not fit its room collapses to its brackets", () 
   );
 });
 
-test("a preview names a type only when it is not its kind's plain type", () => {
-  const trace = fixture("values");
+test("a literal type takes its own brackets and any other type is named", () => {
+  const values = fixture("values");
+  const identity = fixture("object_identity");
 
-  expect(previews(trace, "args")[0]).toBe("tuple ['x', 'y']");
-  expect(previews(trace, "kwargs")[0]).toBe("{'extra': 1}");
-  expect(previews(trace, "item")[0]).toBe("Loud()");
+  expect(previews(values, "args")[0]).toBe("('x', 'y')");
+  expect(previews(values, "kwargs")[0]).toBe("{'extra': 1}");
+  expect(previews(values, "item")[0]).toBe("Loud()");
+  expect(previews(identity, "queue")).toEqual(["deque [1, 2]"]);
 });
 
 test("a value previews the objects as they were at its event and closes a cycle", () => {

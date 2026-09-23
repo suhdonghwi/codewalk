@@ -224,11 +224,13 @@ column to the right of the code, so the block's data reads top to bottom beside
 its code. Long output expands into a panel below its line, and so does a value
 that holds an object: an inspector tree, like a browser console's, with a row
 per item, entry or field. An object reached twice within one value is badged
-with its id, so aliasing shows. A value's preview is highlighted with the code's colours and fits a character budget; a
-nested object that does not fit collapses to its brackets, and the trace
-header's plain type per kind decides which type names are shown. A value that
-is the same in every sibling is faded. The line an exception came from is tinted and
-its line number turns red.
+with its id, so aliasing shows. A value's preview is highlighted with the
+code's colours and fits a character budget; a nested object that does not fit
+collapses to its brackets. The trace header's literals table gives the brackets
+of the types the language writes as literals, like a tuple's parentheses; any
+other container is named, as in `deque [1, 2]`. A value that is the same in
+every sibling is faded. The line an exception came from is tinted and its line
+number turns red.
 
 The title bar shows the block's title, numbered when its site ran several
 blocks (`iteration 2`). A red dot marks a block that exited with an exception.

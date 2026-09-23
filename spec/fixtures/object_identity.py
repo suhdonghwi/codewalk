@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import deque, namedtuple
 from dataclasses import dataclass
 
 Point = namedtuple("Point", "x y")
@@ -20,3 +20,4 @@ push(shared, Point(1, 2))
 head = Node(1, Node(2))
 head.next.next = head
 counts = {"a": {1, 2}}
+queue = deque([1, 2])

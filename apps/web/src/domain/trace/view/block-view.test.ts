@@ -183,7 +183,7 @@ describe("buildBlockView", () => {
     const trace: Trace = {
       header: {
         codewalk: 2,
-        plain: { sequence: "list", set: "set", mapping: "dict" },
+        literals: {},
         sources: [{ file: "boundaries.py", text: "abcdefgh" }],
         locs: [
           {
