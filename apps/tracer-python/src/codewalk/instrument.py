@@ -78,12 +78,12 @@ class _Instrumenter:
                 title=node.name,
                 unit="call",
             )
-            entries = self._parameter_entries(node.args, statement)
+            values = self._parameter_values(node.args, statement)
             doc = node.body[:1] if node.body and _is_docstring(node.body[0]) else []
             body = self._body(node.body[len(doc) :], function)
             node.body = [
                 *doc,
-                self._block_wrapper("block", function, body, node, entries),
+                self._block_wrapper("block", function, [*values, *body], node),
             ]
         elif isinstance(node, ast.AsyncFunctionDef):
             pass
@@ -99,7 +99,7 @@ class _Instrumenter:
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
             self._target(node.target, statement)
-            entries = self._target_entries(node.target, statement)
+            values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
             loop_start, loop_end = self.source.node_range(node)
             iteration = self._loc(
@@ -114,9 +114,8 @@ class _Instrumenter:
                 self._block_wrapper(
                     "iteration",
                     iteration,
-                    self._body(node.body, iteration),
+                    [*values, *self._body(node.body, iteration)],
                     node,
-                    entries,
                 )
             ]
             node.orelse = self._body(node.orelse, block)
@@ -223,23 +222,23 @@ class _Instrumenter:
             for item in node.args.kw_defaults
         ]
 
-    def _parameter_entries(
+    def _parameter_values(
         self, arguments: ast.arguments, parent: int
-    ) -> list[ast.expr]:
+    ) -> list[ast.stmt]:
         parameters = [*arguments.posonlyargs, *arguments.args]
         if arguments.vararg is not None:
             parameters.append(arguments.vararg)
         parameters.extend(arguments.kwonlyargs)
         if arguments.kwarg is not None:
             parameters.append(arguments.kwarg)
-        entries: list[ast.expr] = []
-        for parameter in parameters:
-            loc = self._loc("expr", *self.source.argument_range(parameter), parent)
-            value = ast.copy_location(
-                ast.Name(id=parameter.arg, ctx=ast.Load()), parameter
+        return [
+            _value_statement(
+                self._loc("expr", *self.source.argument_range(parameter), parent),
+                parameter.arg,
+                parameter,
             )
-            entries.append(_value_entry(loc, value))
-        return entries
+            for parameter in parameters
+        ]
 
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
         if isinstance(node, (ast.GeneratorExp, ast.Lambda)):
@@ -314,18 +313,17 @@ class _Instrumenter:
             node.value = self._expression(node.value, parent)
             node.slice = self._expression(node.slice, parent)
 
-    def _target_entries(self, node: ast.expr, parent: int) -> list[ast.expr]:
+    def _target_values(self, node: ast.expr, parent: int) -> list[ast.stmt]:
         if isinstance(node, ast.Name):
             loc = self._loc("expr", *self.source.node_range(node), parent)
-            value = ast.copy_location(ast.Name(id=node.id, ctx=ast.Load()), node)
-            return [_value_entry(loc, value)]
+            return [_value_statement(loc, node.id, node)]
         if isinstance(node, (ast.Tuple, ast.List)):
-            entries: list[ast.expr] = []
+            values: list[ast.stmt] = []
             for item in node.elts:
-                entries.extend(self._target_entries(item, parent))
-            return entries
+                values.extend(self._target_values(item, parent))
+            return values
         if isinstance(node, ast.Starred):
-            return self._target_entries(node.value, parent)
+            return self._target_values(node.value, parent)
         return []
 
     def _marker(self, loc: int, node: ast.stmt) -> ast.stmt:
@@ -333,14 +331,9 @@ class _Instrumenter:
         return ast.copy_location(marker, node)
 
     def _block_wrapper(
-        self,
-        method: str,
-        loc: int,
-        body: list[ast.stmt],
-        owner: ast.AST,
-        entries: list[ast.expr] | None = None,
+        self, method: str, loc: int, body: list[ast.stmt], owner: ast.AST
     ) -> ast.With:
-        call = _runtime_call(method, ast.Constant(loc), *(entries or []))
+        call = _runtime_call(method, ast.Constant(loc))
         wrapper = ast.With(
             items=[ast.withitem(context_expr=call)], body=body or [ast.Pass()]
         )
@@ -388,8 +381,10 @@ def _runtime_call(method: str, *args: ast.expr) -> ast.Call:
     )
 
 
-def _value_entry(loc: int, value: ast.expr) -> ast.Tuple:
-    return ast.Tuple(elts=[ast.Constant(loc), value], ctx=ast.Load())
+def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
+    value = ast.Name(id=name, ctx=ast.Load())
+    statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
+    return ast.copy_location(statement, owner)
 
 
 def _is_docstring(node: ast.stmt) -> bool:

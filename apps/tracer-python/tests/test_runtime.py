@@ -1,6 +1,5 @@
 import json
 import os
-import weakref
 from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
@@ -17,19 +16,6 @@ class ListSink:
 
     def write(self, event: Mapping[str, object]) -> None:
         self.events.append(dict(event))
-
-
-def test_entry_values_do_not_keep_objects_alive_during_the_block() -> None:
-    runtime = Runtime([None, 0], ListSink(), max_events=100)
-
-    class Box:
-        pass
-
-    value = Box()
-    reference = weakref.ref(value)
-    with runtime.block(0, (1, value)):
-        del value
-        assert reference() is None
 
 
 def test_value_formatting_is_bounded_and_single_line() -> None:
@@ -72,13 +58,15 @@ def test_entry_values_mute_repr_stack_changes() -> None:
 
     class Loud:
         def __repr__(self) -> str:
-            with runtime.block(3, (4, "nested")), runtime.iteration(3, (4, "nested")):
+            with runtime.block(3), runtime.iteration(3):
+                runtime.value(4, "nested")
                 runtime.stmt(1)
                 runtime.end(runtime.begin(2), print("hidden"))
                 runtime.finish("ok")
             return "visible"
 
-    with runtime.capture_output(), runtime.block(0, (4, Loud())):
+    with runtime.capture_output(), runtime.block(0):
+        runtime.value(4, Loud())
         print("after")
     runtime.finish("ok")
 
@@ -101,7 +89,8 @@ def test_a_stop_requested_during_formatting_still_stops_muted_statements() -> No
             runtime.stmt(1)
             return "unreachable"
 
-    with pytest.raises(ExecutionStopped), runtime.block(0, (1, Stopping())):
+    with pytest.raises(ExecutionStopped), runtime.block(0):
+        runtime.value(1, Stopping())
         raise AssertionError("unreachable")
     runtime.finish("timeout")
 
@@ -116,10 +105,9 @@ def test_entry_values_count_toward_the_event_limit() -> None:
     sink = ListSink()
     runtime = Runtime([None, 0, 0], sink, max_events=2)
 
-    with (
-        runtime.block(0, (1, "first"), (2, "second")),
-        pytest.raises(ExecutionStopped),
-    ):
+    with runtime.block(0), pytest.raises(ExecutionStopped):
+        runtime.value(1, "first")
+        runtime.value(2, "second")
         runtime.stmt(1)
     runtime.finish("ok")
 
@@ -145,7 +133,8 @@ def test_hand_instrumented_factorial_matches_the_golden_trace() -> None:
         runtime.stmt(1)
 
         def fact(n: int) -> int:
-            with runtime.block(2, (3, n)):
+            with runtime.block(2):
+                runtime.value(3, n)
                 runtime.stmt(4)
                 end(begin(5), print("fact", n))
                 runtime.stmt(6)
@@ -160,7 +149,8 @@ def test_hand_instrumented_factorial_matches_the_golden_trace() -> None:
 
         runtime.stmt(13)
         for i in end(begin(15), range(2)):
-            with runtime.iteration(16, (14, i)):
+            with runtime.iteration(16):
+                runtime.value(14, i)
                 runtime.stmt(17)
                 end(begin(18), print(end(begin(19), fact(end(begin(20), i + 1)))))
 

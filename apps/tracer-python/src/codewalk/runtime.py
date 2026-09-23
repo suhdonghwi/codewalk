@@ -51,30 +51,16 @@ class _Node:
 
 
 class _BlockContext:
-    __slots__ = ("_entries", "_loc", "_node", "_repair", "_runtime")
+    __slots__ = ("_loc", "_node", "_repair", "_runtime")
 
-    def __init__(
-        self,
-        runtime: "Runtime",
-        loc: int,
-        entries: tuple[tuple[int, object], ...],
-        *,
-        repair: bool,
-    ) -> None:
+    def __init__(self, runtime: "Runtime", loc: int, *, repair: bool) -> None:
         self._runtime = runtime
         self._loc = loc
-        self._entries = entries
         self._repair = repair
         self._node: _Node | None = None
 
     def __enter__(self) -> None:
-        try:
-            self._node = self._runtime._enter_block(self._loc, repair=self._repair)
-            if self._node is not None:
-                for loc, value in self._entries:
-                    self._runtime._emit_value(loc, value)
-        finally:
-            self._entries = ()
+        self._node = self._runtime._enter_block(self._loc, repair=self._repair)
 
     def __exit__(
         self,
@@ -116,11 +102,11 @@ class Runtime:
     def truncated(self) -> bool:
         return self._truncated
 
-    def block(self, loc: int, *entries: tuple[int, object]) -> _BlockContext:
-        return _BlockContext(self, loc, entries, repair=False)
+    def block(self, loc: int) -> _BlockContext:
+        return _BlockContext(self, loc, repair=False)
 
-    def iteration(self, loc: int, *entries: tuple[int, object]) -> _BlockContext:
-        return _BlockContext(self, loc, entries, repair=True)
+    def iteration(self, loc: int) -> _BlockContext:
+        return _BlockContext(self, loc, repair=True)
 
     def mark_exhausted(self) -> None:
         self._exhausted = True
@@ -177,7 +163,7 @@ class Runtime:
                 self._emit({"op": "exit"})
         return value
 
-    def _emit_value(self, loc: int, value: object) -> None:
+    def value(self, loc: int, value: object) -> None:
         if not self._recording:
             return
         self._muted = True

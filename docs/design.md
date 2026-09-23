@@ -82,7 +82,8 @@ explicit blocks for functions and iterations (reliable structure).
 
 ```python
 def fact(n):
-    with _cw.block(2, (3, n)):
+    with _cw.block(2):
+        _cw.value(3, n)
         _cw.stmt(4); _cw_e(_cw_b(5), print("fact", n))
         _cw.stmt(6)
         if _cw_e(_cw_b(7), n <= 1):
@@ -91,7 +92,8 @@ def fact(n):
 
 _cw.stmt(13)
 for i in _cw_e(_cw_b(15), range(2)):
-    with _cw.iteration(16, (14, i)):
+    with _cw.iteration(16):
+        _cw.value(14, i)
         _cw.stmt(17); _cw_e(_cw_b(18), print(_cw_e(_cw_b(19), fact(_cw_e(_cw_b(20), i + 1)))))
 ```
 
@@ -130,11 +132,11 @@ for i in _cw_e(_cw_b(15), range(2)):
 - **Output.** `sys.stdout`/`sys.stderr` are replaced by writers that emit `out`
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
-- **Values.** Function parameters and loop targets are captured at block entry.
-  Values use a bounded, one-line `repr`. Recording and output capture are muted
-  while formatting so an instrumented user `__repr__` cannot change the trace.
-  Objects without a custom `__repr__` render as `<ClassName>`, including inside
-  containers.
+- **Values.** `_cw.value(id, name)` opens a function or iteration block, once
+  per parameter or loop target. Values use a bounded, one-line `repr`.
+  Recording and output capture are muted while formatting so an instrumented
+  user `__repr__` cannot change the trace. Objects without a custom `__repr__`
+  render as `<ClassName>`, including inside containers.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits.** After N events the runtime writes `end: truncated` and stops
   recording (the program may be killed).
