@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { LoaderCircle, Play } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { CanvasWindow } from "@/domain/canvas/index.ts";
 import { useRunStore } from "@/domain/run/index.ts";
@@ -20,7 +20,7 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
   const editorHost = useRef<HTMLDivElement>(null);
   const running = useRunStore((state) => state.running);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const parent = editorHost.current;
 
     if (parent === null) return;

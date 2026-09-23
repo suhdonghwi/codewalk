@@ -1,5 +1,5 @@
 import type { PointerEvent, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { initialView, useCanvasStore } from "./store.ts";
 import { pinchedView, wheelZoomFactor, zoomAboutPoint } from "./view.ts";
@@ -76,7 +76,7 @@ export function Canvas({ children }: CanvasProps) {
   const touches = useRef(new Map<number, Point>());
   const pinch = useRef<Pinch | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const world = worldRef.current;
 
