@@ -266,6 +266,19 @@ def test_syntax_and_runtime_failures_have_source_only_diagnostics(
     assert str(tmp_path) not in rendered
 
 
+def test_an_inconsistent_dedent_is_a_syntax_error_rather_than_a_tracer_crash(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "prog.py"
+    path.write_text("if x:\n    a\n  b\n", encoding="utf-8")
+    result = _trace(path)
+    end = json.loads(result.stdout.decode().splitlines()[-1])
+
+    assert result.returncode == 0
+    assert end["status"] == "syntax_error"
+    assert end["message"] == "unindent does not match any outer indentation level"
+
+
 def test_event_limit_stops_an_infinite_program_at_the_exact_limit(
     tmp_path: Path,
 ) -> None:
