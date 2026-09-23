@@ -60,22 +60,24 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
 
   const runButton = (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          aria-label="Run"
-          className="size-5 rounded-sm text-run hover:text-run disabled:pointer-events-auto"
-          data-window-control
-          disabled={running}
-          onClick={onRun}
-          size="icon"
-          variant="ghost"
-        >
-          {running ? (
-            <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
-          ) : (
-            <Play aria-hidden className="size-3.5 fill-current" />
-          )}
-        </Button>
+      <TooltipTrigger
+        render={
+          <Button
+            className="h-5 cursor-pointer rounded-sm text-run hover:text-run disabled:pointer-events-auto"
+            data-window-control
+            disabled={running}
+            onClick={onRun}
+            size="xs"
+            variant="ghost"
+          />
+        }
+      >
+        {running ? (
+          <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
+        ) : (
+          <Play aria-hidden className="size-3.5 fill-current" />
+        )}
+        Run
       </TooltipTrigger>
       <TooltipContent>{`Run  ${shortcut}`}</TooltipContent>
     </Tooltip>

@@ -67,7 +67,7 @@ export function App() {
     outcome?.kind === "trace" ? <TraceTree trace={outcome.trace} /> : null;
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delay={300}>
       <Canvas>
         <EditorWindow onRun={run} shortcut={runShortcut()} />
         <StdinWindow />
