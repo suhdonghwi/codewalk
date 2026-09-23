@@ -297,7 +297,9 @@ path: NodeId[]      // expanded block windows, root → deepest
   above it is faded, so the rows where a variable changes stand out. When the
   last sibling changed its loop state, an `after` row closes the table with the
   end state: the last sibling's inputs with its statements' changes applied.
-  It has cells only for loop state (loop targets and parameters have no
+  It stays pinned to the bottom of the list, as the header stays at the top,
+  so the end state is visible however the list is scrolled. It has cells only
+  for loop state (loop targets and parameters have no
   "after"), and is left out when it would repeat the last row, as after a
   `while` loop's final failed check. The list
   sizes to its columns

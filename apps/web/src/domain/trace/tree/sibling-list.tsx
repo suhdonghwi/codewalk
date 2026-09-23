@@ -94,12 +94,16 @@ export function SiblingList({
   const headerRows = columns.length > 0 ? 1 : 0;
   const headerHeight = headerRows * ROW_HEIGHT;
   const afterRows = after === null ? 0 : 1;
+  const afterHeight = afterRows * ROW_HEIGHT;
 
   const contentHeight = (blocks.length + headerRows + afterRows) * ROW_HEIGHT;
 
   const viewportHeight =
     height === null
-      ? Math.min(contentHeight, (MAX_VISIBLE_ROWS + headerRows) * ROW_HEIGHT)
+      ? Math.min(
+          contentHeight,
+          (MAX_VISIBLE_ROWS + headerRows + afterRows) * ROW_HEIGHT,
+        )
       : Math.min(contentHeight, height - TITLE_BAR);
 
   useLayoutEffect(() => {
@@ -112,16 +116,19 @@ export function SiblingList({
       element.scrollTop =
         rowTop -
         headerHeight -
-        (viewportHeight - headerHeight - ROW_HEIGHT) / 2;
+        (viewportHeight - headerHeight - afterHeight - ROW_HEIGHT) / 2;
       positioned.current = true;
     } else if (rowTop < element.scrollTop + headerHeight) {
       element.scrollTop = rowTop - headerHeight;
-    } else if (rowTop + ROW_HEIGHT > element.scrollTop + viewportHeight) {
-      element.scrollTop = rowTop + ROW_HEIGHT - viewportHeight;
+    } else if (
+      rowTop + ROW_HEIGHT >
+      element.scrollTop + viewportHeight - afterHeight
+    ) {
+      element.scrollTop = rowTop + ROW_HEIGHT - viewportHeight + afterHeight;
     }
 
     setScrollTop(element.scrollTop);
-  }, [selectedIndex, viewportHeight, headerRows, headerHeight]);
+  }, [selectedIndex, viewportHeight, headerRows, headerHeight, afterHeight]);
 
   useLayoutEffect(() => {
     const element = chromeRef.current;
@@ -192,7 +199,7 @@ export function SiblingList({
         style={{ height: viewportHeight }}
       >
         <div
-          className="relative"
+          className="relative flex flex-col"
           style={{
             height: contentHeight,
             minWidth: tableWidth(labelWidth, columns),
@@ -263,13 +270,9 @@ export function SiblingList({
             <div
               className={cn(
                 row,
-                "absolute inset-x-0 border-t border-window-border text-neutral-400",
+                "sticky bottom-0 z-1 mt-auto flex-none border-t border-window-border bg-white text-neutral-400",
               )}
-              style={{
-                gridTemplateColumns: template,
-                top: (blocks.length + headerRows) * ROW_HEIGHT,
-                height: ROW_HEIGHT,
-              }}
+              style={{ gridTemplateColumns: template, height: ROW_HEIGHT }}
             >
               <span>after</span>
               <Cells cells={after} columns={columns} />
