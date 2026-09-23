@@ -146,6 +146,14 @@ export function Canvas({ children }: CanvasProps) {
 
   function trackTouch(event: PointerEvent<HTMLDivElement>): void {
     if (event.pointerType !== "touch") return;
+
+    // iOS can drop the pointerup of a tap that opens or closes the keyboard.
+    // A primary touch starts a new gesture, so nothing left over is still down.
+    if (event.isPrimary) {
+      touches.current.clear();
+      pinch.current = null;
+    }
+
     touches.current.set(event.pointerId, canvasPoint(event));
 
     if (pinch.current !== null) {
