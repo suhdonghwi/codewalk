@@ -41,6 +41,14 @@ function line(view: BlockView, number: number) {
   return found;
 }
 
+function textWithValues(view: BlockView, number: number): string {
+  return line(view, number)
+    .spans.map((span) =>
+      span.value === null ? span.text : `${span.text} = ${span.value}`,
+    )
+    .join("");
+}
+
 describe("buildBlockView", () => {
   test("a nested iteration body is inert in its parent while the loop header stays lit", () => {
     const trace = fixture("fact");
@@ -221,13 +229,25 @@ describe("buildBlockView", () => {
         { from: 3, to: 8, classes: "second" },
       ]).lines[0]?.spans,
     ).toEqual([
-      { text: "a", classes: "first", state: "lit", sites: [] },
-      { text: "b", classes: "first", state: "lit", sites: [2] },
-      { text: "c", classes: "first", state: "lit", sites: [2, 3] },
-      { text: "d", classes: "second", state: "lit", sites: [2, 3] },
-      { text: "e", classes: "second", state: "lit", sites: [2] },
-      { text: "f", classes: "second", state: "lit", sites: [] },
-      { text: "gh", classes: "second", state: "dimmed", sites: [] },
+      { text: "a", classes: "first", state: "lit", sites: [], value: null },
+      { text: "b", classes: "first", state: "lit", sites: [2], value: null },
+      { text: "c", classes: "first", state: "lit", sites: [2, 3], value: null },
+      {
+        text: "d",
+        classes: "second",
+        state: "lit",
+        sites: [2, 3],
+        value: null,
+      },
+      { text: "e", classes: "second", state: "lit", sites: [2], value: null },
+      { text: "f", classes: "second", state: "lit", sites: [], value: null },
+      {
+        text: "gh",
+        classes: "second",
+        state: "dimmed",
+        sites: [],
+        value: null,
+      },
     ]);
   });
 
@@ -260,27 +280,12 @@ describe("buildBlockView", () => {
     const secondFactView = buildBlockView(trace, secondFact, []);
     const iterationView = buildBlockView(trace, firstIteration, []);
     const moduleView = buildBlockView(trace, 0, []);
-    const firstParameter = line(firstFactView, 1).values[0];
-    const secondParameter = line(secondFactView, 1).values[0];
-    const iterationTarget = line(iterationView, 7).values[0];
 
-    expect({
-      anchor:
-        firstFactView.lines[0]?.spans[firstParameter?.afterSpan ?? -1]?.text,
-      text: firstParameter?.text,
-    }).toEqual({ anchor: "n", text: "1" });
-    expect({
-      anchor:
-        secondFactView.lines[0]?.spans[secondParameter?.afterSpan ?? -1]?.text,
-      text: secondParameter?.text,
-    }).toEqual({ anchor: "n", text: "2" });
-    expect({
-      anchor: line(iterationView, 7).spans[iterationTarget?.afterSpan ?? -1]
-        ?.text,
-      text: iterationTarget?.text,
-    }).toEqual({ anchor: "i", text: "0" });
-    expect(line(moduleView, 1).values).toEqual([]);
-    expect(line(moduleView, 7).values).toEqual([]);
+    expect(textWithValues(firstFactView, 1)).toBe("def fact(n = 1):");
+    expect(textWithValues(secondFactView, 1)).toBe("def fact(n = 2):");
+    expect(textWithValues(iterationView, 7)).toBe("for i = 0 in range(2):");
+    expect(textWithValues(moduleView, 1)).toBe("def fact(n):");
+    expect(textWithValues(moduleView, 7)).toBe("for i in range(2):");
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {

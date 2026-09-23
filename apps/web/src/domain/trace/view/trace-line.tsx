@@ -132,16 +132,10 @@ export function TraceLine({
                 >
                   {span.text}
                 </span>
-                {line.values.map((value, valueIndex) =>
-                  value.afterSpan === index ? (
-                    <InlineChip
-                      className="mx-[0.5ch]"
-                      key={valueIndex}
-                      tone="value"
-                    >
-                      = {value.text}
-                    </InlineChip>
-                  ) : null,
+                {span.value === null ? null : (
+                  <InlineChip className="mx-[0.5ch]" tone="value">
+                    = {span.value}
+                  </InlineChip>
                 )}
               </Fragment>
             );
