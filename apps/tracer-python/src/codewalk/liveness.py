@@ -7,8 +7,8 @@ type Assigned = set[str] | None
 _COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
 
-def loop_state(loop: ast.For | ast.While) -> list[ast.Name]:
-    """First reads of the names one iteration may read before assigning them."""
+def loop_state(loop: ast.For | ast.While) -> list[str]:
+    """Names one iteration may read before assigning them, in first-read order."""
     reads = _Reads()
     assigned: set[str] = set()
     if isinstance(loop, ast.For):
@@ -16,7 +16,7 @@ def loop_state(loop: ast.For | ast.While) -> list[ast.Name]:
     else:
         reads.expression(loop.test, assigned, definite=True)
     reads.block(loop.body, assigned)
-    return list(reads.first.values())
+    return reads.names
 
 
 def scope_variables(
@@ -41,7 +41,7 @@ def scope_variables(
 
 class _Reads:
     def __init__(self) -> None:
-        self.first: dict[str, ast.Name] = {}
+        self.names: list[str] = []
 
     def block(self, statements: list[ast.stmt], assigned: Assigned) -> Assigned:
         for statement in statements:
@@ -246,8 +246,8 @@ class _Reads:
             self.expression(node.elt, inner, definite=False)
 
     def _read(self, node: ast.Name, assigned: set[str]) -> None:
-        if node.id not in assigned and node.id not in self.first:
-            self.first[node.id] = node
+        if node.id not in assigned and node.id not in self.names:
+            self.names.append(node.id)
 
 
 def _bind_names(node: ast.expr, assigned: set[str]) -> None:

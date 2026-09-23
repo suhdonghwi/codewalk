@@ -87,11 +87,11 @@ test("the fact fixture builds the documented execution tree and output and entry
   ]);
   expect([3, 7, 12, 16, 23].map((block) => trace.nodes[block]?.values)).toEqual(
     [
-      [{ loc: 14, text: "0" }],
-      [{ loc: 3, text: "1" }],
-      [{ loc: 14, text: "1" }],
-      [{ loc: 3, text: "2" }],
-      [{ loc: 3, text: "1" }],
+      [{ loc: 14, name: "i", text: "0" }],
+      [{ loc: 3, name: "n", text: "1" }],
+      [{ loc: 14, name: "i", text: "1" }],
+      [{ loc: 3, name: "n", text: "2" }],
+      [{ loc: 3, name: "n", text: "1" }],
     ],
   );
 });

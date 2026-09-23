@@ -148,6 +148,17 @@ class Runtime:
             {"op": "value", "loc": loc, "text": self.render(_format_value, value)}
         )
 
+    def named(self, name: str, value: object) -> None:
+        if not self._active:
+            return
+        self._emit(
+            {
+                "op": "value",
+                "name": name,
+                "text": self.render(_format_value, value),
+            }
+        )
+
     def render[T](self, format_: Callable[[T], str], subject: T) -> str:
         active = self._active
         self._active = False

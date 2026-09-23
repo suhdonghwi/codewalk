@@ -101,10 +101,18 @@ const OutEventSchema = z
   })
   .strict();
 
-const ValueEventSchema = z
+const AnchoredValueEventSchema = z
   .object({
     op: z.literal("value"),
     loc: z.number().int().nonnegative(),
+    text: z.string(),
+  })
+  .strict();
+
+const NamedValueEventSchema = z
+  .object({
+    op: z.literal("value"),
+    name: z.string(),
     text: z.string(),
   })
   .strict();
@@ -121,7 +129,8 @@ export const EventSchema = z.union([
   EnterEventSchema,
   ExitEventSchema,
   OutEventSchema,
-  ValueEventSchema,
+  AnchoredValueEventSchema,
+  NamedValueEventSchema,
   EndEventSchema,
 ]);
 

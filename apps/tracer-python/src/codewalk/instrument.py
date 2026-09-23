@@ -98,7 +98,7 @@ class _Instrumenter:
         elif isinstance(node, ast.While):
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
-            state = self._state_values(node, statement)
+            state = self._state_values(node)
             self._target(node.target, statement)
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
@@ -177,7 +177,7 @@ class _Instrumenter:
     def _while(
         self, node: ast.While, statement: int, block: int, header: tuple[int, int]
     ) -> list[ast.stmt]:
-        state = self._state_values(node, statement)
+        state = self._state_values(node)
         loop_start, loop_end = self.source.node_range(node)
         iteration = self._loc(
             "block",
@@ -243,19 +243,15 @@ class _Instrumenter:
             for parameter in parameters
         ]
 
-    def _state_values(self, node: ast.For | ast.While, parent: int) -> list[ast.stmt]:
+    def _state_values(self, node: ast.For | ast.While) -> list[ast.stmt]:
         current, _ = self._scopes[-1]
         visible = current.union(
             *(names for names, is_class in self._scopes[:-1] if not is_class)
         )
         return [
-            _guarded_value_statement(
-                self._loc("expr", *self.source.node_range(name), parent),
-                name.id,
-                node,
-            )
+            _named_value_statement(name, node)
             for name in loop_state(node)
-            if name.id in visible
+            if name in visible
         ]
 
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
@@ -405,7 +401,12 @@ def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     return ast.copy_location(statement, owner)
 
 
-def _guarded_value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
+def _named_value_statement(name: str, owner: ast.AST) -> ast.stmt:
+    value = ast.Expr(
+        value=_runtime_call(
+            "named", ast.Constant(name), ast.Name(id=name, ctx=ast.Load())
+        )
+    )
     handler = ast.ExceptHandler(
         type=ast.Attribute(
             value=ast.Name(id="_cw", ctx=ast.Load()), attr="unbound", ctx=ast.Load()
@@ -414,7 +415,7 @@ def _guarded_value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
         body=[ast.Pass()],
     )
     statement = ast.Try(
-        body=[_value_statement(loc, name, owner)],
+        body=[ast.copy_location(value, owner)],
         handlers=[handler],
         orelse=[],
         finalbody=[],

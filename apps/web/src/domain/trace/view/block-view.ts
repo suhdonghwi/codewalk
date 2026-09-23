@@ -137,7 +137,7 @@ export function buildBlockView(
     nestedBlocks,
     sites: siteLocs(trace, sites),
     values: node.values.flatMap(({ loc: locId, text }) => {
-      const anchor = trace.header.locs[locId];
+      const anchor = locId === null ? undefined : trace.header.locs[locId];
 
       return anchor === undefined ? [] : [{ end: anchor.end, text }];
     }),

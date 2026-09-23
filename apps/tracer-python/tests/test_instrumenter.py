@@ -86,7 +86,8 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
                 output.append(event["text"])
         elif event["op"] == "value":
             assert stack
-            assert locs[event["loc"]]["role"] == "expr"
+            if "loc" in event:
+                assert locs[event["loc"]]["role"] == "expr"
             assert locs[stack[-1]]["role"] == "block"
     assert not stack
 

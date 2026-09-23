@@ -9,6 +9,7 @@ import type {
   Trace,
   TraceNode,
   TraceParseError,
+  ValueChunk,
 } from "./model.ts";
 
 function parseError(
@@ -152,6 +153,27 @@ export function parseTrace(jsonl: string): ParseResult {
   const open: number[] = [];
   let end: End | null = null;
 
+  function attachValue(
+    line: number,
+    value: ValueChunk,
+  ): TraceParseError | null {
+    const nodeId = open.at(-1);
+
+    if (nodeId === undefined) {
+      return structureError(line, "value has no open node");
+    }
+
+    const node = nodes[nodeId];
+
+    if (node === undefined || header.locs[node.loc]?.role !== "block") {
+      return structureError(line, "value is not attached to a block");
+    }
+
+    node.values.push(value);
+
+    return null;
+  }
+
   for (let index = 1; index < lines.length; index += 1) {
     const line = lines[index];
 
@@ -267,7 +289,7 @@ export function parseTrace(jsonl: string): ParseResult {
 
         return null;
       })
-      .with({ op: "value" }, ({ loc, text }) => {
+      .with({ op: "value", loc: P.number }, ({ loc, text }) => {
         const valueLoc = header.locs[loc];
 
         if (valueLoc === undefined) {
@@ -278,22 +300,14 @@ export function parseTrace(jsonl: string): ParseResult {
           return structureError(index + 1, "value loc is not an expr");
         }
 
-        const nodeId = open.at(-1);
+        const source = header.sources[valueLoc.file]?.text ?? "";
+        const name = source.slice(valueLoc.start, valueLoc.end);
 
-        if (nodeId === undefined) {
-          return structureError(index + 1, "value has no open node");
-        }
-
-        const node = nodes[nodeId];
-
-        if (node === undefined || header.locs[node.loc]?.role !== "block") {
-          return structureError(index + 1, "value is not attached to a block");
-        }
-
-        node.values.push({ loc, text });
-
-        return null;
+        return attachValue(index + 1, { loc, name, text });
       })
+      .with({ op: "value", name: P.string }, ({ name, text }) =>
+        attachValue(index + 1, { loc: null, name, text }),
+      )
       .with({ op: "end" }, (endEvent) => {
         const parsedEnd = endFromEvent(endEvent);
 

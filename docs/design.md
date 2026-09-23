@@ -135,7 +135,8 @@ for i in _cw_e(_cw_b(15), range(2)):
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
 - **Values.** `_cw.value(id, name)` opens a function or iteration block, once
-  per parameter or loop target, then once per loop-state variable. Values use a one-line `repr` of at most 48
+  per parameter or loop target, then `_cw.named("name", name)` once per
+  loop-state variable. Values use a one-line `repr` of at most 48
   characters, the length an inline chip shows. Recording and output capture
   are muted while formatting so an instrumented user `__repr__` cannot change
   the trace. Objects without a custom `__repr__` render as `<ClassName>`,

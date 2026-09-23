@@ -87,7 +87,7 @@ describe("buildBlockView", () => {
     );
     expect(
       line(iteration, 7)
-        .spans.filter((span) => span.sites.includes(14))
+        .spans.filter((span) => span.sites.includes(13))
         .map((span) => span.text)
         .join(""),
     ).toBe("below(i, 1)");

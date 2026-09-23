@@ -143,15 +143,19 @@ Range conventions:
   block was left by a propagating exception; the value is a one-line summary.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
-- `value` — the value of the range given by `loc`, which must refer to an
-  `expr` loc. `text` is a bounded, one-line rendering; Python renders objects
-  without a custom `__repr__` as `<ClassName>`. It attaches to the innermost
-  open node like `out`. Tracers emit values only immediately after entering a
-  block, for the block's inputs: a function's parameters, and an iteration's
-  loop targets and loop state. Loop state is the variables an iteration may
-  read before assigning them, anchored at the first such read; one that is
-  still unbound is left out. A value therefore always belongs to a block node. The viewer places it immediately after the source
-  range of `loc` and includes it in titles and sibling rows too.
+- `value` — a value, in one of two forms. `{loc, text}` is the value of the
+  range given by `loc`, which must refer to an `expr` loc: a name bound at that
+  spot. `{name, text}` is the value of a variable the block receives without
+  binding it anywhere in its range. `text` is a bounded, one-line rendering;
+  Python renders objects without a custom `__repr__` as `<ClassName>`. It
+  attaches to the innermost open node like `out`. Tracers emit values only
+  immediately after entering a block, for the block's inputs: a function's
+  parameters and an iteration's loop targets (anchored), and an iteration's
+  loop state (named). Loop state is the variables an iteration may read before
+  assigning them; one that is still unbound is left out. A value therefore
+  always belongs to a block node. The viewer places an anchored value
+  immediately after the source range of `loc`, and a named value with the
+  block's first line; it includes both in titles and sibling rows too.
 - `end` — last line. `status`:
   - `ok` — program finished.
   - `exception` — uncaught exception; `traceback` holds the user-facing text.

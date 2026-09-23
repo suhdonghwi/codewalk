@@ -227,6 +227,27 @@
           "additionalProperties": false
         },
         {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "value"
+            },
+            "name": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "op",
+            "name",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
           "oneOf": [
             {
               "type": "object",

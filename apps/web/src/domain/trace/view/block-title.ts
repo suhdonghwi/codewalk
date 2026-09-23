@@ -22,18 +22,12 @@ export interface SiblingColumn {
 const MAX_COLUMN_WIDTH = 24;
 
 function blockValues(trace: Trace, block: NodeId): Map<string, string> {
-  const { node, source } = requireBlock(trace, block);
-  const values = new Map<string, string>();
-
-  for (const value of node.values) {
-    const anchor = trace.header.locs[value.loc];
-
-    if (anchor !== undefined) {
-      values.set(source.slice(anchor.start, anchor.end), value.text);
-    }
-  }
-
-  return values;
+  return new Map(
+    requireBlock(trace, block).node.values.map(({ name, text }) => [
+      name,
+      text,
+    ]),
+  );
 }
 
 export function siblingColumns(

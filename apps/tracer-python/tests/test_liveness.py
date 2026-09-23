@@ -39,4 +39,4 @@ def test_loop_state_is_what_an_iteration_may_read_before_assigning(
     loop = ast.parse(source).body[0]
     assert isinstance(loop, (ast.For, ast.While))
 
-    assert [name.id for name in loop_state(loop)] == state
+    assert loop_state(loop) == state
