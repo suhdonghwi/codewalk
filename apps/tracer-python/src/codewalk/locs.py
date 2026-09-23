@@ -80,8 +80,14 @@ class SourceMap:
         )
 
     def argument_range(self, node: ast.arg) -> tuple[int, int]:
-        start = self.parser_position(node.lineno, node.col_offset)
-        return start, start + _utf16_len(node.arg)
+        index = bisect.bisect_left(
+            self._token_starts, (node.lineno, self._character_column(node))
+        )
+        token = self._tokens[index]
+        return (
+            self.character_position(*token.start),
+            self.character_position(*token.end),
+        )
 
     def statement_range(self, node: ast.stmt) -> tuple[int, int]:
         if not isinstance(node, _COMPOUND):
@@ -125,7 +131,7 @@ class SourceMap:
             return _utf16_len(self.text)
         return self.character_position(max(line, 1), column)
 
-    def _character_column(self, node: ast.expr | ast.stmt) -> int:
+    def _character_column(self, node: ast.arg | ast.expr | ast.stmt) -> int:
         line = self._lines[node.lineno - 1]
         return len(line.encode("utf-8")[: node.col_offset].decode("utf-8"))
 

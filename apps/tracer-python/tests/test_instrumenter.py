@@ -184,7 +184,8 @@ def test_user_repr_calls_still_raise_after_entry_value_formatting(
 
 def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -> None:
     source = (
-        "def gather(𐐀: int, /, first=1, *args: str, named=True, **kwargs: int):\n"
+        "def gather(𐐀: int, ﬀ: int, \U0001d499: str, /, "
+        "first=1, *args: str, named=True, **kwargs: int):\n"
         "    return first\n"
     )
     encoded = source.encode("utf-16-le")
@@ -201,7 +202,15 @@ def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -
         if loc["role"] == "expr" and loc["parent"] == definition
     ]
 
-    assert parameter_ranges == ["𐐀", "first", "args", "named", "kwargs"]
+    assert parameter_ranges == [
+        "𐐀",
+        "ﬀ",
+        "\U0001d499",
+        "first",
+        "args",
+        "named",
+        "kwargs",
+    ]
 
 
 def test_loop_entry_values_capture_only_destructured_names_in_source_order(
