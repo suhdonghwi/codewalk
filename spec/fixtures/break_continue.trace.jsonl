@@ -19,7 +19,7 @@
 {"op":"exit"}
 {"op":"enter","loc":10}
 {"op":"exit"}
-{"op":"exit"}
+{"op":"exit","jump":"break"}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"end","status":"ok"}

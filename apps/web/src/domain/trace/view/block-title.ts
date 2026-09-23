@@ -187,6 +187,17 @@ export function siblingAfter(
   );
 }
 
+export function siblingEnding(trace: Trace, blocks: NodeId[]): string | null {
+  const last = blocks.at(-1);
+
+  if (last === undefined) return null;
+  const { node } = requireBlock(trace, last);
+
+  if (node.exc !== null) return "ended by exception";
+
+  return node.jump === null ? null : `ended by ${node.jump}`;
+}
+
 export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {
   const first = blocks[0];
 

@@ -84,6 +84,10 @@ class _Instrumenter:
         start, end = self.source.statement_range(node)
         statement = self._loc("stmt", start, end, block)
         marker = self._marker(statement, node)
+        if isinstance(node, (ast.Break, ast.Return)):
+            kind = "break" if isinstance(node, ast.Break) else "return"
+            call = _runtime_call("jump", ast.Constant(statement), ast.Constant(kind))
+            marker = ast.copy_location(ast.Expr(value=call), node)
         self._bind(statement, node)
 
         if isinstance(node, ast.FunctionDef):
