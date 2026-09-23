@@ -237,12 +237,8 @@ class Runtime:
         return variables
 
     def _snapshot(self, key: tuple[int, str], value: object) -> Snapshot:
-        active = self._active
-        self._active = False
-        try:
-            taken = snapshot(value, self._recent.get(key))
-        finally:
-            self._active = active
+        previous = self._recent.get(key)
+        taken = self.render(lambda item: snapshot(item, previous), value)
         self._recent[key] = taken
         return taken
 
