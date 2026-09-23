@@ -76,6 +76,8 @@ class _BlockContext:
 class Runtime:
     """Maintain the open-node stack and emit trace events."""
 
+    unbound = NameError
+
     def __init__(
         self,
         parents: Sequence[int | None],

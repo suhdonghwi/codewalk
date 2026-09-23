@@ -4,6 +4,7 @@ import ast
 from dataclasses import dataclass
 from typing import Literal
 
+from codewalk.liveness import loop_state, scope_variables
 from codewalk.locs import Loc, SourceMap
 
 _BRACKETED = (
@@ -32,6 +33,7 @@ class _Instrumenter:
         self.source = SourceMap(source)
         self.source_name = source_name
         self.locs: list[Loc] = []
+        self._scopes: list[tuple[set[str], bool]] = []
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -40,6 +42,7 @@ class _Instrumenter:
         )
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
+        self._scopes.append((scope_variables(node.body), False))
         body = self._body(node.body[prefix_count:], module_loc)
         wrapper = self._block_wrapper("block", module_loc, body, node)
         node.body = [*prefix, wrapper]
@@ -72,7 +75,9 @@ class _Instrumenter:
             )
             values = self._parameter_values(node.args, statement)
             doc, rest = _split_docstring(node.body)
+            self._scopes.append((scope_variables(rest, node.args), False))
             body = self._body(rest, function)
+            self._scopes.pop()
             node.body = [
                 *doc,
                 self._block_wrapper("block", function, [*values, *body], node),
@@ -87,10 +92,13 @@ class _Instrumenter:
             for keyword in node.keywords:
                 keyword.value = self._expression(keyword.value, statement)
             doc, rest = _split_docstring(node.body)
+            self._scopes.append((scope_variables(rest), True))
             node.body = [*doc, *self._body(rest, block)]
+            self._scopes.pop()
         elif isinstance(node, ast.While):
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
+            state = self._state_values(node, statement)
             self._target(node.target, statement)
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
@@ -107,7 +115,7 @@ class _Instrumenter:
                 self._block_wrapper(
                     "iteration",
                     iteration,
-                    [*values, *self._body(node.body, iteration)],
+                    [*values, *state, *self._body(node.body, iteration)],
                     node,
                 )
             ]
@@ -169,6 +177,7 @@ class _Instrumenter:
     def _while(
         self, node: ast.While, statement: int, block: int, header: tuple[int, int]
     ) -> list[ast.stmt]:
+        state = self._state_values(node, statement)
         loop_start, loop_end = self.source.node_range(node)
         iteration = self._loc(
             "block",
@@ -188,6 +197,7 @@ class _Instrumenter:
             orelse=[],
         )
         body = [
+            *state,
             self._marker(test, node),
             ast.copy_location(check, node),
             *self._body(node.body, iteration),
@@ -231,6 +241,21 @@ class _Instrumenter:
                 parameter,
             )
             for parameter in parameters
+        ]
+
+    def _state_values(self, node: ast.For | ast.While, parent: int) -> list[ast.stmt]:
+        current, _ = self._scopes[-1]
+        visible = current.union(
+            *(names for names, is_class in self._scopes[:-1] if not is_class)
+        )
+        return [
+            _guarded_value_statement(
+                self._loc("expr", *self.source.node_range(name), parent),
+                name.id,
+                node,
+            )
+            for name in loop_state(node)
+            if name.id in visible
         ]
 
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
@@ -377,6 +402,23 @@ def _runtime_call(method: str, *args: ast.expr) -> ast.Call:
 def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     value = ast.Name(id=name, ctx=ast.Load())
     statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
+    return ast.copy_location(statement, owner)
+
+
+def _guarded_value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
+    handler = ast.ExceptHandler(
+        type=ast.Attribute(
+            value=ast.Name(id="_cw", ctx=ast.Load()), attr="unbound", ctx=ast.Load()
+        ),
+        name=None,
+        body=[ast.Pass()],
+    )
+    statement = ast.Try(
+        body=[_value_statement(loc, name, owner)],
+        handlers=[handler],
+        orelse=[],
+        finalbody=[],
+    )
     return ast.copy_location(statement, owner)
 
 

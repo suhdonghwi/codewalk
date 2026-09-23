@@ -72,7 +72,8 @@ or output (→ inline output). A call and a loop are the same thing to the viewe
 so are a function activation and an iteration.
 
 v1 records structure, statement coverage, output and exceptions. It also
-records block inputs — function parameters and loop targets — at block entry.
+records block inputs — function parameters, loop targets and loop state — at
+block entry.
 
 ## Tracer (Python)
 
@@ -133,11 +134,20 @@ for i in _cw_e(_cw_b(15), range(2)):
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
 - **Values.** `_cw.value(id, name)` opens a function or iteration block, once
-  per parameter or loop target. Values use a one-line `repr` of at most 48
+  per parameter or loop target, then once per loop-state variable. Values use a one-line `repr` of at most 48
   characters, the length an inline chip shows. Recording and output capture
   are muted while formatting so an instrumented user `__repr__` cannot change
   the trace. Objects without a custom `__repr__` render as `<ClassName>`,
   including inside containers.
+- **Loop state.** An iteration's inputs beyond its targets are the variables it
+  may read before assigning them: a definite-assignment walk over the body (for
+  `while`, the condition first) that intersects at branch joins and drops paths
+  that `break`, `continue`, `return` or `raise`. Only names the enclosing scopes
+  bind as variables count, so builtins, functions, classes and imports are not
+  state. Mutation needs no special case: a list the body appends to is read
+  before it is assigned, and its value differs between iterations. Each read is
+  guarded, so a variable not bound yet (typically in the first iteration) is
+  left out.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits** belong to the runner, not the tracer. The runner kills the process
   at its time limit or once the trace reaches its byte cap. The tracer flushes

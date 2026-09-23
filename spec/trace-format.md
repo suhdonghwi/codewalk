@@ -147,8 +147,10 @@ Range conventions:
   `expr` loc. `text` is a bounded, one-line rendering; Python renders objects
   without a custom `__repr__` as `<ClassName>`. It attaches to the innermost
   open node like `out`. Tracers emit values only immediately after entering a
-  block: a function's parameters and a loop's targets. A value therefore always
-  belongs to a block node. The viewer places it immediately after the source
+  block, for the block's inputs: a function's parameters, and an iteration's
+  loop targets and loop state. Loop state is the variables an iteration may
+  read before assigning them, anchored at the first such read; one that is
+  still unbound is left out. A value therefore always belongs to a block node. The viewer places it immediately after the source
   range of `loc` and includes it in titles and sibling rows too.
 - `end` — last line. `status`:
   - `ok` — program finished.
@@ -176,8 +178,8 @@ as is a `value` event with no open block node.
   whether the expression ran; use `stmt` nodes for that.
   Locs are a static table, however, so an `expr` loc may exist only as an anchor
   for values and never be entered as a node.
-- Values are recorded for block inputs only. Expression values, variables and
-  heap state are not recorded.
+- Values are recorded for block inputs only. Other expression values, variables
+  and heap state are not recorded.
 
 ## Derived views
 
