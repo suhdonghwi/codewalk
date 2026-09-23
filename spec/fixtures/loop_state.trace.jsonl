@@ -61,6 +61,7 @@
 {"op":"value","name":"lo","value":{"kind":"number","text":"2"}}
 {"op":"exit"}
 {"op":"enter","loc":21}
+{"op":"return","value":{"kind":"number","text":"2"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

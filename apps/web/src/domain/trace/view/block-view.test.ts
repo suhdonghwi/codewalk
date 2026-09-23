@@ -17,7 +17,7 @@ import { pieceText, preview } from "./values.ts";
 
 import type { SiblingCell } from "./block-title.ts";
 
-import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
+import type { NodeId, RecordedValue, Trace } from "@codewalk/trace";
 
 function fixture(name: string): Trace {
   const contents = readFileSync(
@@ -66,7 +66,7 @@ function cellTexts(cells: SiblingCell[] | null) {
   );
 }
 
-function shown(trace: Trace, { value, at }: ValueChunk): string {
+function shown(trace: Trace, { value, at }: RecordedValue): string {
   return preview(trace, value, at, 80);
 }
 
@@ -246,6 +246,7 @@ describe("buildBlockView", () => {
           children: [1],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
         {
@@ -255,6 +256,7 @@ describe("buildBlockView", () => {
           children: [2],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
         {
@@ -264,6 +266,7 @@ describe("buildBlockView", () => {
           children: [4, 3],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
         {
@@ -273,6 +276,7 @@ describe("buildBlockView", () => {
           children: [5],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
         {
@@ -282,6 +286,7 @@ describe("buildBlockView", () => {
           children: [],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
         {
@@ -291,6 +296,7 @@ describe("buildBlockView", () => {
           children: [],
           outputs: [],
           values: [],
+          returned: null,
           exc: null,
         },
       ],
@@ -486,6 +492,33 @@ describe("buildBlockView", () => {
     );
     expect(line(module, 9).exception).toBe("ValueError: caught");
     expect(line(module, 15).exception).toMatch(/^JSONDecodeError: /);
+  });
+
+  test("a return value sits on its return line in the block that ran it, as it was when returned", () => {
+    const trace = fixture("return_value");
+    const [skipped, found] = blockNodes(trace, "iteration");
+    const [build] = blockNodes(trace, "build");
+    const [stop] = blockNodes(trace, "stop");
+
+    if (
+      skipped === undefined ||
+      found === undefined ||
+      build === undefined ||
+      stop === undefined
+    ) {
+      throw new Error("Missing return_value fixture blocks");
+    }
+
+    const returned = (block: NodeId, number: number) => {
+      const returned = line(buildBlockView(trace, block, []), number).returned;
+
+      return returned === null ? null : shown(trace, returned.value);
+    };
+
+    expect(returned(skipped, 4)).toBeNull();
+    expect(returned(found, 4)).toBe("4");
+    expect(returned(build, 10)).toBe("[1]");
+    expect(returned(stop, 14)).toBeNull();
   });
 
   test("titles use trace labels, site indexes, and units", () => {

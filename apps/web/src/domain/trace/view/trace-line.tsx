@@ -10,7 +10,7 @@ import { ValueInspector } from "./value-inspector.tsx";
 
 import type { InlineSegment, Line } from "./block-view.ts";
 import type { Span } from "./spans.ts";
-import type { LocId, Trace, ValueChunk } from "@codewalk/trace";
+import type { LocId, RecordedValue, Trace } from "@codewalk/trace";
 
 interface TraceLineProps {
   trace: Trace;
@@ -53,7 +53,8 @@ function siteBackground(span: Span): string | undefined {
 
 interface OpenValue {
   key: string;
-  entry: ValueChunk;
+  name: string;
+  entry: RecordedValue;
 }
 
 interface ValuePanelProps {
@@ -66,11 +67,11 @@ function ValuePanel({ trace, values }: ValuePanelProps) {
 
   return (
     <div className="col-span-full mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] flex flex-col gap-1">
-      {values.map(({ key, entry }) => (
+      {values.map(({ key, name, entry }) => (
         <ValueInspector
           at={entry.at}
           key={key}
-          name={entry.name}
+          name={name}
           trace={trace}
           value={entry.value}
         />
@@ -109,10 +110,11 @@ export function TraceLine({
 
   const startEntries: OpenValue[] = line.start
     .filter(({ name }) => varyingNames.includes(name))
-    .map((entry) => ({ key: `start:${entry.name}`, entry }));
+    .map((entry) => ({ key: `start:${entry.name}`, name: entry.name, entry }));
 
   const changeEntries: OpenValue[] = line.changes.map((entry, index) => ({
     key: `change:${index}`,
+    name: entry.name,
     entry,
   }));
 
@@ -120,24 +122,35 @@ export function TraceLine({
     ...line.spans.flatMap((span, index) =>
       span.value === null
         ? []
-        : [{ key: `anchor:${index}`, entry: span.value }],
+        : [
+            {
+              key: `anchor:${index}`,
+              name: span.value.name,
+              entry: span.value,
+            },
+          ],
     ),
     ...changeEntries,
   ];
 
+  const returnedEntries: OpenValue[] =
+    line.returned === null
+      ? []
+      : [{ key: "returned", name: "returned", entry: line.returned.value }];
+
   const loopEndEntries: OpenValue[] = (line.loopEnd?.changes ?? []).map(
-    (entry, index) => ({ key: `loop-end:${index}`, entry }),
+    (entry, index) => ({ key: `loop-end:${index}`, name: entry.name, entry }),
   );
 
   const isExpanded = ({ key }: OpenValue) => openKeys.includes(key);
 
-  function namedChip({ key, entry }: OpenValue, operator: string) {
+  function valueChip({ key, entry }: OpenValue, label?: string) {
     return (
       <ValueChip
         entry={entry}
         expanded={openKeys.includes(key)}
         key={key}
-        label={`${entry.name} ${operator}`}
+        label={label}
         onToggle={() => {
           toggleValue(key);
         }}
@@ -146,7 +159,11 @@ export function TraceLine({
     );
   }
 
-  function stateRow(label: string, entries: OpenValue[], operator: string) {
+  function stateRow(
+    label: string,
+    entries: OpenValue[],
+    chipLabel: (entry: OpenValue) => string | undefined,
+  ) {
     return (
       <>
         <div className={cn(rowClasses(false), "hover:bg-neutral-50")}>
@@ -158,7 +175,7 @@ export function TraceLine({
             <span className="pl-2.5 text-neutral-400">{label}</span>
           </div>
           <div className="flex items-baseline gap-[0.5ch] pr-4">
-            {entries.map((entry) => namedChip(entry, operator))}
+            {entries.map((entry) => valueChip(entry, chipLabel(entry)))}
           </div>
         </div>
         <ValuePanel trace={trace} values={entries.filter(isExpanded)} />
@@ -173,7 +190,7 @@ export function TraceLine({
     <div className="col-span-full grid grid-cols-subgrid">
       {startEntries.length === 0
         ? null
-        : stateRow("(before)", startEntries, "=")}
+        : stateRow("(before)", startEntries, ({ name }) => `${name} =`)}
       <div
         className={cn(
           rowClasses(hasChips(line)),
@@ -262,7 +279,7 @@ export function TraceLine({
           </code>
         </div>
         <div className="flex items-baseline gap-[0.5ch] pr-4">
-          {changeEntries.map((entry) => namedChip(entry, "→"))}
+          {changeEntries.map((entry) => valueChip(entry, `${entry.name} →`))}
           {outputPreview === null ? null : (
             <InlineChip
               expandable={outputPreview.expandable}
@@ -286,9 +303,20 @@ export function TraceLine({
           <Segments segments={line.output} />
         </pre>
       ) : null}
+      {line.returned === null
+        ? null
+        : stateRow(
+            `${line.returned.indent}(returned)`,
+            returnedEntries,
+            () => undefined,
+          )}
       {line.loopEnd === null
         ? null
-        : stateRow(`${line.loopEnd.indent}(after)`, loopEndEntries, "→")}
+        : stateRow(
+            `${line.loopEnd.indent}(after)`,
+            loopEndEntries,
+            ({ name }) => `${name} →`,
+          )}
     </div>
   );
 }

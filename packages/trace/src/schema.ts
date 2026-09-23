@@ -204,6 +204,13 @@ const NamedValueEventSchema = z
   })
   .strict();
 
+const ReturnEventSchema = z
+  .object({
+    op: z.literal("return"),
+    value: ValueSchema,
+  })
+  .strict();
+
 const EndEventSchema = z.discriminatedUnion("status", [
   OkEndSchema.extend({ op: z.literal("end") }),
   TruncatedEndSchema.extend({ op: z.literal("end") }),
@@ -218,6 +225,7 @@ export const EventSchema = z.union([
   OutEventSchema,
   AnchoredValueEventSchema,
   NamedValueEventSchema,
+  ReturnEventSchema,
   ObjectEventSchema,
   EndEventSchema,
 ]);

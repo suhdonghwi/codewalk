@@ -2,12 +2,12 @@ import { InlineChip } from "./inline-chip.tsx";
 import { PreviewText } from "./preview-text.tsx";
 import { PREVIEW_BUDGET, previewPieces, valueChildren } from "./values.ts";
 
-import type { Trace, ValueChunk } from "@codewalk/trace";
+import type { RecordedValue, Trace } from "@codewalk/trace";
 
 interface ValueChipProps {
   trace: Trace;
-  label?: string;
-  entry: ValueChunk;
+  label?: string | undefined;
+  entry: RecordedValue;
   expanded: boolean;
   className?: string;
   onToggle: () => void;

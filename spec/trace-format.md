@@ -157,6 +157,7 @@ Range conventions:
 {"op": "value", "loc": 16, "value": {"kind": "number", "text": "3"}}
 {"op": "obj", "id": 0, "kind": "sequence", "type": "list", "items": [{"kind": "number", "text": "1"}]}
 {"op": "value", "name": "xs", "value": {"ref": 0}}
+{"op": "return", "value": {"ref": 0}}
 {"op": "end", "status": "ok"}
 ```
 
@@ -195,6 +196,12 @@ Range conventions:
     out, and so are variables no later code in the frame may read and that do
     not outlive the frame. The viewer places them after the loop's body. Calls of one function
     beyond its first 1000 record none.
+- `return` — the value (see [Values](#values)) a statement handed back from its
+  function, as it was at that moment. It attaches to the innermost open node,
+  which must be the returning statement, at most once. The viewer places it
+  on a row below the statement. Python records it for `return` statements with a
+  value, not for a bare `return` or a function that ends without one, and, like
+  named values, not in calls of one function beyond its first 1000.
 - `obj` — the state of an object, referenced from values by `id`. It attaches
   to no node. See [Objects](#objects).
 - `end` — last line. `status`:
@@ -215,10 +222,11 @@ mid-write. Any other unparseable line makes the whole trace invalid.
 
 A `value` event whose `loc` is out of range or not an `expr` loc is malformed,
 as is an anchored `value` event with no open block node and a named one
-attached to an `expr` node. An `obj` event whose `id` is neither already
-defined nor the next new id is malformed, as is a `value` event when a
-reference in it, or in any `obj` event before it, names an id not defined
-before it.
+attached to an `expr` node. A `return` event not attached to a `stmt` node,
+or attached to one that already has one, is malformed. An `obj` event whose
+`id` is neither already defined nor the next new id is malformed, as is a
+`value` or `return` event when a reference in it, or in any `obj` event before
+it, names an id not defined before it.
 
 ### Values
 
@@ -272,11 +280,11 @@ another object.
   opening is written with none and its `length`.
 
 An object may be defined more than once, because its state changes. A
-reference in a `value` event resolves to the object's latest definition before
-that event, and references inside that definition resolve the same way,
-relative to the same `value` event. Before each `value` event the tracer
+reference in a `value` or `return` event resolves to the object's latest
+definition before that event, and references inside that definition resolve
+the same way, relative to the same event. Before each such event the tracer
 defines every object reachable from it that is new or has changed since its
-latest definition, so a `value` event shows the objects as they were at that
+latest definition, so the event shows the objects as they were at that
 moment while an unchanged object is written only once. Definitions may refer
 forward to ids defined later in the same run of `obj` events, which is how
 cycles are written.
@@ -299,8 +307,8 @@ traces are deterministic.
   whether the expression ran; use `stmt` nodes for that.
   Locs are a static table, however, so an `expr` loc may exist only as an anchor
   for values and never be entered as a node.
-- Values are recorded for block inputs and for the statements that change a
-  block's watched variables. Other expression values are not recorded, and
+- Values are recorded for block inputs, for the statements that change a
+  block's watched variables and for returned values. Other expression values are not recorded, and
   objects are recorded only as far as these values reach them, within the
   tracer's limits.
 
@@ -352,7 +360,8 @@ for i in range(2):
     print(fact(i + 1))
 ```
 
-Its trace, drawn as a tree (`B` block, `S` stmt, `E` expr, `V` value):
+Its trace, drawn as a tree (`B` block, `S` stmt, `E` expr, `V` value,
+`R` return):
 
 ```
 B module
@@ -368,7 +377,7 @@ B module
               S print("fact", n)
                 E print("fact", n)          out "fact 1\n"
               S if n <= 1:
-              S return 1
+              S return 1                    R 1
           out "1\n"
     B iteration
       V i=1
@@ -380,7 +389,7 @@ B module
               S print("fact", n)
                 E print("fact", n)          out "fact 2\n"
               S if n <= 1:
-              S return n * fact(n - 1)
+              S return n * fact(n - 1)      R 2
                 E n * fact(n - 1)
                   E fact(n - 1)
                     B function fact
@@ -388,7 +397,7 @@ B module
                       S print("fact", n)
                         E print("fact", n)  out "fact 1\n"
                       S if n <= 1:
-                      S return 1
+                      S return 1            R 1
           out "2\n"
 ```
 

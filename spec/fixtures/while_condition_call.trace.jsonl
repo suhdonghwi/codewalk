@@ -19,6 +19,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":7}
+{"op":"return","value":{"kind":"boolean","text":"True"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
@@ -40,6 +41,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":7}
+{"op":"return","value":{"kind":"boolean","text":"False"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
@@ -68,6 +70,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":7}
+{"op":"return","value":{"kind":"boolean","text":"True"}}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
