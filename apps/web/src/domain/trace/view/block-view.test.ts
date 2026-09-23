@@ -51,7 +51,9 @@ function titleAmong(trace: Trace, blocks: NodeId[], block: NodeId) {
 }
 
 function line(view: BlockView, number: number) {
-  const found = view.lines.find((candidate) => candidate.number === number);
+  const found = view.groups
+    .flat()
+    .find((candidate) => candidate.number === number);
 
   if (found === undefined) throw new Error(`Missing line ${number}`);
 
@@ -305,7 +307,7 @@ describe("buildBlockView", () => {
       buildBlockView(trace, 0, [
         { from: 0, to: 3, classes: "first" },
         { from: 3, to: 8, classes: "second" },
-      ]).lines[0]?.spans,
+      ]).groups[0]?.[0]?.spans,
     ).toEqual([
       { text: "a", classes: "first", state: "lit", sites: [], value: null },
       { text: "b", classes: "first", state: "lit", sites: [2], value: null },
@@ -384,15 +386,29 @@ describe("buildBlockView", () => {
       "target",
     ]);
     expect(
-      search.lines.flatMap(({ number, changes }) =>
-        changes.map(
-          (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+      search.groups
+        .flat()
+        .flatMap(({ number, changes }) =>
+          changes.map(
+            (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+          ),
         ),
-      ),
     ).toEqual(["4: mid → 1", "6: lo → 2"]);
     expect(
       line(words, 21).changes.map((change) => shown(trace, change)),
     ).toEqual(["['a']"]);
+  });
+
+  test("a window splits into paragraphs at blank lines, each keeping the blank lines that follow it", () => {
+    const trace = fixture("loop_state");
+
+    if (trace.root === null) throw new Error("Missing fixture root");
+
+    expect(
+      buildBlockView(trace, trace.root, []).groups.map(
+        (group) => `${group[0]?.number}-${group.at(-1)?.number}`,
+      ),
+    ).toEqual(["1-11", "12-15", "16-17", "18-22", "23-28", "29-35"]);
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {
@@ -411,9 +427,9 @@ describe("buildBlockView", () => {
     if (root === null) throw new Error("Missing fixture root");
 
     expect(
-      buildBlockView(caught, root, []).lines.map(
-        (candidate) => candidate.exception,
-      ),
+      buildBlockView(caught, root, [])
+        .groups.flat()
+        .map((candidate) => candidate.exception),
     ).not.toContain("ValueError: caught");
   });
 

@@ -14,7 +14,6 @@ import type { LocId, Trace, ValueChunk } from "@codewalk/trace";
 interface TraceLineProps {
   trace: Trace;
   line: Line;
-  row: number;
   anchor: boolean;
   hoveredSite: LocId | null;
   openSite: LocId | null;
@@ -56,10 +55,16 @@ interface OpenValue {
   entry: ValueChunk;
 }
 
+function rowClasses(hasChips: boolean): string {
+  return cn(
+    "col-span-full min-h-code-line items-baseline whitespace-pre",
+    hasChips ? "grid grid-cols-subgrid" : "flex",
+  );
+}
+
 export function TraceLine({
   trace,
   line,
-  row,
   anchor,
   hoveredSite,
   openSite,
@@ -93,14 +98,17 @@ export function TraceLine({
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
 
+  const hasChips =
+    line.values.length > 0 ||
+    line.changes.length > 0 ||
+    line.output !== null ||
+    line.exception !== null;
+
   return (
-    <div
-      className="col-span-full grid grid-cols-subgrid"
-      style={{ gridRowStart: row }}
-    >
+    <div className="col-span-full grid grid-cols-subgrid">
       <div
         className={cn(
-          "col-span-full grid min-h-code-line grid-cols-subgrid items-baseline whitespace-pre",
+          rowClasses(hasChips),
           line.exception === null ? "hover:bg-neutral-50" : "bg-exception/8",
         )}
         data-site-anchor={anchor || undefined}

@@ -33,7 +33,7 @@ export interface Line {
 }
 
 export interface BlockView {
-  lines: Line[];
+  groups: Line[][];
 }
 
 function outputsByLine(
@@ -130,6 +130,30 @@ function exceptionByLine(
   return result;
 }
 
+function isBlank(line: Line): boolean {
+  return line.spans.every(({ text }) => text.trim().length === 0);
+}
+
+function paragraphs(lines: Line[]): Line[][] {
+  const groups: Line[][] = [];
+
+  for (const [index, line] of lines.entries()) {
+    const previous = lines[index - 1];
+    const current = groups.at(-1);
+
+    if (
+      current === undefined ||
+      (previous !== undefined && isBlank(previous) && !isBlank(line))
+    ) {
+      groups.push([line]);
+    } else {
+      current.push(line);
+    }
+  }
+
+  return groups;
+}
+
 export function buildBlockView(
   trace: Trace,
   block: NodeId,
@@ -182,13 +206,15 @@ export function buildBlockView(
   const blockValues = node.values.filter(({ loc }) => loc === null);
 
   return {
-    lines: lines.map((line, index) => ({
-      number: line.number,
-      spans: spansForLine(context, line),
-      values: index === 0 ? blockValues : [],
-      changes: changes.get(line.number) ?? [],
-      output: outputs.get(line.number) ?? null,
-      exception: exceptions.get(line.number) ?? null,
-    })),
+    groups: paragraphs(
+      lines.map((line, index) => ({
+        number: line.number,
+        spans: spansForLine(context, line),
+        values: index === 0 ? blockValues : [],
+        changes: changes.get(line.number) ?? [],
+        output: outputs.get(line.number) ?? null,
+        exception: exceptions.get(line.number) ?? null,
+      })),
+    ),
   };
 }

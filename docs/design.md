@@ -221,16 +221,18 @@ about a name follows the name where it is bound, like a parameter on the `def`
 line or a loop target on the `for` line. A chip about a whole line (output, an
 exception, loop state, the changes a statement made like `lo → 8`) sits in a
 column to the right of the code, so the block's data reads top to bottom beside
-its code. Long output expands into a panel below its line, and so does a value
-that holds an object: an inspector tree, like a browser console's, with a row
-per item, entry or field. An object reached twice within one value is badged
-with its id, so aliasing shows. A value's preview is highlighted with the
-code's colours and fits a character budget; a nested object that does not fit
-collapses to its brackets. The trace header's literals table gives the brackets
-of the types the language writes as literals, like a tuple's parentheses; any
-other container is named, as in `deque [1, 2]`. A value that is the same in
-every sibling is faded. The line an exception came from is tinted and its line
-number turns red.
+its code. The column is shared only within a paragraph (lines between blank
+lines) and set by the lines that carry chips, so a long line elsewhere does not
+push chips away from their code. Long output expands into a panel below its
+line, and so does a value that holds an object: an inspector tree, like a
+browser console's, with a row per item, entry or field. An object reached twice
+within one value is badged with its id, so aliasing shows. A value's preview is
+highlighted with the code's colours and fits a character budget; a nested object
+that does not fit collapses to its brackets. The trace header's literals table
+gives the brackets of the types the language writes as literals, like a tuple's
+parentheses; any other container is named, as in `deque [1, 2]`. A value that is
+the same in every sibling is faded. The line an exception came from is tinted
+and its line number turns red.
 
 The title bar shows the block's title, numbered when its site ran several
 blocks (`iteration 2`). A red dot marks a block that exited with an exception.

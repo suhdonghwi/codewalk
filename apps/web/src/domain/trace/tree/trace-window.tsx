@@ -63,9 +63,11 @@ function WindowBody({
   const anchorLine =
     openSite === null
       ? null
-      : (view.lines.find((line) =>
-          line.spans.some((span) => span.sites.includes(openSite)),
-        )?.number ?? null);
+      : (view.groups
+          .flat()
+          .find((line) =>
+            line.spans.some((span) => span.sites.includes(openSite)),
+          )?.number ?? null);
 
   return (
     <div
@@ -74,25 +76,32 @@ function WindowBody({
         maxHeight: `calc(${MAX_VISIBLE_LINES} * var(--spacing-code-line) + 1rem)`,
       }}
     >
-      <div className="grid w-max min-w-full grid-cols-[max-content_minmax(max-content,1fr)] py-2">
+      <div className="grid w-max min-w-full grid-cols-[minmax(max-content,1fr)] py-2">
         <div
           aria-hidden
           className="sticky left-0 z-1 col-start-1 row-start-1 -my-2 box-content w-gutter border-r border-gutter-divider bg-white"
-          style={{ gridRowEnd: `span ${view.lines.length}` }}
+          style={{ gridRowEnd: `span ${view.groups.length}` }}
         />
-        {view.lines.map((line, index) => (
-          <TraceLine
-            anchor={line.number === anchorLine}
-            hoveredSite={hoveredSite}
-            key={line.number}
-            line={line}
-            row={index + 1}
-            trace={trace}
-            varyingNames={columns.map(({ name }) => name)}
-            onHoverSite={setHoveredSite}
-            onToggleSite={onToggleSite}
-            openSite={openSite}
-          />
+        {view.groups.map((group, index) => (
+          <div
+            className="col-start-1 grid grid-cols-[max-content_minmax(max-content,1fr)]"
+            key={group[0]?.number}
+            style={{ gridRowStart: index + 1 }}
+          >
+            {group.map((line) => (
+              <TraceLine
+                anchor={line.number === anchorLine}
+                hoveredSite={hoveredSite}
+                key={line.number}
+                line={line}
+                trace={trace}
+                varyingNames={columns.map(({ name }) => name)}
+                onHoverSite={setHoveredSite}
+                onToggleSite={onToggleSite}
+                openSite={openSite}
+              />
+            ))}
+          </div>
         ))}
       </div>
     </div>
