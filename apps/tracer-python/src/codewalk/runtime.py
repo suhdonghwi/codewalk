@@ -116,6 +116,20 @@ class Runtime:
         block = self._innermost_block()
         if block is not None:
             self._settle(block)
+        self._open_statement(loc)
+
+    def caught(self, loc: int) -> None:
+        if not self._active:
+            return
+        block = self._innermost_block()
+        if block is not None:
+            exc = sys.exception()
+            self._settle(block, interrupted=exc is not None)
+            if exc is not None:
+                self._interrupt(block, exc)
+        self._open_statement(loc)
+
+    def _open_statement(self, loc: int) -> None:
         self._repair(self._parents[loc])
         self._emit({"op": "enter", "loc": loc})
         self._stack.append(_Node(loc, block=False, pending=False))
@@ -209,7 +223,7 @@ class Runtime:
     def _exit_block(self, target: _Node | None, exc: BaseException | None) -> None:
         if not self._active or target is None:
             return
-        self._settle(target)
+        self._settle(target, interrupted=exc is not None)
         while self._stack:
             node = self._stack.pop()
             if node is target:
@@ -246,7 +260,7 @@ class Runtime:
         value = self._heap.define(taken)
         self._emit({"op": "value", anchor: key, "value": value})
 
-    def _settle(self, block: _Node) -> None:
+    def _settle(self, block: _Node, *, interrupted: bool = False) -> None:
         # Records what the block's open statement assigned or changed, as
         # values on that statement, before the statement closes.
         stack = self._stack
@@ -264,7 +278,7 @@ class Runtime:
             if not node.pending:
                 self._emit({"op": "exit"})
         names = self._statements.get(stack[index].loc)
-        binds = () if names is None else names.binds
+        binds = () if names is None or interrupted else names.binds
         quiet = () if names is None else names.quiet
         current = self._variables(block.loc, block.frame)
         for name, taken in current.items():
@@ -273,6 +287,21 @@ class Runtime:
             ):
                 self._emit_value("name", name, taken)
         block.watched = current
+
+    def _interrupt(self, block: _Node, exc: BaseException) -> None:
+        stack = self._stack
+        index = len(stack) - 1
+        while index >= 0 and stack[index] is not block:
+            index -= 1
+        statement = index + 1
+        if index < 0 or statement >= len(stack) or stack[statement].block:
+            return
+        while len(stack) > statement + 1:
+            node = stack.pop()
+            if not node.pending:
+                self._emit({"op": "exit"})
+        stack.pop()
+        self._emit({"op": "exit", "exc": self.render(_exception_summary, exc)})
 
     def _repair(self, parent: int | None) -> None:
         while self._stack:

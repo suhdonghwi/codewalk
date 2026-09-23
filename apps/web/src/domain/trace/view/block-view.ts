@@ -1,6 +1,6 @@
 import {
   blockSites,
-  exceptionOrigin,
+  raisedExceptions,
   requireBlock,
   statementStates,
 } from "../views.ts";
@@ -180,24 +180,20 @@ function placeChanges(
 function exceptionByLine(
   trace: Trace,
   block: NodeId,
-  node: TraceNode,
   lines: SourceLine[],
 ): Map<number, string> {
   const result = new Map<number, string>();
-  const origin = exceptionOrigin(trace);
 
-  if (origin?.block !== block || origin.stmt === null || node.exc === null) {
-    return result;
+  for (const { stmt, exc } of raisedExceptions(trace, block)) {
+    const statement = trace.nodes[stmt];
+
+    const loc =
+      statement === undefined ? undefined : trace.header.locs[statement.loc];
+
+    const line = loc === undefined ? null : lineContaining(lines, loc.end);
+
+    if (line !== null) result.set(line, exc);
   }
-
-  const statement = trace.nodes[origin.stmt];
-
-  const loc =
-    statement === undefined ? undefined : trace.header.locs[statement.loc];
-
-  const line = loc === undefined ? null : lineContaining(lines, loc.end);
-
-  if (line !== null) result.set(line, node.exc);
 
   return result;
 }
@@ -262,7 +258,7 @@ export function buildBlockView(
   );
 
   const outputs = outputsByLine(trace, sites, lines);
-  const exceptions = exceptionByLine(trace, block, node, lines);
+  const exceptions = exceptionByLine(trace, block, lines);
   const { changes, loopEnds } = placeChanges(trace, node, source, lines);
 
   const context: SpanContext = {

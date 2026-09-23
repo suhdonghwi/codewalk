@@ -307,14 +307,15 @@ describe("structural validation", () => {
         line: 5,
       },
       {
-        name: "exception on stmt exit",
+        name: "exception on expr exit",
         input: traceOf(
-          header([root, stmt]),
+          header([root, stmt, expr]),
           { op: "enter", loc: 0 },
           { op: "enter", loc: 1 },
+          { op: "enter", loc: 2 },
           { op: "exit", exc: "wrong" },
         ),
-        line: 4,
+        line: 5,
       },
       {
         name: "value loc is not an expression",

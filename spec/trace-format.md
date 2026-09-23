@@ -162,8 +162,11 @@ Range conventions:
 
 - `enter` — a node begins; `loc` gives its role. Node ids are implicit: the n-th
   `enter` in the file is node n (0-based). The first `enter` is the root block.
-- `exit` — the innermost open node ends. `exc` (block nodes only) means the
-  block was left by a propagating exception; the value is a one-line summary.
+- `exit` — the innermost open node ends. `exc` is a one-line summary of an
+  exception. On a block node it means the block was left by a propagating
+  exception. On a stmt node it means the statement was interrupted by an
+  exception that a handler in the same block caught; the handler's clause
+  header is the next statement. Expr nodes never carry it.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
 - `value` — a value (see [Values](#values)), in one of two forms. `{loc, value}`
@@ -327,6 +330,11 @@ belongs to the parent block only.
 **Exception origin** — follow `exit.exc` from the root to the deepest block that
 has it; the origin is that block's last `stmt` node. A chain that stops before
 the root means the exception was caught there.
+
+**Raised exceptions in a window** for block node _B_ — every `stmt` child of _B_
+with `exc` (caught in _B_), plus _B_'s last `stmt` child when _B_ has `exc` and
+the last block under that statement does not (raised in _B_ rather than passed
+through it).
 
 ## Example
 

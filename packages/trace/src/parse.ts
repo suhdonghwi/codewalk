@@ -289,10 +289,10 @@ export function parseTrace(jsonl: string): ParseResult {
         const node = nodes[nodeId];
         const loc = node === undefined ? undefined : header.locs[node.loc];
 
-        if (exc !== undefined && loc?.role !== "block") {
+        if (exc !== undefined && loc?.role === "expr") {
           return structureError(
             index + 1,
-            "exit.exc is only valid on a block node",
+            "exit.exc is only valid on a block or stmt node",
           );
         }
 

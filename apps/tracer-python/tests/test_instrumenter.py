@@ -78,7 +78,7 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
         elif event["op"] == "exit":
             assert stack
             if "exc" in event:
-                assert locs[stack[-1]]["role"] == "block"
+                assert locs[stack[-1]]["role"] in {"block", "stmt"}
             stack.pop()
         elif event["op"] == "out":
             assert stack
@@ -311,6 +311,7 @@ def test_exception_formatting_neither_records_nor_raises_from_user_str(
 
     assert [event["text"] for event in events if event["op"] == "out"] == ["caught\n"]
     assert [event["exc"] for event in events if "exc" in event] == [
+        "Broken",
         "Broken",
         "Loud: loud",
         "Loud: loud",

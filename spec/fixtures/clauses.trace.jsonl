@@ -36,7 +36,7 @@
 {"op":"enter","loc":12}
 {"op":"exit"}
 {"op":"enter","loc":13}
-{"op":"exit"}
+{"op":"exit","exc":"ValueError: invalid literal for int() with base 10: 'x'"}
 {"op":"enter","loc":16}
 {"op":"exit"}
 {"op":"enter","loc":15}

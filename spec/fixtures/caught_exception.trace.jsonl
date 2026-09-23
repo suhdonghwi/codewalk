@@ -1,22 +1,38 @@
-{"codewalk":2,"sources":[{"file":"caught_exception.py","text":"def fail():\n    raise ValueError(\"caught\")\n\n\ntry:\n    fail()\nexcept ValueError:\n    print(\"caught\")\n"}],"literals":{"list":["[","]"],"tuple":["(",")"],"set":["{","}"],"dict":["{","}"]},"locs":[{"role":"block","file":0,"start":0,"end":99,"parent":null,"title":"caught_exception.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":11,"parent":0},{"role":"block","file":0,"start":0,"end":42,"parent":1,"title":"fail","unit":"call"},{"role":"stmt","file":0,"start":16,"end":42,"parent":2},{"role":"expr","file":0,"start":22,"end":42,"parent":3},{"role":"stmt","file":0,"start":45,"end":49,"parent":0},{"role":"stmt","file":0,"start":54,"end":60,"parent":0},{"role":"expr","file":0,"start":54,"end":60,"parent":6},{"role":"stmt","file":0,"start":84,"end":99,"parent":0},{"role":"expr","file":0,"start":84,"end":99,"parent":8},{"role":"stmt","file":0,"start":61,"end":79,"parent":0}]}
+{"codewalk":2,"sources":[{"file":"caught_exception.py","text":"import json\n\n\ndef fail():\n    raise ValueError(\"caught\")\n\n\ntry:\n    fail()\nexcept ValueError:\n    print(\"caught\")\n\nvalue = None\ntry:\n    value = json.loads(\"{\")\nexcept json.JSONDecodeError:\n    print(\"caught here\")\n"}],"literals":{"list":["[","]"],"tuple":["(",")"],"set":["{","}"],"dict":["{","}"]},"locs":[{"role":"block","file":0,"start":0,"end":214,"parent":null,"title":"caught_exception.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":11,"parent":0},{"role":"stmt","file":0,"start":14,"end":25,"parent":0},{"role":"block","file":0,"start":14,"end":56,"parent":2,"title":"fail","unit":"call"},{"role":"stmt","file":0,"start":30,"end":56,"parent":3},{"role":"expr","file":0,"start":36,"end":56,"parent":4},{"role":"stmt","file":0,"start":59,"end":63,"parent":0},{"role":"stmt","file":0,"start":68,"end":74,"parent":0},{"role":"expr","file":0,"start":68,"end":74,"parent":7},{"role":"stmt","file":0,"start":98,"end":113,"parent":0},{"role":"expr","file":0,"start":98,"end":113,"parent":9},{"role":"stmt","file":0,"start":75,"end":93,"parent":0},{"role":"stmt","file":0,"start":115,"end":127,"parent":0},{"role":"stmt","file":0,"start":128,"end":132,"parent":0},{"role":"stmt","file":0,"start":137,"end":160,"parent":0},{"role":"expr","file":0,"start":145,"end":160,"parent":14},{"role":"expr","file":0,"start":145,"end":155,"parent":15},{"role":"stmt","file":0,"start":194,"end":214,"parent":0},{"role":"expr","file":0,"start":194,"end":214,"parent":17},{"role":"stmt","file":0,"start":161,"end":189,"parent":0}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"exit"}
-{"op":"enter","loc":5}
+{"op":"enter","loc":2}
 {"op":"exit"}
 {"op":"enter","loc":6}
+{"op":"exit"}
 {"op":"enter","loc":7}
-{"op":"enter","loc":2}
+{"op":"enter","loc":8}
 {"op":"enter","loc":3}
+{"op":"enter","loc":4}
 {"op":"exit"}
 {"op":"exit","exc":"ValueError: caught"}
 {"op":"exit"}
+{"op":"exit","exc":"ValueError: caught"}
+{"op":"enter","loc":11}
 {"op":"exit"}
-{"op":"enter","loc":10}
-{"op":"exit"}
-{"op":"enter","loc":8}
 {"op":"enter","loc":9}
+{"op":"enter","loc":10}
 {"op":"out","stream":"stdout","text":"caught\n"}
+{"op":"exit"}
+{"op":"exit"}
+{"op":"enter","loc":12}
+{"op":"value","name":"value","value":{"kind":"null","text":"None"}}
+{"op":"exit"}
+{"op":"enter","loc":13}
+{"op":"exit"}
+{"op":"enter","loc":14}
+{"op":"exit","exc":"JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"}
+{"op":"enter","loc":19}
+{"op":"exit"}
+{"op":"enter","loc":17}
+{"op":"enter","loc":18}
+{"op":"out","stream":"stdout","text":"caught here\n"}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

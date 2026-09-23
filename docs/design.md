@@ -117,7 +117,9 @@ for i in _cw_e(_cw_b(15), range(2)):
   block's exit closes them, so they need no end marker. Compound statements
   record only their header. Clause headers (`else`, `except`, `finally`,
   `case`) get a marker of their own, so a clause that never ran shows as not
-  run.
+  run. An `except` marker also closes the statement the exception interrupted
+  with that exception, since the handler is running. `except` types are left
+  unwrapped, so evaluating them cannot close that statement first.
 - **Blocks** wrap module and function bodies (`_cw.block`) and loop bodies
   (`_cw.iteration`) in a `with`. That guarantees the block closes on `return`,
   `break`, `continue` and exceptions, and lets it see the exception that left
@@ -235,8 +237,10 @@ with its id, so aliasing shows. A value's preview is highlighted with the code's
 colours and fits a character budget; a nested object that does not fit collapses
 to its brackets. The trace header's literals table gives the brackets of the
 types the language writes as literals, like a tuple's parentheses; any other
-container is named, as in `deque [1, 2]`. The line an exception came from is
-tinted and its line number turns red.
+container is named, as in `deque [1, 2]`. The line an exception was raised on is
+tinted and its line number turns red, whether or not the exception was caught,
+and so is the line an `except` clause caught it from. Lines it merely passed
+through are not.
 
 The title bar shows the block's title, numbered when its site ran several
 blocks (`iteration 2`). A red dot marks a block that exited with an exception.
