@@ -22,7 +22,9 @@ class _ValueRepr(reprlib.Repr):
             return f"<{type(x).__name__}>"
         try:
             text = repr(x)
-        except Exception:
+        except ExecutionStopped:
+            raise
+        except BaseException:
             return f"<{type(x).__name__}>"
         if len(text) > self.maxother:
             head = (self.maxother - len(self.fillvalue)) // 2
@@ -318,7 +320,9 @@ def _format_value(value: object) -> str:
             maxother=_VALUE_MAX_OTHER,
             fillvalue=_VALUE_FILL,
         ).repr(value)
-    except Exception:
+    except ExecutionStopped:
+        raise
+    except BaseException:
         text = f"<{type(value).__name__}>"
     text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
     if len(text) > _VALUE_TEXT_LIMIT:

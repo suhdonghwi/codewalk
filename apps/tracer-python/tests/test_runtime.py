@@ -32,11 +32,7 @@ def test_entry_values_do_not_keep_objects_alive_during_the_block() -> None:
         assert reference() is None
 
 
-def test_value_formatting_is_bounded_single_line_and_survives_broken_repr() -> None:
-    class Broken:
-        def __repr__(self) -> str:
-            raise ValueError("broken")
-
+def test_value_formatting_is_bounded_and_single_line() -> None:
     class Multiline:
         def __repr__(self) -> str:
             return "first\r\nsecond\nthird\rfourth"
@@ -46,6 +42,16 @@ def test_value_formatting_is_bounded_single_line_and_survives_broken_repr() -> N
     assert len(rendered) == 80
     assert rendered.endswith("…")
     assert _format_value(Multiline()) == "first second third fourth"
+
+
+@pytest.mark.parametrize("error", [ValueError, SystemExit, KeyboardInterrupt])
+def test_value_formatting_contains_user_exceptions_even_in_containers(
+    error: type[BaseException],
+) -> None:
+    class Broken:
+        def __repr__(self) -> str:
+            raise error("broken")
+
     assert _format_value(Broken()) == "<Broken>"
     assert _format_value([Broken()]) == "[<Broken>]"
 
