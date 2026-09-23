@@ -279,6 +279,38 @@ def test_an_inconsistent_dedent_is_a_syntax_error_rather_than_a_tracer_crash(
     assert end["message"] == "unindent does not match any outer indentation level"
 
 
+def test_exception_formatting_neither_records_nor_raises_from_user_str(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "prog.py"
+    path.write_text(
+        "class Loud(Exception):\n"
+        "    def __str__(self):\n"
+        "        print('hidden')\n"
+        "        return 'loud'\n"
+        "class Broken(Exception):\n"
+        "    def __str__(self):\n"
+        "        raise ValueError('str failed')\n"
+        "def fail(error):\n"
+        "    raise error\n"
+        "try:\n"
+        "    fail(Broken())\n"
+        "except Broken:\n"
+        "    print('caught')\n"
+        "fail(Loud())\n",
+        encoding="utf-8",
+    )
+    events = [json.loads(line) for line in _trace(path).stdout.splitlines()[1:]]
+
+    assert [event["text"] for event in events if event["op"] == "out"] == ["caught\n"]
+    assert [event["exc"] for event in events if "exc" in event] == [
+        "Broken",
+        "Loud: loud",
+        "Loud: loud",
+    ]
+    assert events[-1]["traceback"].endswith("Loud: loud\n")
+
+
 def test_event_limit_stops_an_infinite_program_at_the_exact_limit(
     tmp_path: Path,
 ) -> None:

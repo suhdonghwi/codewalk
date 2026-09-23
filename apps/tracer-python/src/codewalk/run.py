@@ -104,7 +104,8 @@ def run(
                 if stopped.status == "timeout":
                     runtime.finish("timeout")
             except BaseException as error:
-                runtime.finish("exception", traceback=_format_traceback(error))
+                rendered = runtime.render(_format_traceback, error)
+                runtime.finish("exception", traceback=rendered)
             else:
                 runtime.finish("ok")
     finally:

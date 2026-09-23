@@ -1,7 +1,7 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
 import reprlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import TracebackType
 from typing import Literal
 
@@ -98,9 +98,9 @@ class Runtime:
         self._out_stream: Stream | None = None
         self._out_text = ""
         self._truncated = False
-        # False once the trace has ended (finished or truncated) and while a
-        # value is formatted; a plain attribute because it is read several
-        # times per event.
+        # False once the trace has ended (finished or truncated) and while
+        # `render` runs user formatting code; a plain attribute because it is
+        # read several times per event.
         self._active = True
         self._stop: str | None = None
         self._exhausted = False
@@ -173,12 +173,17 @@ class Runtime:
     def value(self, loc: int, value: object) -> None:
         if not self._active:
             return
+        self._emit(
+            {"op": "value", "loc": loc, "text": self.render(_format_value, value)}
+        )
+
+    def render[T](self, format_: Callable[[T], str], subject: T) -> str:
+        active = self._active
         self._active = False
         try:
-            text = _format_value(value)
+            return format_(subject)
         finally:
-            self._active = True
-        self._emit({"op": "value", "loc": loc, "text": text})
+            self._active = active
 
     def out(self, stream: Stream, text: str) -> None:
         if not self._active or not self._stack:
@@ -233,7 +238,8 @@ class Runtime:
                 if exc is None or isinstance(exc, ExecutionStopped):
                     self._emit({"op": "exit"})
                 else:
-                    self._emit({"op": "exit", "exc": _exception_summary(exc)})
+                    summary = self.render(_exception_summary, exc)
+                    self._emit({"op": "exit", "exc": summary})
                 return
             if not node.pending:
                 self._emit({"op": "exit"})
@@ -308,7 +314,12 @@ def _format_value(value: object) -> str:
 
 def _exception_summary(exc: BaseException) -> str:
     name = type(exc).__name__
-    message = str(exc)
+    try:
+        message = str(exc)
+    except ExecutionStopped:
+        raise
+    except BaseException:
+        return name
     if not message:
         return name
     first_line = message.splitlines()[0]
