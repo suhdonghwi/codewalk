@@ -1,11 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  pinchedView,
-  resizedSize,
-  wheelZoomFactor,
-  zoomAboutPoint,
-} from "./view.ts";
+import { pinchedView, wheelZoomFactor, zoomAboutPoint } from "./view.ts";
 
 describe("zoomAboutPoint", () => {
   test("keeps the world point beneath the cursor fixed while zooming", () => {
@@ -56,35 +51,4 @@ test("one wheel notch zooms no further than the per-event cap, equally in and ou
   expect(wheelZoomFactor(-100)).toBeCloseTo(wheelZoomFactor(-25), 10);
   expect(wheelZoomFactor(100) * wheelZoomFactor(-100)).toBeCloseTo(1, 10);
   expect(wheelZoomFactor(-100)).toBeLessThan(1.3);
-});
-
-test.each([
-  {
-    name: "a corner drag at 200% moves the size by half the screen delta",
-    delta: { x: 100, y: 60 },
-    scale: 2,
-    axes: { x: true, y: true },
-    expected: { width: 610, height: 350 },
-  },
-  {
-    name: "an edge drag leaves the other axis alone",
-    delta: { x: 100, y: 60 },
-    scale: 1,
-    axes: { x: true, y: false },
-    expected: { width: 660, height: 320 },
-  },
-  {
-    name: "shrinking stops at the minimum size",
-    delta: { x: -900, y: -900 },
-    scale: 1,
-    axes: { x: true, y: true },
-    expected: { width: 320, height: 160 },
-  },
-])("$name", ({ delta, scale, axes, expected }) => {
-  expect(
-    resizedSize({ width: 560, height: 320 }, delta, scale, axes, {
-      width: 320,
-      height: 160,
-    }),
-  ).toEqual(expected);
 });

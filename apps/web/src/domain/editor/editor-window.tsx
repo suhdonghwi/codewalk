@@ -11,8 +11,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip.tsx";
 import { editorExtensions } from "./extensions.ts";
 import { setSyntaxError } from "./syntax-error.ts";
 
-const MINIMUM_SIZE = { width: 320, height: 160 };
-
 interface EditorWindowProps {
   onRun: () => void;
   shortcut: string;
@@ -85,12 +83,12 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
 
   return (
     <CanvasWindow
+      className="w-112"
       id="editor"
-      minimumSize={MINIMUM_SIZE}
       title="main.py"
       titleAction={runButton}
     >
-      <div className="min-h-0 flex-1" ref={editorHost} />
+      <div ref={editorHost} />
     </CanvasWindow>
   );
 }
