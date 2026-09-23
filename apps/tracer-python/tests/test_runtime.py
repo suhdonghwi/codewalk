@@ -1,5 +1,6 @@
 import json
 import os
+import weakref
 from collections.abc import Mapping
 from contextlib import suppress
 from pathlib import Path
@@ -16,6 +17,19 @@ class ListSink:
 
     def write(self, event: Mapping[str, object]) -> None:
         self.events.append(dict(event))
+
+
+def test_entry_values_do_not_keep_objects_alive_during_the_block() -> None:
+    runtime = Runtime([None, 0], ListSink(), max_events=100)
+
+    class Box:
+        pass
+
+    value = Box()
+    reference = weakref.ref(value)
+    with runtime.block(0, (1, value)):
+        del value
+        assert reference() is None
 
 
 def test_value_formatting_is_bounded_single_line_and_survives_broken_repr() -> None:

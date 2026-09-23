@@ -66,10 +66,13 @@ class _BlockContext:
         self._node: _Node | None = None
 
     def __enter__(self) -> None:
-        self._node = self._runtime._enter_block(self._loc, repair=self._repair)
-        if self._node is not None:
-            for loc, value in self._entries:
-                self._runtime._emit_value(loc, value)
+        try:
+            self._node = self._runtime._enter_block(self._loc, repair=self._repair)
+            if self._node is not None:
+                for loc, value in self._entries:
+                    self._runtime._emit_value(loc, value)
+        finally:
+            self._entries = ()
 
     def __exit__(
         self,
