@@ -459,26 +459,35 @@ describe("buildBlockView", () => {
     ]);
   });
 
-  test("only the uncaught exception's deepest block marks its origin statement", () => {
+  test("an exception is marked where it was raised and where it was caught, not where it passed through", () => {
     const uncaught = fixture("uncaught_exception");
-    const functionBlock = blockNodes(uncaught, "fail")[0];
+    const [failing] = blockNodes(uncaught, "fail");
 
-    if (functionBlock === undefined) throw new Error("Missing function block");
+    if (failing === undefined || uncaught.root === null) {
+      throw new Error("Missing uncaught fixture blocks");
+    }
 
-    expect(line(buildBlockView(uncaught, functionBlock, []), 2).exception).toBe(
+    expect(line(buildBlockView(uncaught, failing, []), 2).exception).toBe(
       "RuntimeError: boom",
     );
+    expect(
+      line(buildBlockView(uncaught, uncaught.root, []), 5).exception,
+    ).toBeNull();
 
     const caught = fixture("caught_exception");
-    const root = caught.root;
+    const [raising] = blockNodes(caught, "fail");
 
-    if (root === null) throw new Error("Missing fixture root");
+    if (raising === undefined || caught.root === null) {
+      throw new Error("Missing caught fixture blocks");
+    }
 
-    expect(
-      buildBlockView(caught, root, [])
-        .groups.flat()
-        .map((candidate) => candidate.exception),
-    ).not.toContain("ValueError: caught");
+    const module = buildBlockView(caught, caught.root, []);
+
+    expect(line(buildBlockView(caught, raising, []), 5).exception).toBe(
+      "ValueError: caught",
+    );
+    expect(line(module, 9).exception).toBe("ValueError: caught");
+    expect(line(module, 15).exception).toMatch(/^JSONDecodeError: /);
   });
 
   test("titles use trace labels, site indexes, and units", () => {

@@ -170,10 +170,11 @@ class _Instrumenter:
             finally_range = self.source.clause_range("finally", before_finally)
             node.body = self._body(node.body, block)
             for handler in node.handlers:
-                if handler.type is not None:
-                    handler.type = self._expression(handler.type, statement)
                 handler.body = self._clause_body(
-                    self.source.handler_range(handler), handler.body, block
+                    self.source.handler_range(handler),
+                    handler.body,
+                    block,
+                    marker="caught",
                 )
             node.orelse = self._clause_body(else_range, node.orelse, block)
             node.finalbody = self._clause_body(finally_range, node.finalbody, block)
@@ -292,12 +293,14 @@ class _Instrumenter:
         header: tuple[int, int] | None,
         statements: list[ast.stmt],
         block: int,
+        *,
+        marker: str = "stmt",
     ) -> list[ast.stmt]:
         body = self._body(statements, block)
         if header is None or not statements:
             return body
         clause = self._loc("stmt", *header, block)
-        return [self._marker(clause, statements[0]), *body]
+        return [self._marker(clause, statements[0], marker), *body]
 
     def _bind(self, statement: int, node: ast.stmt) -> None:
         binds = statement_bindings(node)
@@ -403,8 +406,8 @@ class _Instrumenter:
             return self._target_values(node.value, parent)
         return []
 
-    def _marker(self, loc: int, node: ast.stmt) -> ast.stmt:
-        marker = ast.Expr(value=_runtime_call("stmt", ast.Constant(loc)))
+    def _marker(self, loc: int, node: ast.stmt, method: str = "stmt") -> ast.stmt:
+        marker = ast.Expr(value=_runtime_call(method, ast.Constant(loc)))
         return ast.copy_location(marker, node)
 
     def _block_wrapper(

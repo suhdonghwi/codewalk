@@ -242,3 +242,34 @@ export function exceptionOrigin(
     return { block, stmt };
   }
 }
+
+export interface RaisedException {
+  stmt: NodeId;
+  exc: string;
+}
+
+export function raisedExceptions(
+  trace: Trace,
+  block: NodeId,
+): RaisedException[] {
+  const node = trace.nodes[block];
+
+  if (node === undefined) return [];
+
+  const caught = node.children.flatMap((child) => {
+    const exc = trace.nodes[child]?.exc ?? null;
+
+    return exc === null ? [] : [{ stmt: child, exc }];
+  });
+
+  const last = lastStatementChild(trace, block);
+
+  if (node.exc === null || last === null) return caught;
+  const childBlock = lastFrontierBlock(trace, last);
+
+  if (childBlock !== null && trace.nodes[childBlock]?.exc !== null) {
+    return caught;
+  }
+
+  return [...caught, { stmt: last, exc: node.exc }];
+}
