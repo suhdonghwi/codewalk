@@ -157,7 +157,7 @@ export function TraceLine({
             />
             <span className="pl-2.5 text-neutral-400">{label}</span>
           </div>
-          <div className="flex items-baseline gap-[1ch] pr-4">
+          <div className="flex items-baseline gap-[0.5ch] pr-4">
             {entries.map((entry) => namedChip(entry, operator))}
           </div>
         </div>
@@ -261,7 +261,7 @@ export function TraceLine({
             })}
           </code>
         </div>
-        <div className="flex items-baseline gap-[1ch] pr-4">
+        <div className="flex items-baseline gap-[0.5ch] pr-4">
           {changeEntries.map((entry) => namedChip(entry, "→"))}
           {outputPreview === null ? null : (
             <InlineChip
