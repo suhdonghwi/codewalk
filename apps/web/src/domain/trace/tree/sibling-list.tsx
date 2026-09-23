@@ -43,13 +43,10 @@ function Cells({
 }) {
   return cells.map((cell, column) => (
     <span
-      className={cn(
-        "whitespace-pre text-syntax-name",
-        cell.repeated && "opacity-40",
-      )}
+      className="whitespace-pre text-syntax-name"
       key={columns[column]?.name}
     >
-      {cell.pieces === null ? null : <PreviewText pieces={cell.pieces} />}
+      {cell === null ? null : <PreviewText pieces={cell} />}
     </span>
   ));
 }

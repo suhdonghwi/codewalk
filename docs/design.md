@@ -258,10 +258,9 @@ path: NodeId[]      // expanded blocks, root → deepest
   site ran several blocks. Think Finder's column view, on a canvas.
 - The sibling list is a table with a row per sibling and a column per input
   value that differs between them. Reading down a column shows how the state
-  evolves; a value that repeats the row above is faded, so changes stand out.
-  If the last iteration changed the loop state, a pinned `after` row shows the
-  end state. The list and the window are top-aligned to the clicked range, so
-  switching siblings moves nothing on the canvas.
+  evolves. If the last iteration changed the loop state, a pinned `after` row
+  shows the end state. The list and the window are top-aligned to the clicked
+  range, so switching siblings moves nothing on the canvas.
 - Clicking a site truncates `path` at its window and appends the site's first
   child. Clicking a row in a sibling list (or pressing ↑/↓) replaces that
   column's entry.

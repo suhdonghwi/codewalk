@@ -16,10 +16,7 @@ export interface BlockTitle {
   hasException: boolean;
 }
 
-export interface SiblingCell {
-  pieces: Piece[] | null;
-  repeated: boolean;
-}
+export type SiblingCell = Piece[] | null;
 
 export interface SiblingPosition {
   index: number;
@@ -159,22 +156,11 @@ export function siblingCells(
   columns: SiblingColumn[],
 ): SiblingCell[] {
   const block = blocks[index];
-  const previousBlock = blocks[index - 1];
 
   const values: Shown =
     block === undefined ? new Map() : blockValues(trace, block);
 
-  const previous =
-    previousBlock === undefined ? null : blockValues(trace, previousBlock);
-
-  return columns.map(({ name }) => {
-    const key = keyOf(trace, values.get(name));
-
-    return {
-      pieces: cellPieces(trace, values.get(name)),
-      repeated: key !== null && keyOf(trace, previous?.get(name)) === key,
-    };
-  });
+  return columns.map(({ name }) => cellPieces(trace, values.get(name)));
 }
 
 export function siblingAfter(
@@ -188,19 +174,17 @@ export function siblingAfter(
   const entry = blockValues(trace, last);
   const exit = blockExitValues(trace, last);
 
-  const cells = columns.map(({ name, carried }) => {
-    const chunk = carried ? exit.get(name) : undefined;
-    const key = keyOf(trace, chunk);
+  const changed = columns.some(({ name, carried }) => {
+    const key = carried ? keyOf(trace, exit.get(name)) : null;
 
-    return {
-      pieces: cellPieces(trace, chunk),
-      repeated: key !== null && keyOf(trace, entry.get(name)) === key,
-    };
+    return key !== null && key !== keyOf(trace, entry.get(name));
   });
 
-  return cells.some(({ pieces, repeated }) => pieces !== null && !repeated)
-    ? cells
-    : null;
+  if (!changed) return null;
+
+  return columns.map(({ name, carried }) =>
+    cellPieces(trace, carried ? exit.get(name) : undefined),
+  );
 }
 
 export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {

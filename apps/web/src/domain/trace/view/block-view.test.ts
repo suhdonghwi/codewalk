@@ -62,10 +62,7 @@ function line(view: BlockView, number: number) {
 
 function cellTexts(cells: SiblingCell[] | null) {
   return (
-    cells?.map(({ pieces, repeated }) => ({
-      text: pieces === null ? null : pieceText(pieces),
-      repeated,
-    })) ?? null
+    cells?.map((pieces) => (pieces === null ? null : pieceText(pieces))) ?? null
   );
 }
 
@@ -542,27 +539,8 @@ describe("buildBlockView", () => {
         ),
       ),
     ).toEqual([
-      [
-        { text: "3", repeated: false },
-        { text: null, repeated: false },
-      ],
-      [
-        { text: "1", repeated: false },
-        { text: "3", repeated: false },
-      ],
-    ]);
-    expect(
-      cellTexts(
-        siblingCells(
-          trace,
-          searchIterations,
-          2,
-          siblingColumns(trace, searchIterations),
-        ),
-      ),
-    ).toEqual([
-      { text: "2", repeated: false },
-      { text: "2", repeated: true },
+      ["3", null],
+      ["1", "3"],
     ]);
   });
 });
@@ -581,10 +559,7 @@ test("the after row shows a loop's end state only when its last iteration change
         siblingColumns(trace, wordIterations),
       ),
     ),
-  ).toEqual([
-    { text: null, repeated: false },
-    { text: "['a', 'b', 'c']", repeated: false },
-  ]);
+  ).toEqual([null, "['a', 'b', 'c']"]);
   expect(
     cellTexts(
       siblingAfter(
@@ -603,9 +578,9 @@ test("a variable that only the last iteration changes still gets a column and an
 
   expect(columns.map(({ name }) => name)).toEqual(["i", "heads", "tail"]);
   expect(cellTexts(siblingAfter(trace, splitIterations, columns))).toEqual([
-    { text: null, repeated: false },
-    { text: "[0, 1]", repeated: true },
-    { text: "[2]", repeated: false },
+    null,
+    "[0, 1]",
+    "[2]",
   ]);
 });
 
