@@ -225,8 +225,8 @@ Windows cannot be resized. Each window's size follows a fixed rule, and its
 content scrolls inside once it no longer fits. The stdin and output windows
 have a fixed size. The editor has a fixed width, and its height follows its
 line count between 12 and 40 lines. Windows in the trace tree size to their
-content up to a cap: a trace window up to 45rem wide and 30 lines tall, a
-sibling list up to 45rem wide and 10 rows tall. When a trace window scrolls,
+content up to a cap: a trace window up to 60rem wide and 30 lines tall, a
+sibling list up to 60rem wide and 10 rows tall. When a trace window scrolls,
 its child column stays attached to the clicked line, held at the window's top
 or bottom edge once the line scrolls out of view.
 
