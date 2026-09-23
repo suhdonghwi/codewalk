@@ -6,7 +6,12 @@ import type { RunOutcome } from "./types.ts";
 
 function traceOutcome(end: End, outputs: OutputChunk[] = []): RunOutcome {
   const trace: Trace = {
-    header: { codewalk: 2, sources: [], locs: [] },
+    header: {
+      codewalk: 2,
+      sources: [],
+      plain: { sequence: "list", set: "set", mapping: "dict" },
+      locs: [],
+    },
     nodes: [],
     outputs,
     objects: [],

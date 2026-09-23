@@ -96,6 +96,7 @@ def _header(source_name: str, source: str, locs: list[Loc]) -> dict[str, object]
     return {
         "codewalk": 2,
         "sources": [{"file": source_name, "text": source}],
+        "plain": {"sequence": "list", "set": "set", "mapping": "dict"},
         "locs": locs,
     }
 

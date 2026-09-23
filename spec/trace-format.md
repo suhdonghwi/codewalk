@@ -53,6 +53,7 @@ killed mid-way.
 {
   "codewalk": 2,
   "sources": [{ "file": "main.py", "text": "def fact(n):\n ..." }],
+  "plain": { "sequence": "list", "set": "set", "mapping": "dict" },
   "locs": [
     {
       "role": "block",
@@ -93,6 +94,9 @@ killed mid-way.
 - `codewalk` — format version.
 - `sources` — full text of every instrumented file. The viewer renders from this
   text, never from the editor, which may have changed since the run.
+- `plain` — for each of `sequence`, `set` and `mapping`, the type the language
+  writes with its bare literal syntax. The viewer names an object's `type`
+  only when it differs from the plain type of its kind.
 - `locs` — table of source ranges, referenced by index.
   - `role` — `block` | `stmt` | `expr`.
   - `title` — required on `block` locs and absent from other locs. What the

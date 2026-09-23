@@ -27,6 +27,26 @@
             "additionalProperties": false
           }
         },
+        "plain": {
+          "type": "object",
+          "properties": {
+            "sequence": {
+              "type": "string"
+            },
+            "set": {
+              "type": "string"
+            },
+            "mapping": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "sequence",
+            "set",
+            "mapping"
+          ],
+          "additionalProperties": false
+        },
         "locs": {
           "type": "array",
           "items": {
@@ -137,6 +157,7 @@
       "required": [
         "codewalk",
         "sources",
+        "plain",
         "locs"
       ],
       "additionalProperties": false
