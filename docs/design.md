@@ -248,7 +248,7 @@ held at the window's top or bottom edge once the line scrolls out of view.
     its name on the `for` line. Loop state is bound nowhere in the window, so
     its values are a group of chips on the loop's first line, the iteration's
     inputs. A value that is the same in every sibling is faded there, the way
-    the title and sibling table leave it out. Only the window's own block contributes values, so a `for` line in
+    the sibling table leaves it out. Only the window's own block contributes values, so a `for` line in
     the parent window carries none. Values are already short, so their chips
     never expand;
   - the exception on the origin statement: the line is faintly tinted, its line
@@ -267,10 +267,9 @@ held at the window's top or bottom edge once the line scrolls out of view.
 
   Title bar: the trace's `title`, with ` N` appended by the viewer when the site
   ran several blocks (a callback, a call in a comprehension). Iteration windows
-  therefore read `iteration 2`. The block's entry values follow in parentheses
-  (`fact 2 (n = 3)`, `iteration 3 (lo = 5, hi = 6)`). When the site ran
-  several blocks, only the values that differ between them are listed, so
-  constant inputs such as the array a search runs over drop out. A red dot
+  therefore read `iteration 2`. Entry values are not repeated in the title:
+  the window shows them on its lines and the sibling list in its columns. A
+  red dot
   marks a block that was left by an exception; it is the only title indicator,
   output is not marked. A window is either expanded or collapsed to its title
   bar.

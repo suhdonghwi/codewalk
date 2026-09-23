@@ -224,12 +224,10 @@ export function SiblingList({
           {blocks.slice(first, end).map((block, offset) => {
             const index = first + offset;
 
-            const title = buildBlockTitle(
-              trace,
-              block,
-              { index, count: blocks.length },
-              columns,
-            );
+            const title = buildBlockTitle(trace, block, {
+              index,
+              count: blocks.length,
+            });
 
             const selected = index === selectedIndex;
 
@@ -256,7 +254,7 @@ export function SiblingList({
                 type="button"
               >
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate">{title.label}</span>
+                  <span className="truncate">{title.text}</span>
                   {titleIndicator(title.hasException)}
                 </span>
                 <Cells

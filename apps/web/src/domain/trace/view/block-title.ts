@@ -3,7 +3,6 @@ import { requireBlock } from "../views.ts";
 import type { NodeId, Trace } from "@codewalk/trace";
 
 export interface BlockTitle {
-  label: string;
   text: string;
   hasException: boolean;
 }
@@ -109,23 +108,11 @@ export function buildBlockTitle(
   trace: Trace,
   block: NodeId,
   position: SiblingPosition,
-  columns: SiblingColumn[],
 ): BlockTitle {
   const { node, loc } = requireBlock(trace, block);
-  const values = blockValues(trace, block);
-
-  const label =
-    position.count > 1 ? `${loc.title} ${position.index + 1}` : loc.title;
-
-  const entries = columns.flatMap(({ name }) => {
-    const text = values.get(name);
-
-    return text === undefined ? [] : [`${name} = ${text}`];
-  });
 
   return {
-    label,
-    text: entries.length === 0 ? label : `${label} (${entries.join(", ")})`,
+    text: position.count > 1 ? `${loc.title} ${position.index + 1}` : loc.title,
     hasException: node.exc !== null,
   };
 }

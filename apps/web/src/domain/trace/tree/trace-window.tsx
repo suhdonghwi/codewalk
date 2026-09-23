@@ -145,7 +145,7 @@ export function TraceWindow({
   onToggleSite,
 }: TraceWindowProps) {
   const windowRef = useRef<HTMLElement>(null);
-  const title = buildBlockTitle(trace, block, position, columns);
+  const title = buildBlockTitle(trace, block, position);
 
   useLayoutEffect(() => {
     const element = windowRef.current;

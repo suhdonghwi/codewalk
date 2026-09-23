@@ -40,12 +40,10 @@ function blockNodes(trace: Trace, title: string): NodeId[] {
 }
 
 function titleAmong(trace: Trace, blocks: NodeId[], block: NodeId) {
-  return buildBlockTitle(
-    trace,
-    block,
-    { index: blocks.indexOf(block), count: blocks.length },
-    siblingColumns(trace, blocks),
-  );
+  return buildBlockTitle(trace, block, {
+    index: blocks.indexOf(block),
+    count: blocks.length,
+  });
 }
 
 function line(view: BlockView, number: number) {
@@ -348,7 +346,7 @@ describe("buildBlockView", () => {
     ).not.toContain("ValueError: caught");
   });
 
-  test("titles use trace labels, site indexes, entry values, and units", () => {
+  test("titles use trace labels, site indexes, and units", () => {
     const fact = fixture("fact");
     const iterations = blockNodes(fact, "iteration");
     const functions = blockNodes(fact, "fact");
@@ -361,11 +359,9 @@ describe("buildBlockView", () => {
 
     expect(titleAmong(fact, [0], 0).text).toBe("fact.py");
     expect(titleAmong(fact, iterations, secondIteration).text).toBe(
-      "iteration 2 (i = 1)",
+      "iteration 2",
     );
-    expect(titleAmong(fact, [firstFunction], firstFunction).text).toBe(
-      "fact (n = 1)",
-    );
+    expect(titleAmong(fact, [firstFunction], firstFunction).text).toBe("fact");
     expect(siblingListTitle(fact, iterations)).toBe("2 iterations");
 
     const callbacks = fixture("native_callback");
@@ -375,7 +371,7 @@ describe("buildBlockView", () => {
       callbackBlocks.map(
         (block) => titleAmong(callbacks, callbackBlocks, block).text,
       ),
-    ).toEqual(["key 1 (number = 1)", "key 2 (number = 2)"]);
+    ).toEqual(["key 1", "key 2"]);
   });
 
   test("sibling columns keep only the values that differ between siblings, including ones some siblings lack", () => {
@@ -387,15 +383,6 @@ describe("buildBlockView", () => {
     expect(
       siblingColumns(trace, searchIterations).map(({ name }) => name),
     ).toEqual(["lo", "hi"]);
-    expect(
-      searchIterations.map(
-        (block) => titleAmong(trace, searchIterations, block).text,
-      ),
-    ).toEqual([
-      "iteration 1 (lo = 0, hi = 4)",
-      "iteration 2 (lo = 0, hi = 2)",
-      "iteration 3 (lo = 2, hi = 2)",
-    ]);
     expect(
       lastIterations.map((_, index) =>
         siblingCells(
