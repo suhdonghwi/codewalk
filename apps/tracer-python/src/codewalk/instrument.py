@@ -4,7 +4,12 @@ import ast
 from dataclasses import dataclass
 from typing import Literal
 
-from codewalk.liveness import loop_state, scope_variables
+from codewalk.liveness import (
+    loop_assignments,
+    loop_state,
+    scope_variables,
+    statement_bindings,
+)
 from codewalk.locs import Loc, SourceMap
 
 _BRACKETED = (
@@ -18,14 +23,27 @@ _BRACKETED = (
 
 
 @dataclass(frozen=True)
+class Tracking:
+    """The variables an iteration records: its inputs, and all it watches."""
+
+    inputs: tuple[str, ...]
+    watched: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Instrumented:
     tree: ast.Module
     locs: list[Loc]
+    tracking: dict[int, Tracking]
+    bindings: dict[int, tuple[str, ...]]
 
 
 def instrument(tree: ast.Module, source: str, source_name: str) -> Instrumented:
     transformer = _Instrumenter(source, source_name)
-    return Instrumented(transformer.module(tree), transformer.locs)
+    module = transformer.module(tree)
+    return Instrumented(
+        module, transformer.locs, transformer.tracking, transformer.bindings
+    )
 
 
 class _Instrumenter:
@@ -34,6 +52,8 @@ class _Instrumenter:
         self.source_name = source_name
         self.locs: list[Loc] = []
         self._scopes: list[tuple[set[str], bool]] = []
+        self.tracking: dict[int, Tracking] = {}
+        self.bindings: dict[int, tuple[str, ...]] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -59,6 +79,7 @@ class _Instrumenter:
         start, end = self.source.statement_range(node)
         statement = self._loc("stmt", start, end, block)
         marker = self._marker(statement, node)
+        self._bind(statement, node)
 
         if isinstance(node, ast.FunctionDef):
             if _is_generator(node):
@@ -98,7 +119,6 @@ class _Instrumenter:
         elif isinstance(node, ast.While):
             return [marker, *self._while(node, statement, block, (start, end))]
         elif isinstance(node, ast.For):
-            state = self._state_values(node)
             self._target(node.target, statement)
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
@@ -115,7 +135,11 @@ class _Instrumenter:
                 self._block_wrapper(
                     "iteration",
                     iteration,
-                    [*values, *state, *self._body(node.body, iteration)],
+                    [
+                        *values,
+                        *self._track(node, iteration),
+                        *self._body(node.body, iteration),
+                    ],
                     node,
                 )
             ]
@@ -177,7 +201,6 @@ class _Instrumenter:
     def _while(
         self, node: ast.While, statement: int, block: int, header: tuple[int, int]
     ) -> list[ast.stmt]:
-        state = self._state_values(node)
         loop_start, loop_end = self.source.node_range(node)
         iteration = self._loc(
             "block",
@@ -188,6 +211,7 @@ class _Instrumenter:
             unit="iteration",
         )
         test = self._loc("stmt", *header, iteration)
+        self._bind(test, node)
         leave: list[ast.stmt] = [ast.Break()]
         if node.orelse:
             leave.insert(0, ast.Expr(value=_runtime_call("mark_exhausted")))
@@ -197,7 +221,7 @@ class _Instrumenter:
             orelse=[],
         )
         body = [
-            *state,
+            *self._track(node, iteration),
             self._marker(test, node),
             ast.copy_location(check, node),
             *self._body(node.body, iteration),
@@ -243,16 +267,24 @@ class _Instrumenter:
             for parameter in parameters
         ]
 
-    def _state_values(self, node: ast.For | ast.While) -> list[ast.stmt]:
+    def _bind(self, statement: int, node: ast.stmt) -> None:
+        names = statement_bindings(node)
+        if names:
+            self.bindings[statement] = tuple(names)
+
+    def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
         current, _ = self._scopes[-1]
         visible = current.union(
             *(names for names, is_class in self._scopes[:-1] if not is_class)
         )
-        return [
-            _named_value_statement(name, node)
-            for name in loop_state(node)
-            if name in visible
-        ]
+        inputs = [name for name in loop_state(node) if name in visible]
+        assigned = [name for name in loop_assignments(node) if name in visible]
+        watched = [*inputs, *(name for name in assigned if name not in inputs)]
+        if not watched:
+            return []
+        self.tracking[iteration] = Tracking(tuple(inputs), tuple(watched))
+        call = ast.Expr(value=_runtime_call("state", ast.Constant(iteration)))
+        return [ast.copy_location(call, node)]
 
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
         if isinstance(node, (ast.GeneratorExp, ast.Lambda)):
@@ -398,28 +430,6 @@ def _runtime_call(method: str, *args: ast.expr) -> ast.Call:
 def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     value = ast.Name(id=name, ctx=ast.Load())
     statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
-    return ast.copy_location(statement, owner)
-
-
-def _named_value_statement(name: str, owner: ast.AST) -> ast.stmt:
-    value = ast.Expr(
-        value=_runtime_call(
-            "named", ast.Constant(name), ast.Name(id=name, ctx=ast.Load())
-        )
-    )
-    handler = ast.ExceptHandler(
-        type=ast.Attribute(
-            value=ast.Name(id="_cw", ctx=ast.Load()), attr="unbound", ctx=ast.Load()
-        ),
-        name=None,
-        body=[ast.Pass()],
-    )
-    statement = ast.Try(
-        body=[ast.copy_location(value, owner)],
-        handlers=[handler],
-        orelse=[],
-        finalbody=[],
-    )
     return ast.copy_location(statement, owner)
 
 

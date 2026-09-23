@@ -88,7 +88,9 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
             assert stack
             if "loc" in event:
                 assert locs[event["loc"]]["role"] == "expr"
-            assert locs[stack[-1]]["role"] == "block"
+                assert locs[stack[-1]]["role"] == "block"
+            else:
+                assert locs[stack[-1]]["role"] in {"block", "stmt"}
     assert not stack
 
     plain = subprocess.run(

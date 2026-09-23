@@ -164,9 +164,14 @@ export function parseTrace(jsonl: string): ParseResult {
     }
 
     const node = nodes[nodeId];
+    const role = node === undefined ? undefined : header.locs[node.loc]?.role;
 
-    if (node === undefined || header.locs[node.loc]?.role !== "block") {
+    if (node === undefined || (value.loc !== null && role !== "block")) {
       return structureError(line, "value is not attached to a block");
+    }
+
+    if (role === "expr") {
+      return structureError(line, "a named value is attached to an expression");
     }
 
     node.values.push(value);

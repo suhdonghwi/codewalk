@@ -6,6 +6,21 @@ type Assigned = set[str] | None
 
 _COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
+_COMPOUND = (
+    ast.AsyncFor,
+    ast.AsyncFunctionDef,
+    ast.AsyncWith,
+    ast.ClassDef,
+    ast.For,
+    ast.FunctionDef,
+    ast.If,
+    ast.Match,
+    ast.Try,
+    ast.TryStar,
+    ast.While,
+    ast.With,
+)
+
 
 def loop_state(loop: ast.For | ast.While) -> list[str]:
     """Names one iteration may read before assigning them, in first-read order."""
@@ -17,6 +32,33 @@ def loop_state(loop: ast.For | ast.While) -> list[str]:
         reads.expression(loop.test, assigned, definite=True)
     reads.block(loop.body, assigned)
     return reads.names
+
+
+def loop_assignments(loop: ast.For | ast.While) -> list[str]:
+    """Names one iteration may assign, in source order."""
+    bindings = _Bindings()
+    if isinstance(loop, ast.While):
+        bindings.visit(loop.test)
+    for statement in loop.body:
+        bindings.visit(statement)
+    return list(bindings.names)
+
+
+def statement_bindings(node: ast.stmt) -> list[str]:
+    """Names a statement binds itself, not through the body it heads."""
+    bindings = _Bindings()
+    if isinstance(node, (ast.If, ast.While)):
+        bindings.visit(node.test)
+    elif isinstance(node, (ast.For, ast.AsyncFor)):
+        bindings.visit(node.iter)
+    elif isinstance(node, (ast.With, ast.AsyncWith)):
+        for item in node.items:
+            bindings.visit(item)
+    elif isinstance(node, ast.Match):
+        bindings.visit(node.subject)
+    elif not isinstance(node, _COMPOUND):
+        bindings.visit(node)
+    return list(bindings.names)
 
 
 def scope_variables(
@@ -33,10 +75,10 @@ def scope_variables(
             arguments.kwarg,
         ]:
             if argument is not None:
-                bindings.names.add(argument.arg)
+                bindings.names[argument.arg] = None
     for statement in body:
         bindings.visit(statement)
-    return bindings.names
+    return set(bindings.names)
 
 
 class _Reads:
@@ -269,11 +311,11 @@ def _join(*states: Assigned) -> Assigned:
 
 class _Bindings(ast.NodeVisitor):
     def __init__(self) -> None:
-        self.names: set[str] = set()
+        self.names: dict[str, None] = {}
 
     def visit_Name(self, node: ast.Name) -> None:
         if isinstance(node.ctx, ast.Store):
-            self.names.add(node.id)
+            self.names[node.id] = None
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
@@ -294,19 +336,19 @@ class _Bindings(ast.NodeVisitor):
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node.name is not None:
-            self.names.add(node.name)
+            self.names[node.name] = None
         self.generic_visit(node)
 
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
         if node.name is not None:
-            self.names.add(node.name)
+            self.names[node.name] = None
         self.generic_visit(node)
 
     def visit_MatchStar(self, node: ast.MatchStar) -> None:
         if node.name is not None:
-            self.names.add(node.name)
+            self.names[node.name] = None
 
     def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
         if node.rest is not None:
-            self.names.add(node.rest)
+            self.names[node.rest] = None
         self.generic_visit(node)

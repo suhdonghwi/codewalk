@@ -306,6 +306,17 @@ describe("structural validation", () => {
         line: 4,
       },
       {
+        name: "named value inside an expression",
+        input: traceOf(
+          header([root, stmt, expr]),
+          { op: "enter", loc: 0 },
+          { op: "enter", loc: 1 },
+          { op: "enter", loc: 2 },
+          { op: "value", name: "x", text: "1" },
+        ),
+        line: 5,
+      },
+      {
         name: "event after end",
         input: traceOf(
           header([root]),

@@ -9,14 +9,19 @@ def search(items, target):
     return lo
 
 
+def remember(items, item):
+    items.append(item)
+
+
 print(search([1, 3, 5, 7], 5))
 
 seen = []
 for word in ["a", "b", "a"]:
     if word not in seen:
-        seen.append(word)
+        remember(seen, word)
 
 for n in [3, 1]:
+    step = 0
     if n > 1:
         last = n
     print(last)

@@ -23,6 +23,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":14}
+{"op":"value","name":"i","text":"1"}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":11}
