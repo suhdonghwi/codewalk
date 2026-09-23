@@ -5,4 +5,6 @@
 - License: MIT
 
 The generic rules from upstream `src/` are vendored in this directory, without
-the Effect rules and without upstream's tests.
+the Effect rules, without upstream's tests, and without
+`require-readable-spacing`, which this repository configures from
+`@stylistic/eslint-plugin` instead.

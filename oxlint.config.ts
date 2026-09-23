@@ -1,5 +1,67 @@
 import { defineConfig } from "oxlint";
 
+const PADDING_LINES = [
+  { blankLine: "always", prev: "import", next: "*" },
+  {
+    blankLine: "always",
+    prev: "*",
+    next: { selector: "Program > :not(ImportDeclaration)" },
+  },
+  {
+    blankLine: "always",
+    prev: { selector: "Program > :not(ImportDeclaration)" },
+    next: "*",
+  },
+  {
+    blankLine: "always",
+    prev: "*",
+    next: ["function", "class", "interface", "type"],
+  },
+  {
+    blankLine: "always",
+    prev: ["function", "class", "interface", "type"],
+    next: "*",
+  },
+  {
+    blankLine: "always",
+    prev: "*",
+    next: [
+      "multiline-const",
+      "multiline-let",
+      "multiline-var",
+      "multiline-using",
+    ],
+  },
+  {
+    blankLine: "always",
+    prev: [
+      "multiline-const",
+      "multiline-let",
+      "multiline-var",
+      "multiline-using",
+    ],
+    next: "*",
+  },
+  {
+    blankLine: "always",
+    prev: "*",
+    next: ["return", "if", "switch", "try", "for", "while", "do"],
+  },
+  { blankLine: "always", prev: "block-like", next: "*" },
+  { blankLine: "any", prev: "import", next: "import" },
+  {
+    blankLine: "any",
+    prev: {
+      selector:
+        ':matches(TSDeclareFunction, ExportNamedDeclaration[declaration.type="TSDeclareFunction"])',
+    },
+    next: {
+      selector:
+        ':matches(TSDeclareFunction, FunctionDeclaration, ExportNamedDeclaration[declaration.type="TSDeclareFunction"], ExportNamedDeclaration[declaration.type="FunctionDeclaration"])',
+    },
+  },
+];
+
 export default defineConfig({
   ignorePatterns: [
     ".agents/**",
@@ -14,6 +76,7 @@ export default defineConfig({
   plugins: ["unicorn"],
   jsPlugins: [
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    { name: "stylistic", specifier: "@stylistic/eslint-plugin" },
   ],
   rules: {
     "oxc/no-accumulating-spread": "error",
@@ -45,8 +108,8 @@ export default defineConfig({
     "anti-slop/no-unknown-type-aliases": "error",
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/no-widen-then-assert": "error",
-    "anti-slop/require-readable-spacing": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "stylistic/padding-line-between-statements": ["error", ...PADDING_LINES],
   },
   overrides: [
     {

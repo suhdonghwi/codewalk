@@ -307,7 +307,9 @@ for other languages become `apps/tracer-<language>/`.
 - **oxlint**, type-aware mode on, plus the vendored
   [anti-slop](https://github.com/dmmulroy/anti-slop) plugin (generic rules only,
   no Effect rules). Its stance — parse at boundaries, no runtime `typeof`, no
-  unsafe assertions, no module mocking — is the house style.
+  unsafe assertions, no module mocking — is the house style. Blank lines
+  between statements come from `@stylistic/eslint-plugin`'s
+  `padding-line-between-statements`, loaded as a JS plugin.
 - **Zod 4** for every boundary: the trace (untrusted) in `packages/trace`, the
   HTTP API via `fastify-type-provider-zod`. `spec/trace.schema.json` is generated
   from the Zod schemas and checked in; the Python tests validate against it, so
