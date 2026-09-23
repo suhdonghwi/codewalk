@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [lint, typecheck, knip, test]
+        task: [format, lint, typecheck, knip, test, "schema:check"]
     steps:
       - uses: actions/checkout@v7
       - uses: jdx/mise-action@v4
