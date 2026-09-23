@@ -13,6 +13,7 @@ const BlockLocSchema = z
     start: z.number().int().nonnegative(),
     end: z.number().int().nonnegative(),
     parent: z.number().int().nonnegative().nullable(),
+    rebinds: z.array(z.string()).optional(),
   })
   .strict();
 

@@ -112,6 +112,9 @@ export function siblingColumns(
 
   const firstKey = (name: string) => keyOf(trace, first?.get(name));
 
+  const rebinds =
+    last === undefined ? [] : (requireBlock(trace, last).loc.rebinds ?? []);
+
   return names.flatMap((name) => {
     const carried = isCarried(trace, blocks, name);
 
@@ -121,7 +124,7 @@ export function siblingColumns(
       ) ||
       (carried && keyOf(trace, exit.get(name)) !== firstKey(name));
 
-    if (blocks.length > 1 && !varies) return [];
+    if (blocks.length > 1 && !varies && !rebinds.includes(name)) return [];
 
     const shown = (chunk: ValueChunk | undefined) =>
       textWidth(pieceText(cellPieces(trace, chunk) ?? []));

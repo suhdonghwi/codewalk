@@ -117,6 +117,11 @@ killed mid-way.
   - `parent` — index of the static (lexical) parent loc, `null` for the root.
     Used by the tracer runtime for stack repair and by the viewer to decide
     which statements belong to which block.
+  - `rebinds` — optional, on iteration `block` locs only. The loop state
+    variables (see `value` below) that the loop's condition or body may
+    assign, in the order of the loop state. Absent when there are none. Loop
+    state not listed here can change between iterations only through an
+    object the variable refers to.
 
 Python uses the file name and `module` for module blocks, the function name and
 `call` for function blocks, and `iteration` for both fields on iteration blocks.
@@ -171,9 +176,9 @@ Range conventions:
     (anchored), and an iteration's loop state (named). Loop state is the
     variables an iteration may read before assigning them; one that is still
     unbound is left out. The viewer places an anchored value immediately after
-    the source range of `loc` and a named value that differs between siblings
-    on a row above the block's first line, and shows both kinds in sibling
-    rows.
+    the source range of `loc` and a named value that the loop rebinds or that
+    differs between siblings on a row above the block's first line, and shows
+    both kinds in sibling rows.
   - On a `stmt` node, a named value is the variable's value right after that
     statement, emitted before the statement closes because the statement
     assigned the variable or changed its value: the variable now holds a

@@ -15,6 +15,7 @@ class Loc(TypedDict, total=False):
     start: int
     end: int
     parent: int | None
+    rebinds: list[str]
 
 
 _COMPOUND = (

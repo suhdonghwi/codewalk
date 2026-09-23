@@ -456,6 +456,9 @@ describe("buildBlockView", () => {
       "28",
       "29-30",
       "31-35",
+      "36",
+      "37",
+      "38-40",
     ]);
   });
 
@@ -595,7 +598,7 @@ test("the after row shows a loop's end state only when its last iteration change
 
 test("a variable that only the last iteration changes still gets a column and an after cell", () => {
   const trace = fixture("loop_state");
-  const splitIterations = blockNodes(trace, "iteration").slice(9);
+  const splitIterations = blockNodes(trace, "iteration").slice(9, 12);
   const columns = siblingColumns(trace, splitIterations);
 
   expect(columns.map(({ name }) => name)).toEqual(["i", "heads", "tail"]);
@@ -604,6 +607,15 @@ test("a variable that only the last iteration changes still gets a column and an
     { text: "[0, 1]", repeated: true },
     { text: "[2]", repeated: false },
   ]);
+});
+
+test("a variable the loop rebinds gets a sibling column even when no iteration changes it", () => {
+  const trace = fixture("loop_state");
+  const missIterations = blockNodes(trace, "iteration").slice(12);
+
+  expect(siblingColumns(trace, missIterations).map(({ name }) => name)).toEqual(
+    ["even", "misses"],
+  );
 });
 
 test.each([

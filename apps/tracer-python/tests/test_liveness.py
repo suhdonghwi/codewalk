@@ -2,7 +2,7 @@ import ast
 
 import pytest
 
-from codewalk.liveness import loop_state
+from codewalk.liveness import loop_assigns, loop_state
 
 
 @pytest.mark.parametrize(
@@ -40,3 +40,25 @@ def test_loop_state_is_what_an_iteration_may_read_before_assigning(
     assert isinstance(loop, (ast.For, ast.While))
 
     assert loop_state(loop) == state
+
+
+@pytest.mark.parametrize(
+    ("source", "assigns"),
+    [
+        ("while (line := read()) != end:\n    count += 1\n", {"line", "count"}),
+        ("for x in xs:\n    items[x] = x\n    seen.add(x)\n", set()),
+        ("for x in xs:\n    def f():\n        total = x\n", {"f"}),
+        (
+            "for x in xs:\n    try:\n        pass\n    except E as err:\n"
+            "        del y\n",
+            {"err", "y"},
+        ),
+    ],
+)
+def test_loop_assigns_only_rebinding_in_the_enclosing_scope(
+    source: str, assigns: set[str]
+) -> None:
+    loop = ast.parse(source).body[0]
+    assert isinstance(loop, (ast.For, ast.While))
+
+    assert loop_assigns(loop) == assigns

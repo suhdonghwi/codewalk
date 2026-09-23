@@ -4,7 +4,12 @@ import ast
 from dataclasses import dataclass
 from typing import Literal
 
-from codewalk.liveness import loop_state, statement_bindings, target_names
+from codewalk.liveness import (
+    loop_assigns,
+    loop_state,
+    statement_bindings,
+    target_names,
+)
 from codewalk.locs import Loc, SourceMap
 
 _BRACKETED = (
@@ -305,6 +310,10 @@ class _Instrumenter:
         if not inputs:
             return []
         self.inputs[iteration] = tuple(inputs)
+        assigns = loop_assigns(node)
+        rebinds = [name for name in inputs if name in assigns]
+        if rebinds:
+            self.locs[iteration]["rebinds"] = rebinds
         call = ast.Expr(value=_runtime_call("state", ast.Constant(iteration)))
         return [ast.copy_location(call, node)]
 

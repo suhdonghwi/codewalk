@@ -34,6 +34,16 @@ def loop_state(loop: ast.For | ast.While) -> list[str]:
     return reads.names
 
 
+def loop_assigns(loop: ast.For | ast.While) -> set[str]:
+    """Names the loop's condition or body may assign in the enclosing scope."""
+    assigns = _Assigns()
+    if isinstance(loop, ast.While):
+        assigns.visit(loop.test)
+    for statement in loop.body:
+        assigns.visit(statement)
+    return set(assigns.names)
+
+
 def statement_bindings(node: ast.stmt) -> list[str]:
     """Names a statement binds itself, not through the body it heads."""
     bindings = _Bindings()
@@ -312,3 +322,37 @@ class _Bindings(ast.NodeVisitor):
         self.visit(node.iter)
         for condition in node.ifs:
             self.visit(condition)
+
+
+class _Assigns(_Bindings):
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.names[node.id] = None
+
+    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
+        if node.name is not None:
+            self.names[node.name] = None
+        self.generic_visit(node)
+
+    def visit_MatchAs(self, node: ast.MatchAs) -> None:
+        if node.name is not None:
+            self.names[node.name] = None
+        self.generic_visit(node)
+
+    def visit_MatchStar(self, node: ast.MatchStar) -> None:
+        if node.name is not None:
+            self.names[node.name] = None
+
+    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
+        if node.rest is not None:
+            self.names[node.rest] = None
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self.names[node.name] = None
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self.names[node.name] = None
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self.names[node.name] = None

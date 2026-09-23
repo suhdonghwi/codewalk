@@ -33,3 +33,8 @@ for i in range(3):
         heads.append(i)
     else:
         tail.append(i)
+
+misses = 0
+for even in [2, 4]:
+    if even % 2:
+        misses += 1

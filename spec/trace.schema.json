@@ -90,6 +90,12 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "rebinds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
