@@ -1,7 +1,7 @@
 import type { PointerEvent, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
-import { useCanvasStore } from "./store.ts";
+import { initialView, useCanvasStore } from "./store.ts";
 import { pinchedView, wheelZoomFactor, zoomAboutPoint } from "./view.ts";
 
 import type { Point, ViewTransform } from "./view.ts";
@@ -129,6 +129,7 @@ export function Canvas({ children }: CanvasProps) {
       });
     }
 
+    useCanvasStore.getState().setView(initialView(canvasElement.clientWidth));
     applyView();
 
     const unsubscribe = useCanvasStore.subscribe((state, previous) => {

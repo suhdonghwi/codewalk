@@ -4,6 +4,12 @@ import type { Size, ViewTransform } from "./view.ts";
 
 const WINDOW_GAP = 16;
 
+const SCREEN_MARGIN = 16;
+
+const WIDE_VIEW_X = 368;
+
+const EDITOR_WIDTH = 448;
+
 export type WindowId = "editor" | "stdin" | "output" | "trace";
 
 export type ResizableWindowId = Exclude<WindowId, "trace">;
@@ -25,8 +31,14 @@ interface CanvasState {
   bringToFront: (id: WindowId) => void;
 }
 
+export function initialView(canvasWidth: number): ViewTransform {
+  const x = Math.min(WIDE_VIEW_X, canvasWidth - EDITOR_WIDTH - SCREEN_MARGIN);
+
+  return { x: Math.max(SCREEN_MARGIN, x), y: 48, scale: 1 };
+}
+
 export const useCanvasStore = create<CanvasState>()((set) => ({
-  view: { x: 368, y: 48, scale: 1 },
+  view: initialView(Infinity),
   windows: {
     editor: { x: 0, y: 0, z: 3 },
     stdin: { x: -336, y: 0, z: 2 },
@@ -34,7 +46,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     trace: { x: 464, y: 0, z: 4 },
   },
   sizes: {
-    editor: { width: 448, height: 320 },
+    editor: { width: EDITOR_WIDTH, height: 320 },
     stdin: { width: 320, height: 158 },
     output: { width: 320, height: 240 },
   },
