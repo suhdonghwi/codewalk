@@ -32,7 +32,7 @@ export interface InlineSegment {
 export interface Line {
   number: number;
   spans: Span[];
-  values: ValueChunk[];
+  start: ValueChunk[];
   changes: ValueChunk[];
   output: InlineSegment[] | null;
   exception: string | null;
@@ -275,14 +275,14 @@ export function buildBlockView(
     }),
   };
 
-  const blockValues = node.values.filter(({ loc }) => loc === null);
+  const inputs = node.values.filter(({ loc }) => loc === null);
 
   return {
     groups: paragraphs(
       lines.map((line, index) => ({
         number: line.number,
         spans: spansForLine(context, line),
-        values: index === 0 ? blockValues : [],
+        start: index === 0 ? inputs : [],
         changes: changes.get(line.number) ?? [],
         output: outputs.get(line.number) ?? null,
         exception: exceptions.get(line.number) ?? null,

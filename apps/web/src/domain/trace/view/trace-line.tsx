@@ -106,6 +106,10 @@ export function TraceLine({
     );
   }
 
+  const startEntries: OpenValue[] = line.start
+    .filter(({ name }) => varyingNames.includes(name))
+    .map((entry) => ({ key: `start:${entry.name}`, entry }));
+
   const changeEntries: OpenValue[] = line.changes.map((entry, index) => ({
     key: `change:${index}`,
     entry,
@@ -117,7 +121,6 @@ export function TraceLine({
         ? []
         : [{ key: `anchor:${index}`, entry: span.value }],
     ),
-    ...line.values.map((entry) => ({ key: `value:${entry.name}`, entry })),
     ...changeEntries,
   ];
 
@@ -125,15 +128,15 @@ export function TraceLine({
     (entry, index) => ({ key: `loop-end:${index}`, entry }),
   );
 
-  const isOpen = ({ key }: OpenValue) => openKeys.includes(key);
+  const isExpanded = ({ key }: OpenValue) => openKeys.includes(key);
 
-  function changeChip({ key, entry }: OpenValue) {
+  function namedChip({ key, entry }: OpenValue, operator: string) {
     return (
       <ValueChip
         entry={entry}
         expanded={openKeys.includes(key)}
         key={key}
-        label={`${entry.name} →`}
+        label={`${entry.name} ${operator}`}
         onToggle={() => {
           toggleValue(key);
         }}
@@ -142,17 +145,37 @@ export function TraceLine({
     );
   }
 
+  function stateRow(label: string, entries: OpenValue[], operator: string) {
+    return (
+      <>
+        <div className={cn(rowClasses(true), "hover:bg-neutral-50")}>
+          <div className="flex items-baseline pr-[2ch]">
+            <span
+              aria-hidden
+              className="sticky left-0 z-2 w-gutter flex-none"
+            />
+            <span className="pl-2.5 text-neutral-400">{label}</span>
+          </div>
+          <div className="flex items-baseline gap-[1ch] pr-4">
+            {entries.map((entry) => namedChip(entry, operator))}
+          </div>
+        </div>
+        <ValuePanel trace={trace} values={entries.filter(isExpanded)} />
+      </>
+    );
+  }
+
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
 
   const hasChips =
-    line.values.length > 0 ||
-    line.changes.length > 0 ||
-    line.output !== null ||
-    line.exception !== null;
+    line.changes.length > 0 || line.output !== null || line.exception !== null;
 
   return (
     <div className="col-span-full grid grid-cols-subgrid">
+      {startEntries.length === 0
+        ? null
+        : stateRow("(before)", startEntries, "=")}
       <div
         className={cn(
           rowClasses(hasChips),
@@ -241,20 +264,7 @@ export function TraceLine({
           </code>
         </div>
         <div className="flex items-baseline gap-[1ch] pr-4">
-          {line.values.map((entry) => (
-            <ValueChip
-              entry={entry}
-              expanded={openKeys.includes(`value:${entry.name}`)}
-              faded={!varyingNames.includes(entry.name)}
-              key={entry.name}
-              label={`${entry.name} =`}
-              onToggle={() => {
-                toggleValue(`value:${entry.name}`);
-              }}
-              trace={trace}
-            />
-          ))}
-          {changeEntries.map(changeChip)}
+          {changeEntries.map((entry) => namedChip(entry, "→"))}
           {outputPreview === null ? null : (
             <InlineChip
               expandable={outputPreview.expandable}
@@ -272,31 +282,15 @@ export function TraceLine({
           )}
         </div>
       </div>
-      <ValuePanel trace={trace} values={valueEntries.filter(isOpen)} />
+      <ValuePanel trace={trace} values={valueEntries.filter(isExpanded)} />
       {expanded && line.output !== null ? (
         <pre className="col-span-full m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output} />
         </pre>
       ) : null}
-      {line.loopEnd === null ? null : (
-        <>
-          <div className={cn(rowClasses(true), "hover:bg-neutral-50")}>
-            <div className="flex items-baseline pr-[2ch]">
-              <span
-                aria-hidden
-                className="sticky left-0 z-2 w-gutter flex-none"
-              />
-              <span className="pl-2.5 text-neutral-400">
-                {line.loopEnd.indent}(after loop)
-              </span>
-            </div>
-            <div className="flex items-baseline gap-[1ch] pr-4">
-              {loopEndEntries.map(changeChip)}
-            </div>
-          </div>
-          <ValuePanel trace={trace} values={loopEndEntries.filter(isOpen)} />
-        </>
-      )}
+      {line.loopEnd === null
+        ? null
+        : stateRow(`${line.loopEnd.indent}(after loop)`, loopEndEntries, "→")}
     </div>
   );
 }

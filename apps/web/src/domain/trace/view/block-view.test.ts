@@ -379,7 +379,7 @@ describe("buildBlockView", () => {
     const search = buildBlockView(trace, secondSearch, []);
     const words = buildBlockView(trace, firstWord, []);
 
-    expect(line(search, 3).values.map(({ name }) => name)).toEqual([
+    expect(line(search, 3).start.map(({ name }) => name)).toEqual([
       "lo",
       "hi",
       "items",

@@ -171,8 +171,9 @@ Range conventions:
     (anchored), and an iteration's loop state (named). Loop state is the
     variables an iteration may read before assigning them; one that is still
     unbound is left out. The viewer places an anchored value immediately after
-    the source range of `loc` and a named value with the block's first line,
-    and includes both in sibling rows.
+    the source range of `loc` and a named value that differs between siblings
+    on a row above the block's first line, and shows both kinds in sibling
+    rows.
   - On a `stmt` node, a named value is the variable's value right after that
     statement, emitted before the statement closes because the statement
     assigned the variable or changed its value: the variable now holds a
