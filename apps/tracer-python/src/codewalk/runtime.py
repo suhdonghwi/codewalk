@@ -8,7 +8,7 @@ from typing import Literal
 from codewalk.capture import OutputCapture, Stream
 from codewalk.sink import EventSink
 
-_VALUE_TEXT_LIMIT = 80
+_VALUE_TEXT_LIMIT = 48
 
 
 class _ValueRepr(reprlib.Repr):

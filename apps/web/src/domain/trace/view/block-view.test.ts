@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import { buildBlockTitle, siblingListTitle } from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
-import { previewInlineContent } from "./inline-output.ts";
+import { previewInlineOutput } from "./inline-output.ts";
 
 import type { NodeId, Trace } from "@codewalk/trace";
 
@@ -346,7 +346,9 @@ test.each([
 ])(
   "inline output preview truncates $text at the specified boundary",
   ({ text, expected, expandable }) => {
-    const preview = previewInlineContent([{ stream: "stdout", text }]);
+    const preview = previewInlineOutput({
+      segments: [{ stream: "stdout", text }],
+    });
 
     expect(preview).toEqual({
       segments: [{ stream: "stdout", text: expected }],

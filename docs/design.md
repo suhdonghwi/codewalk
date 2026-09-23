@@ -133,10 +133,11 @@ for i in _cw_e(_cw_b(15), range(2)):
   events on the innermost open node. This catches output from library code too
   and attributes it to the user expression that caused it.
 - **Values.** `_cw.value(id, name)` opens a function or iteration block, once
-  per parameter or loop target. Values use a bounded, one-line `repr`.
-  Recording and output capture are muted while formatting so an instrumented
-  user `__repr__` cannot change the trace. Objects without a custom `__repr__`
-  render as `<ClassName>`, including inside containers.
+  per parameter or loop target. Values use a one-line `repr` of at most 48
+  characters, the length an inline chip shows. Recording and output capture
+  are muted while formatting so an instrumented user `__repr__` cannot change
+  the trace. Objects without a custom `__repr__` render as `<ClassName>`,
+  including inside containers.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
 - **Limits.** After N events the runtime writes `end: truncated` and stops
   recording (the program may be killed).
@@ -212,8 +213,9 @@ held at the window's top or bottom edge once the line scrolls out of view.
   - values as chips of the same shape in the value colour, inserted in the
     code right after the name they belong to, reading `= 3`: a parameter's
     value follows its name on the `def` line, a loop target's value follows
-    its name on the `for` line. Only the window's own block contributes values, so a `for` line
-    in the parent window carries none. Long values expand like output;
+    its name on the `for` line. Only the window's own block contributes
+    values, so a `for` line in the parent window carries none. Values are
+    already short, so their chips never expand;
   - the exception on the origin statement: the line is faintly tinted, its line
     number turns red, and the one-line summary follows the code as a chip of the
     same shape as inline output, in the exception colour.

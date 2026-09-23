@@ -25,7 +25,7 @@ def test_value_formatting_is_bounded_and_single_line() -> None:
 
     rendered = _format_value(["line one\nline two"] * 20)
 
-    assert len(rendered) == 80
+    assert len(rendered) == 48
     assert rendered.endswith("…")
     assert _format_value(Multiline()) == "first second third fourth"
 

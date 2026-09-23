@@ -2,8 +2,6 @@ import { blockSites, blockValues } from "@codewalk/trace";
 
 import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
-import { previewInlineText } from "./inline-output.ts";
-
 export interface BlockTitle {
   text: string;
   hasException: boolean;
@@ -87,11 +85,9 @@ export function buildBlockTitle(
     const anchor = trace.header.locs[value.loc];
 
     if (anchor === undefined) return [];
-    const preview = previewInlineText(value.text);
     const name = source.text.slice(anchor.start, anchor.end);
-    const text = preview.segments.map((segment) => segment.text).join("");
 
-    return [`${name} = ${text}`];
+    return [`${name} = ${value.text}`];
   });
 
   const text =

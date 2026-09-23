@@ -14,7 +14,7 @@ import type { LocatedState, Span } from "./spans.ts";
 import type { Token } from "./tokens.ts";
 import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
 
-interface InlineOutput {
+export interface InlineOutput {
   segments: { stream: "stdout" | "stderr"; text: string }[];
 }
 

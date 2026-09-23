@@ -3,10 +3,9 @@ import { Fragment, useState } from "react";
 import { cn } from "@/ui/utils.ts";
 
 import { InlineChip } from "./inline-chip.tsx";
-import { previewInlineContent, previewInlineText } from "./inline-output.ts";
+import { previewInlineOutput } from "./inline-output.ts";
 
-import type { Line } from "./block-view.ts";
-import type { InlineSegment } from "./inline-output.ts";
+import type { InlineOutput, Line } from "./block-view.ts";
 import type { Span } from "./spans.ts";
 import type { LocId } from "@codewalk/trace";
 
@@ -21,7 +20,7 @@ interface TraceLineProps {
 }
 
 interface SegmentsProps {
-  segments: InlineSegment[];
+  segments: InlineOutput["segments"];
 }
 
 const STATE_CLASSES: Record<Span["state"], string> = {
@@ -57,21 +56,10 @@ export function TraceLine({
   onHoverSite,
   onToggleSite,
 }: TraceLineProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [expanded, setExpanded] = useState(false);
 
   const outputPreview =
-    line.output === null ? null : previewInlineContent(line.output.segments);
-
-  function toggleChip(key: string): void {
-    setExpanded((current) => {
-      const next = new Set(current);
-
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-
-      return next;
-    });
-  }
+    line.output === null ? null : previewInlineOutput(line.output);
 
   return (
     <div className="col-start-1 min-w-max" style={{ gridRowStart: row }}>
@@ -144,26 +132,17 @@ export function TraceLine({
                 >
                   {span.text}
                 </span>
-                {line.values.map((value, valueIndex) => {
-                  if (value.afterSpan !== index) return null;
-                  const preview = previewInlineText(value.text);
-                  const key = `value-${valueIndex}`;
-
-                  return (
+                {line.values.map((value, valueIndex) =>
+                  value.afterSpan === index ? (
                     <InlineChip
                       className="mx-[0.5ch]"
-                      expandable={preview.expandable}
-                      expanded={expanded.has(key)}
-                      key={key}
-                      onToggle={() => {
-                        toggleChip(key);
-                      }}
+                      key={valueIndex}
                       tone="value"
                     >
-                      = <Segments segments={preview.segments} />
+                      = {value.text}
                     </InlineChip>
-                  );
-                })}
+                  ) : null,
+                )}
               </Fragment>
             );
           })}
@@ -172,9 +151,9 @@ export function TraceLine({
           <InlineChip
             className="ml-[2ch]"
             expandable={outputPreview.expandable}
-            expanded={expanded.has("output")}
+            expanded={expanded}
             onToggle={() => {
-              toggleChip("output");
+              setExpanded((current) => !current);
             }}
             tone="output"
           >
@@ -187,17 +166,7 @@ export function TraceLine({
           </InlineChip>
         )}
       </div>
-      {line.values.map((value, index) =>
-        expanded.has(`value-${index}`) ? (
-          <pre
-            className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-value-surface/60 px-[1ch] py-0.5 text-inline-value whitespace-pre-wrap [font:inherit]"
-            key={`value-${index}`}
-          >
-            {value.text}
-          </pre>
-        ) : null,
-      )}
-      {expanded.has("output") && line.output !== null ? (
+      {expanded && line.output !== null ? (
         <pre className="m-0 mt-1 mr-4 mb-1.5 ml-[calc(var(--spacing-gutter)+0.625rem)] rounded-sm bg-inline-output-surface/60 px-[1ch] py-0.5 text-inline-output whitespace-pre-wrap [font:inherit]">
           <Segments segments={line.output.segments} />
         </pre>
