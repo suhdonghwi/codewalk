@@ -6,10 +6,16 @@ import reprlib
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from types import FrameType, TracebackType
+from types import (
+    BuiltinFunctionType,
+    FrameType,
+    FunctionType,
+    ModuleType,
+    TracebackType,
+)
 from typing import Literal
 
-from codewalk.instrument import StatementNames, Tracking
+from codewalk.instrument import StatementNames
 from codewalk.sink import EventSink
 
 type Stream = Literal["stdout", "stderr"]
@@ -19,6 +25,8 @@ _VALUE_TEXT_LIMIT = 48
 _WATCHED_CALLS = 1000
 
 _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
+
+_NOT_STATE = (BuiltinFunctionType, FunctionType, ModuleType, type)
 
 
 class _ValueRepr(reprlib.Repr):
@@ -49,12 +57,13 @@ _VALUE_REPR = _ValueRepr(
 
 
 class _Node:
-    __slots__ = ("block", "loc", "pending", "watched")
+    __slots__ = ("block", "frame", "loc", "pending", "watched")
 
     def __init__(self, loc: int, *, block: bool, pending: bool) -> None:
         self.loc = loc
         self.block = block
         self.pending = pending
+        self.frame: FrameType | None = None
         self.watched: dict[str, str] | None = None
 
 
@@ -68,7 +77,9 @@ class _BlockContext:
         self._node: _Node | None = None
 
     def __enter__(self) -> None:
-        self._node = self._runtime._enter_block(self._loc, repair=self._repair)
+        self._node = self._runtime._enter_block(
+            self._loc, sys._getframe(1), repair=self._repair
+        )
 
     def __exit__(
         self,
@@ -77,7 +88,7 @@ class _BlockContext:
         traceback: TracebackType | None,
     ) -> Literal[False]:
         del exc_type, traceback
-        self._runtime._exit_block(self._node, exc, sys._getframe(1))
+        self._runtime._exit_block(self._node, exc)
         return False
 
 
@@ -88,13 +99,15 @@ class Runtime:
         self,
         parents: Sequence[int | None],
         sink: EventSink,
-        tracking: Mapping[int, Tracking] | None = None,
-        statements: Mapping[int, StatementNames] | None = None,
+        watched: Mapping[int, Sequence[str]],
+        inputs: Mapping[int, Sequence[str]],
+        statements: Mapping[int, StatementNames],
     ) -> None:
         self._parents = parents
         self._sink = sink
-        self._tracking = tracking or {}
-        self._statements = statements or {}
+        self._watched = watched
+        self._inputs = inputs
+        self._statements = statements
         self._calls: dict[int, int] = {}
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
@@ -120,32 +133,19 @@ class Runtime:
 
     def state(self, loc: int) -> None:
         block = self._innermost_block()
-        tracking = self._tracking.get(loc)
-        if not self._active or block is None or block.loc != loc or not tracking:
+        if not self._active or block is None or block.watched is None:
             return
-        if tracking.per_call:
-            calls = self._calls.get(loc, 0) + 1
-            self._calls[loc] = calls
-            if calls > _WATCHED_CALLS:
-                return
-        frame = sys._getframe(1)
-        watched: dict[str, str] = {}
-        for name in tracking.watched:
-            found, value = _lookup(frame, name)
-            if found:
-                watched[name] = self.render(_format_value, value)
-        for name in tracking.inputs:
-            text = watched.get(name)
+        for name in self._inputs[loc]:
+            text = block.watched.get(name)
             if text is not None:
                 self._emit({"op": "value", "name": name, "text": text})
-        block.watched = watched
 
     def stmt(self, loc: int) -> None:
         if not self._active:
             return
         block = self._innermost_block()
-        if block is not None and block.watched is not None:
-            self._settle(block, sys._getframe(1))
+        if block is not None:
+            self._settle(block)
         self._repair(self._parents[loc])
         self._emit({"op": "enter", "loc": loc})
         self._stack.append(_Node(loc, block=False, pending=False))
@@ -222,7 +222,7 @@ class Runtime:
         self._emit({"op": "end", "status": status, **fields})
         self._active = False
 
-    def _enter_block(self, loc: int, *, repair: bool) -> _Node | None:
+    def _enter_block(self, loc: int, frame: FrameType, *, repair: bool) -> _Node | None:
         if not self._active:
             return None
         if repair:
@@ -231,15 +231,17 @@ class Runtime:
         self._emit({"op": "enter", "loc": loc})
         node = _Node(loc, block=True, pending=False)
         self._stack.append(node)
+        if not repair:
+            self._calls[loc] = self._calls.get(loc, 0) + 1
+        if repair or self._calls[loc] <= _WATCHED_CALLS:
+            node.frame = frame
+            node.watched = self._variables(loc, frame)
         return node
 
-    def _exit_block(
-        self, target: _Node | None, exc: BaseException | None, frame: FrameType
-    ) -> None:
+    def _exit_block(self, target: _Node | None, exc: BaseException | None) -> None:
         if not self._active or target is None:
             return
-        if target.watched is not None:
-            self._settle(target, frame)
+        self._settle(target)
         while self._stack:
             node = self._stack.pop()
             if node is target:
@@ -258,13 +260,20 @@ class Runtime:
                 return node
         return None
 
-    def _settle(self, block: _Node, frame: FrameType) -> None:
+    def _variables(self, block: int, frame: FrameType) -> dict[str, str]:
+        variables: dict[str, str] = {}
+        for name in self._watched.get(block, ()):
+            found, value = _lookup(frame, name)
+            if found and not isinstance(value, _NOT_STATE):
+                variables[name] = self.render(_format_value, value)
+        return variables
+
+    def _settle(self, block: _Node) -> None:
         # Records what the block's open statement assigned or changed, as
         # values on that statement, before the statement closes.
         stack = self._stack
         watched = block.watched
-        tracking = self._tracking.get(block.loc)
-        if watched is None or tracking is None:
+        if watched is None or block.frame is None:
             return
         index = len(stack) - 1
         while index >= 0 and stack[index] is not block:
@@ -279,15 +288,13 @@ class Runtime:
         names = self._statements.get(stack[index].loc)
         binds = () if names is None else names.binds
         quiet = () if names is None else names.quiet
-        for name in tracking.watched:
-            found, value = _lookup(frame, name)
-            if not found:
-                continue
-            text = self.render(_format_value, value)
-            if name in binds or watched.get(name) != text:
-                watched[name] = text
-                if name in binds or name not in quiet:
-                    self._emit({"op": "value", "name": name, "text": text})
+        current = self._variables(block.loc, block.frame)
+        for name, text in current.items():
+            if (name in binds or watched.get(name) != text) and (
+                name in binds or name not in quiet
+            ):
+                self._emit({"op": "value", "name": name, "text": text})
+        block.watched = current
 
     def _repair(self, parent: int | None) -> None:
         while self._stack:

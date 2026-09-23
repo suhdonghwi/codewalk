@@ -47,7 +47,8 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
     runtime = Runtime(
         [loc["parent"] for loc in result.locs],
         sink,
-        result.tracking,
+        result.watched,
+        result.inputs,
         result.statements,
     )
     globals_: dict[str, object] = {

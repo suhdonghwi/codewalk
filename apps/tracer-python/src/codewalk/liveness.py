@@ -34,16 +34,6 @@ def loop_state(loop: ast.For | ast.While) -> list[str]:
     return reads.names
 
 
-def loop_assignments(loop: ast.For | ast.While) -> list[str]:
-    """Names one iteration may assign, in source order."""
-    bindings = _Bindings()
-    if isinstance(loop, ast.While):
-        bindings.visit(loop.test)
-    for statement in loop.body:
-        bindings.visit(statement)
-    return list(bindings.names)
-
-
 def statement_bindings(node: ast.stmt) -> list[str]:
     """Names a statement binds itself, not through the body it heads."""
     bindings = _Bindings()
@@ -65,26 +55,6 @@ def target_names(target: ast.expr) -> list[str]:
     """Names a `for` target binds."""
     bindings = _Bindings()
     bindings.visit(target)
-    return list(bindings.names)
-
-
-def scope_variables(
-    body: list[ast.stmt], arguments: ast.arguments | None = None
-) -> list[str]:
-    """Names a scope binds as variables, leaving out `def`, `class` and imports."""
-    bindings = _Bindings()
-    if arguments is not None:
-        for argument in [
-            *arguments.posonlyargs,
-            *arguments.args,
-            *arguments.kwonlyargs,
-            arguments.vararg,
-            arguments.kwarg,
-        ]:
-            if argument is not None:
-                bindings.names[argument.arg] = None
-    for statement in body:
-        bindings.visit(statement)
     return list(bindings.names)
 
 
@@ -266,7 +236,18 @@ class _Reads:
             for default in [*node.args.defaults, *node.args.kw_defaults]:
                 if default is not None:
                     self.expression(default, assigned, definite=definite)
-            inner = assigned | set(scope_variables([], node.args))
+            arguments = node.args
+            inner = assigned | {
+                argument.arg
+                for argument in [
+                    *arguments.posonlyargs,
+                    *arguments.args,
+                    *arguments.kwonlyargs,
+                    arguments.vararg,
+                    arguments.kwarg,
+                ]
+                if argument is not None
+            }
             self.expression(node.body, inner, definite=False)
         elif isinstance(node, _COMPREHENSIONS):
             self._comprehension(node, assigned)
@@ -324,15 +305,6 @@ class _Bindings(ast.NodeVisitor):
         if isinstance(node.ctx, ast.Store):
             self.names[node.id] = None
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        pass
-
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        pass
-
-    def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        pass
-
     def visit_Lambda(self, node: ast.Lambda) -> None:
         pass
 
@@ -340,22 +312,3 @@ class _Bindings(ast.NodeVisitor):
         self.visit(node.iter)
         for condition in node.ifs:
             self.visit(condition)
-
-    def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        if node.name is not None:
-            self.names[node.name] = None
-        self.generic_visit(node)
-
-    def visit_MatchAs(self, node: ast.MatchAs) -> None:
-        if node.name is not None:
-            self.names[node.name] = None
-        self.generic_visit(node)
-
-    def visit_MatchStar(self, node: ast.MatchStar) -> None:
-        if node.name is not None:
-            self.names[node.name] = None
-
-    def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
-        if node.rest is not None:
-            self.names[node.rest] = None
-        self.generic_visit(node)

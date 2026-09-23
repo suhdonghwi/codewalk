@@ -3,7 +3,6 @@
 {"op":"enter","loc":1}
 {"op":"exit"}
 {"op":"enter","loc":2}
-{"op":"value","name":"show","text":"<function <lambda>>"}
 {"op":"exit"}
 {"op":"enter","loc":3}
 {"op":"enter","loc":4}
