@@ -336,12 +336,24 @@ export function parseTrace(jsonl: string): ParseResult {
         const source = header.sources[valueLoc.file]?.text ?? "";
         const name = source.slice(valueLoc.start, valueLoc.end);
 
-        return attachValue(index + 1, { loc, name, value, at: definitions });
+        return attachValue(index + 1, {
+          loc,
+          name,
+          value,
+          at: definitions,
+          literal: false,
+        });
       })
-      .with({ op: "value", name: P.string }, ({ name, value }) =>
-        attachValue(index + 1, { loc: null, name, value, at: definitions }),
+      .with({ op: "value", name: P.string }, ({ name, value, literal }) =>
+        attachValue(index + 1, {
+          loc: null,
+          name,
+          value,
+          at: definitions,
+          literal: literal ?? false,
+        }),
       )
-      .with({ op: "return" }, ({ value }) => {
+      .with({ op: "return" }, ({ value, literal }) => {
         const error = referenceError(index + 1, value);
 
         if (error !== null) return error;
@@ -360,7 +372,7 @@ export function parseTrace(jsonl: string): ParseResult {
           return structureError(index + 1, "a statement returns twice");
         }
 
-        node.returned = { value, at: definitions };
+        node.returned = { value, at: definitions, literal: literal ?? false };
 
         return null;
       })

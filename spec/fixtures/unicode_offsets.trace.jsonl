@@ -3,7 +3,7 @@
 {"op":"enter","loc":1}
 {"op":"exit"}
 {"op":"enter","loc":6}
-{"op":"value","name":"값","value":{"kind":"string","text":"'한국 😀'"}}
+{"op":"value","name":"값","value":{"kind":"string","text":"'한국 😀'"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":7}
 {"op":"enter","loc":8}

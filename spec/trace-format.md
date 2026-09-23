@@ -157,6 +157,7 @@ Range conventions:
 {"op": "value", "loc": 16, "value": {"kind": "number", "text": "3"}}
 {"op": "obj", "id": 0, "kind": "sequence", "type": "list", "items": [{"kind": "number", "text": "1"}]}
 {"op": "value", "name": "xs", "value": {"ref": 0}}
+{"op": "value", "name": "found", "value": {"kind": "boolean", "text": "True"}, "literal": true}
 {"op": "return", "value": {"ref": 0}}
 {"op": "end", "status": "ok"}
 ```
@@ -188,7 +189,10 @@ Range conventions:
     assigned the variable or changed its value: the variable now holds a
     different primitive or object, or an object it reaches changed (a list it
     appended to, also through a call). The viewer places it with the
-    statement's line.
+    statement's line. `literal: true` marks a value the statement wrote out as
+    a literal (`found = True`, `lo, hi = 0, len(items)` for `lo`); the viewer
+    shows no chip for it, since the code already says it, but still counts it
+    as the variable's value.
     Python records these for the variables a block's code mentions, local or
     global, but not functions, classes or modules. A loop statement is a
     statement of its parent block, so the values on it are the loop's end
@@ -199,9 +203,13 @@ Range conventions:
 - `return` — the value (see [Values](#values)) a statement handed back from its
   function, as it was at that moment. It attaches to the innermost open node,
   which must be the returning statement, at most once. The viewer places it
-  on a row below the statement. Python records it for `return` statements with a
-  value, not for a bare `return` or a function that ends without one, and, like
-  named values, not in calls of one function beyond its first 1000.
+  on a row below the statement. `literal: true` marks a value written out as a
+  literal (`return 1`), which the viewer does not show, as for named values.
+  Python records it for `return` statements with a value, not for a bare
+  `return` or a function that ends without one, and, like named values, not in
+  calls of one function beyond its first 1000.
+  Python counts as literals constants, signed numbers and lists, tuples, sets
+  and dicts of literals.
 - `obj` — the state of an object, referenced from values by `id`. It attaches
   to no node. See [Objects](#objects).
 - `end` — last line. `status`:

@@ -16,7 +16,7 @@
 {"op":"exit"}
 {"op":"enter","loc":15}
 {"op":"obj","id":0,"kind":"sequence","type":"list","items":[]}
-{"op":"value","name":"shared","value":{"ref":0}}
+{"op":"value","name":"shared","value":{"ref":0},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":16}
 {"op":"obj","id":1,"kind":"sequence","type":"list","items":[{"ref":0},{"ref":0}]}
@@ -49,7 +49,7 @@
 {"op":"enter","loc":25}
 {"op":"obj","id":5,"kind":"mapping","type":"dict","entries":[[{"kind":"string","text":"'a'"},{"ref":6}]]}
 {"op":"obj","id":6,"kind":"set","type":"set","items":[{"kind":"number","text":"1"},{"kind":"number","text":"2"}]}
-{"op":"value","name":"counts","value":{"ref":5}}
+{"op":"value","name":"counts","value":{"ref":5},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":26}
 {"op":"obj","id":7,"kind":"sequence","type":"deque","items":[{"kind":"number","text":"1"},{"kind":"number","text":"2"}]}

@@ -6,7 +6,7 @@
 {"op":"enter","loc":4}
 {"op":"exit"}
 {"op":"enter","loc":6}
-{"op":"value","name":"kind","value":{"kind":"string","text":"'small'"}}
+{"op":"value","name":"kind","value":{"kind":"string","text":"'small'"},"literal":true}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":3}
@@ -16,7 +16,7 @@
 {"op":"enter","loc":7}
 {"op":"exit"}
 {"op":"enter","loc":9}
-{"op":"value","name":"kind","value":{"kind":"string","text":"'two'"}}
+{"op":"value","name":"kind","value":{"kind":"string","text":"'two'"},"literal":true}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":3}
@@ -28,7 +28,7 @@
 {"op":"enter","loc":11}
 {"op":"exit"}
 {"op":"enter","loc":10}
-{"op":"value","name":"kind","value":{"kind":"string","text":"'big'"}}
+{"op":"value","name":"kind","value":{"kind":"string","text":"'big'"},"literal":true}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"value","name":"kind","value":{"kind":"string","text":"'big'"}}
@@ -40,7 +40,7 @@
 {"op":"enter","loc":16}
 {"op":"exit"}
 {"op":"enter","loc":15}
-{"op":"value","name":"kind","value":{"kind":"string","text":"'error'"}}
+{"op":"value","name":"kind","value":{"kind":"string","text":"'error'"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":21}
 {"op":"exit"}
@@ -57,14 +57,14 @@
 {"op":"enter","loc":27}
 {"op":"exit"}
 {"op":"enter","loc":26}
-{"op":"value","name":"kind","value":{"kind":"string","text":"'done'"}}
+{"op":"value","name":"kind","value":{"kind":"string","text":"'done'"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":28}
 {"op":"exit"}
 {"op":"enter","loc":30}
 {"op":"exit"}
 {"op":"enter","loc":29}
-{"op":"value","name":"kind","value":{"kind":"number","text":"1"}}
+{"op":"value","name":"kind","value":{"kind":"number","text":"1"},"literal":true}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"end","status":"ok"}

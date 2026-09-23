@@ -166,7 +166,7 @@ class Runtime:
             return
         self._emit_value("loc", loc, self._snapshot((loc, ""), value))
 
-    def returned[T](self, loc: int, value: T) -> T:
+    def returned[T](self, loc: int, value: T, literal: bool = False) -> T:
         if not self._active:
             return value
         self._repair(loc)
@@ -180,7 +180,8 @@ class Runtime:
         ):
             return value
         taken = self._snapshot((loc, ""), value)
-        self._emit({"op": "return", "value": self._heap.define(taken)})
+        event = {"op": "return", "value": self._heap.define(taken)}
+        self._emit(event | {"literal": True} if literal else event)
         return value
 
     def render[T, R](self, format_: Callable[[T], R], subject: T) -> R:
@@ -273,9 +274,11 @@ class Runtime:
         self._recent[key] = taken
         return taken
 
-    def _emit_value(self, anchor: str, key: object, taken: Snapshot) -> None:
-        value = self._heap.define(taken)
-        self._emit({"op": "value", anchor: key, "value": value})
+    def _emit_value(
+        self, anchor: str, key: object, taken: Snapshot, *, literal: bool = False
+    ) -> None:
+        event = {"op": "value", anchor: key, "value": self._heap.define(taken)}
+        self._emit(event | {"literal": True} if literal else event)
 
     def _settle(self, block: _Node, *, interrupted: bool = False) -> None:
         # Records what the block's open statement assigned or changed, as
@@ -296,6 +299,7 @@ class Runtime:
                 self._emit({"op": "exit"})
         names = self._statements.get(stack[index].loc)
         binds = () if names is None or interrupted else names.binds
+        literal = () if names is None or interrupted else names.literal
         quiet = () if names is None else names.quiet
         live = None if names is None else names.live
         current = self._variables(block.loc, block.frame)
@@ -305,7 +309,7 @@ class Runtime:
             if (name in binds or watched.get(name) != taken) and (
                 name in binds or name not in quiet
             ):
-                self._emit_value("name", name, taken)
+                self._emit_value("name", name, taken, literal=name in literal)
         block.watched = current
 
     def _interrupt(self, block: _Node, exc: BaseException) -> None:

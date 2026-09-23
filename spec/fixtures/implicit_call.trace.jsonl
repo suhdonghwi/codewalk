@@ -18,7 +18,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":8}
-{"op":"return","value":{"kind":"boolean","text":"True"}}
+{"op":"return","value":{"kind":"boolean","text":"True"},"literal":true}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

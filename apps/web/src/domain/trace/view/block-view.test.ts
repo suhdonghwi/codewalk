@@ -425,42 +425,33 @@ describe("buildBlockView", () => {
           ) ?? []),
         ]);
 
-    expect(loopEnds(whileLoop, moduleView)).toEqual([
-      "1: i",
-      'after 4: "" i → 2',
-    ]);
+    expect(loopEnds(whileLoop, moduleView)).toEqual(['after 4: "" i → 2']);
     expect(loopEnds(loopState, searchView)).toEqual([
-      "2: lo",
       "2: hi",
       'after 8: "    " lo → 2',
     ]);
   });
 
   test("chip lines group only with adjacent chip lines, and a loop's end row ends the group", () => {
-    const trace = fixture("loop_state");
+    const groups = (trace: Trace) => {
+      if (trace.root === null) throw new Error("Missing fixture root");
 
-    if (trace.root === null) throw new Error("Missing fixture root");
-
-    expect(
-      buildBlockView(trace, trace.root, []).groups.map((group) =>
+      return buildBlockView(trace, trace.root, []).groups.map((group) =>
         group.length === 1
           ? String(group[0]?.number)
           : `${group[0]?.number}-${group.at(-1)?.number}`,
-      ),
-    ).toEqual([
+      );
+    };
+
+    expect(groups(fixture("loop_state"))).toEqual([
       "1-15",
       "16",
-      "17",
-      "18",
-      "19-21",
-      "22-28",
-      "29-30",
-      "31-35",
-      "36",
-      "37",
-      "38-40",
+      "17-21",
+      "22-35",
+      "36-40",
       "41",
     ]);
+    expect(groups(fixture("values"))).toEqual(["1-21", "22-24"]);
   });
 
   test("an exception is marked where it was raised and where it was caught, not where it passed through", () => {
@@ -648,3 +639,28 @@ test.each([
     });
   },
 );
+
+test("a value its statement writes as a literal gets no chip yet still ends a loop's state", () => {
+  const trace = fixture("literal_values");
+  const iterations = blockNodes(trace, "iteration");
+  const [positive, negative] = blockNodes(trace, "sign");
+
+  if (trace.root === null || positive === undefined || negative === undefined) {
+    throw new Error("Missing literal_values fixture blocks");
+  }
+
+  const module = buildBlockView(trace, trace.root, []);
+
+  const returned = (block: NodeId, number: number) =>
+    line(buildBlockView(trace, block, []), number).returned?.value ?? null;
+
+  expect(line(module, 7).changes).toEqual([]);
+  expect(line(module, 13).changes.map(({ name }) => name)).toEqual(["high"]);
+  expect(returned(positive, 4)).not.toBeNull();
+  expect(returned(negative, 3)).toBeNull();
+  expect(
+    cellTexts(
+      siblingAfter(trace, iterations, siblingColumns(trace, iterations)),
+    ),
+  ).toEqual([null, "0"]);
+});

@@ -173,6 +173,29 @@ def test_parameter_locs_cover_utf16_identifiers_without_stars_or_annotations() -
     ]
 
 
+@pytest.mark.parametrize(
+    ("source", "literal"),
+    [
+        ("x = -1.5\n", ["x"]),
+        ("x: list = [1, (2, 'a'), {3: None}, {4}]\n", ["x"]),
+        ("x = [y]\n", []),
+        ("x = -True\n", []),
+        ("a, (b, c) = 0, (f(), 2)\n", ["a", "c"]),
+        ("a, *b = 1, 2\n", []),
+        ("a, a = 0, f()\n", []),
+    ],
+)
+def test_a_statement_marks_the_names_it_binds_to_a_literal(
+    source: str, literal: list[str]
+) -> None:
+    result = instrument(ast.parse(source), source, "main.py")
+    statement = next(
+        index for index, loc in enumerate(result.locs) if loc["role"] == "stmt"
+    )
+
+    assert list(result.statements[statement].literal) == literal
+
+
 def test_loop_entry_values_capture_only_destructured_names_in_source_order(
     tmp_path: Path,
 ) -> None:

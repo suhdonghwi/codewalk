@@ -201,6 +201,7 @@ const NamedValueEventSchema = z
     op: z.literal("value"),
     name: z.string(),
     value: ValueSchema,
+    literal: z.literal(true).optional(),
   })
   .strict();
 
@@ -208,6 +209,7 @@ const ReturnEventSchema = z
   .object({
     op: z.literal("return"),
     value: ValueSchema,
+    literal: z.literal(true).optional(),
   })
   .strict();
 

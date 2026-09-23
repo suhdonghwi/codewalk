@@ -3,7 +3,7 @@
 {"op":"enter","loc":1}
 {"op":"exit"}
 {"op":"enter","loc":9}
-{"op":"value","name":"i","value":{"kind":"number","text":"0"}}
+{"op":"value","name":"i","value":{"kind":"number","text":"0"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":10}
 {"op":"enter","loc":11}

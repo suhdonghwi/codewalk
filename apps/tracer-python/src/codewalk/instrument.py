@@ -28,11 +28,13 @@ _BRACKETED = (
 @dataclass(frozen=True)
 class StatementNames:
     """Names a statement binds itself, names whose changes it leaves out, and,
-    on a loop, the only names whose changes it records."""
+    on a loop, the only names whose changes it records; `literal` are the bound
+    names whose value the statement writes out as a literal."""
 
     binds: tuple[str, ...]
     quiet: tuple[str, ...]
     live: frozenset[str] | None = None
+    literal: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -215,10 +217,12 @@ class _Instrumenter:
             node.value = self._expression(node.value, statement)
         elif isinstance(node, ast.Return):
             if node.value is not None:
+                literal = [ast.Constant(True)] if _is_literal(node.value) else []
                 returned = _runtime_call(
                     "returned",
                     ast.Constant(statement),
                     self._expression(node.value, statement),
+                    *literal,
                 )
                 node.value = ast.copy_location(returned, node.value)
         elif isinstance(node, ast.Raise):
@@ -325,7 +329,7 @@ class _Instrumenter:
         quiet = target_names(node.target) if isinstance(node, ast.For) else []
         if binds or quiet or live is not None:
             self.statements[statement] = StatementNames(
-                tuple(binds), tuple(quiet), live
+                tuple(binds), tuple(quiet), live, _literal_bindings(node)
             )
 
     def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
@@ -485,6 +489,59 @@ def _value_statement(loc: int, name: str, owner: ast.AST) -> ast.stmt:
     value = ast.Name(id=name, ctx=ast.Load())
     statement = ast.Expr(value=_runtime_call("value", ast.Constant(loc), value))
     return ast.copy_location(statement, owner)
+
+
+def _literal_bindings(node: ast.stmt) -> tuple[str, ...]:
+    if isinstance(node, ast.Assign):
+        pairs = [(target, node.value) for target in node.targets]
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        pairs = [(node.target, node.value)]
+    else:
+        return ()
+    literal: list[str] = []
+    other: list[str] = []
+    for target, value in pairs:
+        _pair_targets(target, value, literal, other)
+    return tuple(dict.fromkeys(name for name in literal if name not in other))
+
+
+def _pair_targets(
+    target: ast.expr, value: ast.expr | None, literal: list[str], other: list[str]
+) -> None:
+    if isinstance(target, ast.Name):
+        (literal if value is not None and _is_literal(value) else other).append(
+            target.id
+        )
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        values = (
+            value.elts
+            if isinstance(value, (ast.Tuple, ast.List))
+            and len(value.elts) == len(target.elts)
+            and not any(isinstance(item, ast.Starred) for item in target.elts)
+            else [None] * len(target.elts)
+        )
+        for item, item_value in zip(target.elts, values, strict=True):
+            _pair_targets(item, item_value, literal, other)
+    elif isinstance(target, ast.Starred):
+        _pair_targets(target.value, None, literal, other)
+
+
+def _is_literal(node: ast.expr) -> bool:
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        return isinstance(node.operand, ast.Constant) and _is_number(node.operand.value)
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return all(_is_literal(item) for item in node.elts)
+    if isinstance(node, ast.Dict):
+        return all(key is not None and _is_literal(key) for key in node.keys) and all(
+            _is_literal(item) for item in node.values
+        )
+    return False
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float, complex)) and not isinstance(value, bool)
 
 
 def _split_docstring(body: list[ast.stmt]) -> tuple[list[ast.stmt], list[ast.stmt]]:

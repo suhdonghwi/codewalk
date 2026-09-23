@@ -22,7 +22,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"enter","loc":12}
-{"op":"value","name":"value","value":{"kind":"null","text":"None"}}
+{"op":"value","name":"value","value":{"kind":"null","text":"None"},"literal":true}
 {"op":"exit"}
 {"op":"enter","loc":13}
 {"op":"exit"}

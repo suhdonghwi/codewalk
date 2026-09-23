@@ -27,6 +27,7 @@ export interface OutputChunk {
 export interface RecordedValue {
   value: Value;
   at: number;
+  literal: boolean;
 }
 
 export interface ValueChunk extends RecordedValue {
