@@ -19,24 +19,18 @@ from codewalk.values import Heap, Snapshot, snapshot
 
 type Stream = Literal["stdout", "stderr"]
 
-type Jump = Literal["break", "return"]
-
 _WATCHED_CALLS = 1000
 
 _NOT_STATE = (BuiltinFunctionType, FunctionType, ModuleType, type)
 
 
 class _Node:
-    __slots__ = ("block", "frame", "iteration", "jump", "loc", "pending", "watched")
+    __slots__ = ("block", "frame", "loc", "pending", "watched")
 
-    def __init__(
-        self, loc: int, *, block: bool, pending: bool, iteration: bool = False
-    ) -> None:
+    def __init__(self, loc: int, *, block: bool, pending: bool) -> None:
         self.loc = loc
         self.block = block
         self.pending = pending
-        self.iteration = iteration
-        self.jump: Jump | None = None
         self.frame: FrameType | None = None
         self.watched: dict[str, Snapshot] | None = None
 
@@ -133,14 +127,7 @@ class Runtime:
             self._settle(block, interrupted=exc is not None)
             if exc is not None:
                 self._interrupt(block, exc)
-                block.jump = None
         self._open_statement(loc)
-
-    def jump(self, loc: int, kind: Jump) -> None:
-        self.stmt(loc)
-        block = self._innermost_block()
-        if self._active and block is not None:
-            block.jump = kind
 
     def _open_statement(self, loc: int) -> None:
         self._repair(self._parents[loc])
@@ -224,7 +211,7 @@ class Runtime:
             self._repair(self._parents[loc])
         self._materialize()
         self._emit({"op": "enter", "loc": loc})
-        node = _Node(loc, block=True, pending=False, iteration=repair)
+        node = _Node(loc, block=True, pending=False)
         self._stack.append(node)
         if not repair:
             self._calls[loc] = self._calls.get(loc, 0) + 1
@@ -240,20 +227,11 @@ class Runtime:
         while self._stack:
             node = self._stack.pop()
             if node is target:
-                if exc is not None:
+                if exc is None:
+                    self._emit({"op": "exit"})
+                else:
                     summary = self.render(_exception_summary, exc)
                     self._emit({"op": "exit", "exc": summary})
-                elif target.iteration and target.jump is not None:
-                    self._emit({"op": "exit", "jump": target.jump})
-                    enclosing = self._innermost_block()
-                    if (
-                        target.jump == "return"
-                        and enclosing is not None
-                        and enclosing.iteration
-                    ):
-                        enclosing.jump = "return"
-                else:
-                    self._emit({"op": "exit"})
                 return
             if not node.pending:
                 self._emit({"op": "exit"})

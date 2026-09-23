@@ -30,7 +30,6 @@ interface SiblingListProps {
   blocks: NodeId[];
   columns: SiblingColumn[];
   after: SiblingCell[] | null;
-  ending: string | null;
   selectedIndex: number;
   onChoose: (block: NodeId) => void;
 }
@@ -73,7 +72,6 @@ export function SiblingList({
   blocks,
   columns,
   after,
-  ending,
   selectedIndex,
   onChoose,
 }: SiblingListProps) {
@@ -82,14 +80,14 @@ export function SiblingList({
   const [scrollTop, setScrollTop] = useState(0);
   const headerRows = columns.length > 0 ? 1 : 0;
   const headerHeight = headerRows * ROW_HEIGHT;
-  const footerRows = (after === null ? 0 : 1) + (ending === null ? 0 : 1);
-  const footerHeight = footerRows * ROW_HEIGHT;
+  const afterRows = after === null ? 0 : 1;
+  const afterHeight = afterRows * ROW_HEIGHT;
 
-  const contentHeight = (blocks.length + headerRows + footerRows) * ROW_HEIGHT;
+  const contentHeight = (blocks.length + headerRows + afterRows) * ROW_HEIGHT;
 
   const viewportHeight = Math.min(
     contentHeight,
-    (MAX_VISIBLE_ROWS + headerRows + footerRows) * ROW_HEIGHT,
+    (MAX_VISIBLE_ROWS + headerRows + afterRows) * ROW_HEIGHT,
   );
 
   useLayoutEffect(() => {
@@ -102,19 +100,19 @@ export function SiblingList({
       element.scrollTop =
         rowTop -
         headerHeight -
-        (viewportHeight - headerHeight - footerHeight - ROW_HEIGHT) / 2;
+        (viewportHeight - headerHeight - afterHeight - ROW_HEIGHT) / 2;
       positioned.current = true;
     } else if (rowTop < element.scrollTop + headerHeight) {
       element.scrollTop = rowTop - headerHeight;
     } else if (
       rowTop + ROW_HEIGHT >
-      element.scrollTop + viewportHeight - footerHeight
+      element.scrollTop + viewportHeight - afterHeight
     ) {
-      element.scrollTop = rowTop + ROW_HEIGHT - viewportHeight + footerHeight;
+      element.scrollTop = rowTop + ROW_HEIGHT - viewportHeight + afterHeight;
     }
 
     setScrollTop(element.scrollTop);
-  }, [selectedIndex, viewportHeight, headerRows, headerHeight, footerHeight]);
+  }, [selectedIndex, viewportHeight, headerRows, headerHeight, afterHeight]);
 
   function chooseNeighbour(event: KeyboardEvent<HTMLDivElement>): void {
     const step =
@@ -230,25 +228,16 @@ export function SiblingList({
               </button>
             );
           })}
-          {footerRows === 0 ? null : (
-            <div className="sticky bottom-0 z-1 mt-auto flex-none border-t border-window-border bg-white text-neutral-400">
-              {after === null ? null : (
-                <div
-                  className={row}
-                  style={{ gridTemplateColumns: template, height: ROW_HEIGHT }}
-                >
-                  <span>after</span>
-                  <Cells cells={after} columns={columns} />
-                </div>
+          {after === null ? null : (
+            <div
+              className={cn(
+                row,
+                "sticky bottom-0 z-1 mt-auto flex-none border-t border-window-border bg-white text-neutral-400",
               )}
-              {ending === null ? null : (
-                <div
-                  className="flex items-center px-2 whitespace-nowrap"
-                  style={{ height: ROW_HEIGHT }}
-                >
-                  {ending}
-                </div>
-              )}
+              style={{ gridTemplateColumns: template, height: ROW_HEIGHT }}
+            >
+              <span>after</span>
+              <Cells cells={after} columns={columns} />
             </div>
           )}
         </div>

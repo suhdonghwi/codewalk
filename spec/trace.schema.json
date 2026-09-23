@@ -198,13 +198,6 @@
             },
             "exc": {
               "type": "string"
-            },
-            "jump": {
-              "type": "string",
-              "enum": [
-                "break",
-                "return"
-              ]
             }
           },
           "required": [

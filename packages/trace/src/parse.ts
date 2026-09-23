@@ -272,7 +272,6 @@ export function parseTrace(jsonl: string): ParseResult {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         });
 
         if (parentId !== null) nodes[parentId]?.children.push(id);
@@ -280,7 +279,7 @@ export function parseTrace(jsonl: string): ParseResult {
 
         return null;
       })
-      .with({ op: "exit" }, ({ exc, jump }) => {
+      .with({ op: "exit" }, ({ exc }) => {
         const nodeId = open.at(-1);
 
         if (nodeId === undefined) {
@@ -297,21 +296,9 @@ export function parseTrace(jsonl: string): ParseResult {
           );
         }
 
-        if (
-          jump !== undefined &&
-          (loc?.role !== "block" || exc !== undefined)
-        ) {
-          return structureError(
-            index + 1,
-            "exit.jump is only valid on a block node left without an exception",
-          );
-        }
-
         open.pop();
 
         if (node !== undefined && exc !== undefined) node.exc = exc;
-
-        if (node !== undefined && jump !== undefined) node.jump = jump;
 
         return null;
       })
