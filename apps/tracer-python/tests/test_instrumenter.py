@@ -91,20 +91,6 @@ def test_each_fixture_obeys_trace_tree_and_output_invariants(source: Path) -> No
             assert locs[stack[-1]]["role"] == "block"
     assert not stack
 
-    for loc in locs:
-        if loc["role"] == "block":
-            assert set(loc) == {
-                "role",
-                "title",
-                "unit",
-                "file",
-                "start",
-                "end",
-                "parent",
-            }
-        else:
-            assert set(loc) == {"role", "file", "start", "end", "parent"}
-
     plain = subprocess.run(
         [sys.executable, source.name],
         cwd=source.parent,

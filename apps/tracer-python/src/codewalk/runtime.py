@@ -178,18 +178,14 @@ class Runtime:
         return value
 
     def _emit_value(self, loc: int, value: object) -> None:
-        if not self._recording or not self._stack:
-            return
-        self._materialize()
-        if not self._recording or not self._stack:
+        if not self._recording:
             return
         self._muted = True
         try:
             text = _format_value(value)
         finally:
             self._muted = False
-        if self._recording and self._stack:
-            self._emit({"op": "value", "loc": loc, "text": text})
+        self._emit({"op": "value", "loc": loc, "text": text})
 
     def out(self, stream: Stream, text: str) -> None:
         if not self._recording or not self._stack:

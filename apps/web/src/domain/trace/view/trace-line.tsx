@@ -59,10 +59,6 @@ export function TraceLine({
 }: TraceLineProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
 
-  const valuePreviews = line.values.map((value) =>
-    previewInlineText(value.text),
-  );
-
   const outputPreview =
     line.output === null ? null : previewInlineContent(line.output.segments);
 
@@ -150,9 +146,7 @@ export function TraceLine({
                 </span>
                 {line.values.map((value, valueIndex) => {
                   if (value.afterSpan !== index) return null;
-                  const preview = valuePreviews[valueIndex];
-
-                  if (preview === undefined) return null;
+                  const preview = previewInlineText(value.text);
                   const key = `value-${valueIndex}`;
 
                   return (

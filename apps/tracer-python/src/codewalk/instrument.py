@@ -244,7 +244,9 @@ class _Instrumenter:
     def _expression(self, node: ast.expr, parent: int) -> ast.expr:
         if isinstance(node, (ast.GeneratorExp, ast.Lambda)):
             return node
-        bracket = self._is_bracketed(node)
+        bracket = isinstance(node, _BRACKETED) and (
+            not hasattr(node, "ctx") or isinstance(node.ctx, ast.Load)
+        )
         expression = parent
         if bracket:
             start, end = self.source.node_range(node)
@@ -265,11 +267,6 @@ class _Instrumenter:
             keywords=[],
         )
         return ast.copy_location(wrapped, node)
-
-    def _is_bracketed(self, node: ast.expr) -> bool:
-        return isinstance(node, _BRACKETED) and (
-            not hasattr(node, "ctx") or isinstance(node.ctx, ast.Load)
-        )
 
     def _expression_fields(self, node: ast.expr, parent: int) -> None:
         if isinstance(node, ast.Starred):
