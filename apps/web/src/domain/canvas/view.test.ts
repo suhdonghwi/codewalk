@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { resizedSize, wheelZoomFactor, zoomAboutPoint } from "./view.ts";
+import {
+  pinchedView,
+  resizedSize,
+  wheelZoomFactor,
+  zoomAboutPoint,
+} from "./view.ts";
 
 describe("zoomAboutPoint", () => {
   test("keeps the world point beneath the cursor fixed while zooming", () => {
@@ -29,6 +34,22 @@ describe("zoomAboutPoint", () => {
       ),
     ).toEqual(expected);
   });
+});
+
+test("a pinch keeps the world point between the fingers beneath them as they spread and move", () => {
+  expect(
+    pinchedView(
+      { x: 0, y: 0, scale: 1 },
+      [
+        { x: 100, y: 100 },
+        { x: 200, y: 100 },
+      ],
+      [
+        { x: 50, y: 200 },
+        { x: 250, y: 200 },
+      ],
+    ),
+  ).toEqual({ x: -150, y: 0, scale: 2 });
 });
 
 test("one wheel notch zooms no further than the per-event cap, equally in and out", () => {
