@@ -50,13 +50,13 @@ it, so debug prints carry their context.
 The server contains no Python. Instrumenting and running both happen inside the
 sandboxed process, so hostile source never reaches a parser outside the jail.
 
-| Dir                   | What                                                                                                                                                    |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                               |
-| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook, limits), CLI `python -m codewalk run foo.py`. Stdlib only. |
-| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `apps/web/` and `apps/server/`.                      |
-| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                                     |
-| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                                       |
+| Dir                   | What                                                                                                                                            |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                       |
+| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook), CLI `python -m codewalk run foo.py`. Stdlib only. |
+| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `apps/web/` and `apps/server/`.              |
+| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                             |
+| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                               |
 
 ## Trace model
 
@@ -139,8 +139,10 @@ for i in _cw_e(_cw_b(15), range(2)):
   the trace. Objects without a custom `__repr__` render as `<ClassName>`,
   including inside containers.
 - **stdin** is fed from the request; `input()` is an ordinary call site.
-- **Limits.** After N events the runtime writes `end: truncated` and stops
-  recording (the program may be killed).
+- **Limits** belong to the runner, not the tracer. The runner kills the process
+  at its time limit or once the trace reaches its byte cap. The tracer flushes
+  the trace on a timer, so what it recorded before the kill survives, and the
+  nodes that were open stay open.
 
 Python construct mapping:
 
@@ -269,7 +271,9 @@ streaming in v1.
 The sandboxed process gets the source as a file in its workdir, the request's
 stdin on fd 0, and writes the trace to a dedicated fd (not stdout — the program's
 own raw writes to fd 1/2 must not corrupt the trace). The server relays the
-trace, capping its size, and appends `end: timeout` if the process was killed.
+trace and enforces the limits: it kills the process group at the time limit
+or when the trace exceeds its byte cap, and appends `end: truncated` for the
+cap or `end: timeout` when the trace has no end line.
 
 Runner interface (injected, so tests use a fake runner rather than module mocks)
 with two implementations:
@@ -278,8 +282,7 @@ with two implementations:
 - `NsjailRunner` — production (public hosting); **not built yet**. nsjail: no network namespace
   interfaces, read-only bind-mounted minimal rootfs with Python, small tmpfs
   workdir, cgroup memory (~256 MB) and pids limits, CPU and wall time limits,
-  unprivileged user, seccomp policy. The server caps trace bytes read; the
-  runtime caps events written.
+  unprivileged user, seccomp policy. The server caps trace bytes read.
 
 Around it: rate limiting and a small concurrency queue. nsjail needs real kernel
 access, so host on a VM (e.g. EC2), not a gVisor/PaaS container. The box holds no

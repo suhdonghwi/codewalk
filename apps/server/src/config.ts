@@ -11,13 +11,11 @@ const EnvironmentSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   CODEWALK_PYTHON: z.string().min(1).default(DEFAULT_PYTHON),
   CODEWALK_TIME_LIMIT: z.coerce.number().positive().default(5),
-  CODEWALK_MAX_EVENTS: z.coerce.number().int().nonnegative().default(200_000),
   CODEWALK_MAX_TRACE_BYTES: z.coerce
     .number()
     .int()
     .positive()
-    .default(16_777_216),
-  CODEWALK_KILL_GRACE_MS: z.coerce.number().int().nonnegative().default(2_000),
+    .default(4_194_304),
   CODEWALK_ALLOW_UNSANDBOXED: z.string().optional(),
 });
 
@@ -35,9 +33,7 @@ export interface Config {
   port: number;
   pythonPath: string;
   timeLimit: number;
-  maxEvents: number;
   maxTraceBytes: number;
-  killGraceMs: number;
 }
 
 export function readConfig(
@@ -56,8 +52,6 @@ export function readConfig(
     port: parsed.PORT,
     pythonPath: parsed.CODEWALK_PYTHON,
     timeLimit: parsed.CODEWALK_TIME_LIMIT,
-    maxEvents: parsed.CODEWALK_MAX_EVENTS,
     maxTraceBytes: parsed.CODEWALK_MAX_TRACE_BYTES,
-    killGraceMs: parsed.CODEWALK_KILL_GRACE_MS,
   };
 }

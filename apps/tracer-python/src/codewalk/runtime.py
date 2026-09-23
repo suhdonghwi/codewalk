@@ -17,8 +17,6 @@ class _ValueRepr(reprlib.Repr):
             return f"<{type(x).__name__}>"
         try:
             text = repr(x)
-        except ExecutionStopped:
-            raise
         except BaseException:
             return f"<{type(x).__name__}>"
         if len(text) > self.maxother:
@@ -38,14 +36,6 @@ _VALUE_REPR = _ValueRepr(
     maxother=40,
     fillvalue="…",
 )
-
-
-class ExecutionStopped(BaseException):
-    """Raised inside the traced program to end it: time limit or truncation."""
-
-    def __init__(self, status: str) -> None:
-        super().__init__(status)
-        self.status = status
 
 
 class _Node:
@@ -87,27 +77,17 @@ class Runtime:
         self,
         parents: Sequence[int | None],
         sink: EventSink,
-        *,
-        max_events: int,
     ) -> None:
         self._parents = parents
         self._sink = sink
-        self._max_events = max_events
-        self._event_count = 0
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
-        self._truncated = False
-        # False once the trace has ended (finished or truncated) and while
+        # False once the trace has ended and while
         # `render` runs user formatting code; a plain attribute because it is
         # read several times per event.
         self._active = True
-        self._stop: str | None = None
         self._exhausted = False
-
-    @property
-    def truncated(self) -> bool:
-        return self._truncated
 
     def block(self, loc: int) -> _BlockContext:
         return _BlockContext(self, loc, repair=False)
@@ -123,19 +103,7 @@ class Runtime:
         self._exhausted = False
         return exhausted
 
-    def request_stop(self, status: str) -> None:
-        """Make every following statement marker raise `ExecutionStopped`.
-
-        A single asynchronous raise can be swallowed by the program's own bare
-        `except:`. Markers sit before each statement, including the `try`
-        itself and the statements of its handlers, so raising from all of them
-        gets out within a statement or two.
-        """
-        self._stop = status
-
     def stmt(self, loc: int) -> None:
-        if self._stop is not None:
-            raise ExecutionStopped(self._stop)
         if not self._active:
             return
         self._repair(self._parents[loc])
@@ -235,7 +203,7 @@ class Runtime:
         while self._active and self._stack:
             node = self._stack.pop()
             if node is target:
-                if exc is None or isinstance(exc, ExecutionStopped):
+                if exc is None:
                     self._emit({"op": "exit"})
                 else:
                     summary = self.render(_exception_summary, exc)
@@ -285,25 +253,13 @@ class Runtime:
     def _write(self, event: Mapping[str, object]) -> bool:
         if not self._active:
             return False
-        if self._event_count >= self._max_events:
-            self._sink.write({"op": "end", "status": "truncated"})
-            self._truncated = True
-            self._active = False
-            self._stop = "truncated"
-            self._stack.clear()
-            self._out_stream = None
-            self._out_text = ""
-            return False
         self._sink.write(event)
-        self._event_count += 1
         return True
 
 
 def _format_value(value: object) -> str:
     try:
         text = _VALUE_REPR.repr(value)
-    except ExecutionStopped:
-        raise
     except BaseException:
         text = f"<{type(value).__name__}>"
     text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
@@ -316,8 +272,6 @@ def _exception_summary(exc: BaseException) -> str:
     name = type(exc).__name__
     try:
         message = str(exc)
-    except ExecutionStopped:
-        raise
     except BaseException:
         return name
     if not message:

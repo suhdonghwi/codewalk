@@ -87,9 +87,7 @@ test("a runner startup failure returns only the runner_failed error", async () =
   const runner = new SubprocessRunner({
     pythonPath: join(root, "path-containing-a-secret", "python"),
     timeLimit: 1,
-    maxEvents: 1_000,
     maxTraceBytes: 64 * 1024,
-    killGraceMs: 100,
     tempRoot: root,
   });
 

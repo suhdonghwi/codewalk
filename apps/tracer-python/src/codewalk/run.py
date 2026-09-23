@@ -4,27 +4,20 @@ import ast
 import linecache
 import signal
 import sys
-import time
 import traceback
 from pathlib import Path
 from types import FrameType
 
 from codewalk.instrument import instrument
 from codewalk.locs import Loc, SourceMap
-from codewalk.runtime import ExecutionStopped, Runtime
+from codewalk.runtime import Runtime
 from codewalk.sink import JsonlSink
 
-_TICK_SECONDS = 0.1
+_FLUSH_SECONDS = 0.1
 _PACKAGE_DIRECTORY = Path(__file__).parent
 
 
-def run(
-    path: Path,
-    *,
-    trace_fd: int = 1,
-    time_limit: float | None = None,
-    max_events: int = 200_000,
-) -> None:
+def run(path: Path, *, trace_fd: int = 1) -> None:
     source = path.read_text(encoding="utf-8")
     source_name = path.name
     sink = JsonlSink.from_fd(trace_fd)
@@ -51,9 +44,7 @@ def run(
     sink.write(_header(source_name, source, result.locs))
     sink.flush()
 
-    runtime = Runtime(
-        [loc["parent"] for loc in result.locs], sink, max_events=max_events
-    )
+    runtime = Runtime([loc["parent"] for loc in result.locs], sink)
     globals_: dict[str, object] = {
         "__name__": "__main__",
         "__file__": str(path),
@@ -62,7 +53,6 @@ def run(
         "_cw_b": runtime.begin,
         "_cw_e": runtime.end,
     }
-    started = time.monotonic()
     old_argv = sys.argv
     old_path = sys.path
     old_handler = signal.getsignal(signal.SIGALRM)
@@ -75,34 +65,23 @@ def run(
         source_name,
     )
 
-    def tick(signum: int, frame: FrameType | None) -> None:
+    def flush(signum: int, frame: FrameType | None) -> None:
         del signum, frame
         sink.flush()
-        # Statement markers raise from here on (see `Runtime.request_stop`);
-        # raising now as well covers code that runs no markers, such as a loop
-        # inside an uninstrumented generator.
-        if runtime.truncated:
-            raise ExecutionStopped("truncated")
-        if time_limit is not None and time.monotonic() - started >= time_limit:
-            runtime.request_stop("timeout")
-            raise ExecutionStopped("timeout")
 
-    signal.signal(signal.SIGALRM, tick)
-    signal.setitimer(signal.ITIMER_REAL, _TICK_SECONDS, _TICK_SECONDS)
+    # The runner kills the process at its limits; flushing on a timer keeps
+    # what was recorded until then.
+    signal.signal(signal.SIGALRM, flush)
+    signal.setitimer(signal.ITIMER_REAL, _FLUSH_SECONDS, _FLUSH_SECONDS)
     try:
         with runtime.capture_output():
             try:
                 try:
                     exec(code, globals_)
                 finally:
-                    # Disarm before finishing: a tick that fires while the end
-                    # event is being written must not abort the run.
                     signal.setitimer(signal.ITIMER_REAL, 0)
             except SystemExit:
                 runtime.finish("ok")
-            except ExecutionStopped as stopped:
-                if stopped.status == "timeout":
-                    runtime.finish("timeout")
             except BaseException as error:
                 rendered = runtime.render(_format_traceback, error)
                 runtime.finish("exception", traceback=rendered)

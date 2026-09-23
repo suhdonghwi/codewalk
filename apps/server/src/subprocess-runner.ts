@@ -23,9 +23,7 @@ const EndSchema = z.object({
 export interface SubprocessRunnerOptions {
   pythonPath: string;
   timeLimit: number;
-  maxEvents: number;
   maxTraceBytes: number;
-  killGraceMs: number;
   tempRoot?: string;
 }
 
@@ -90,19 +88,7 @@ export class SubprocessRunner implements Runner {
 
       const child = spawn(
         this.#options.pythonPath,
-        [
-          "-I",
-          "-m",
-          "codewalk",
-          "run",
-          "main.py",
-          "--trace-fd",
-          "3",
-          "--time-limit",
-          String(this.#options.timeLimit),
-          "--max-events",
-          String(this.#options.maxEvents),
-        ],
+        ["-I", "-m", "codewalk", "run", "main.py", "--trace-fd", "3"],
         {
           cwd: directory,
           detached: true,
@@ -169,15 +155,15 @@ export class SubprocessRunner implements Runner {
       childStdin.on("error", () => undefined);
       childStdin.end(request.stdin);
 
-      const hardKill = setTimeout(
+      const timeout = setTimeout(
         () => killProcessGroup(child.pid),
-        this.#options.timeLimit * 1_000 + this.#options.killGraceMs,
+        this.#options.timeLimit * 1_000,
       );
 
       try {
         await closed;
       } finally {
-        clearTimeout(hardKill);
+        clearTimeout(timeout);
       }
 
       const stderr = stderrTail.toString("utf8");

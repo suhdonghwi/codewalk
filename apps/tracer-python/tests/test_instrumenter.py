@@ -2,7 +2,6 @@ import ast
 import json
 import subprocess
 import sys
-import time
 import tokenize
 from pathlib import Path
 
@@ -309,40 +308,6 @@ def test_exception_formatting_neither_records_nor_raises_from_user_str(
         "Loud: loud",
     ]
     assert events[-1]["traceback"].endswith("Loud: loud\n")
-
-
-def test_event_limit_stops_an_infinite_program_at_the_exact_limit(
-    tmp_path: Path,
-) -> None:
-    path = tmp_path / "prog.py"
-    path.write_text("while True:\n    pass\n", encoding="utf-8")
-    started = time.monotonic()
-
-    result = _trace(path, "--max-events", "25", timeout=3)
-    events = [json.loads(line) for line in result.stdout.decode().splitlines()[1:]]
-
-    assert result.returncode == 0
-    assert time.monotonic() - started < 2
-    assert len(events[:-1]) == 25
-    assert events[-1] == {"op": "end", "status": "truncated"}
-
-
-def test_repeating_timer_escapes_a_bare_exception_handler(tmp_path: Path) -> None:
-    path = tmp_path / "prog.py"
-    path.write_text(
-        "while True:\n    try:\n        sum(range(20000))\n    except:\n        pass\n",
-        encoding="utf-8",
-    )
-
-    # The event limit is lifted so that only the time limit can end this run,
-    # however fast the machine produces events.
-    result = _trace(
-        path, "--time-limit", "0.15", "--max-events", "1000000000", timeout=5
-    )
-    end = json.loads(result.stdout.decode().splitlines()[-1])
-
-    assert result.returncode == 0
-    assert end == {"op": "end", "status": "timeout"}
 
 
 _LANGUAGE_CONSTRUCTS = '''\
