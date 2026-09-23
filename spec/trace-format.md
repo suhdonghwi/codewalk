@@ -153,7 +153,6 @@ Range conventions:
 {"op": "enter", "loc": 2}
 {"op": "exit"}
 {"op": "exit", "exc": "ZeroDivisionError: division by zero"}
-{"op": "exit", "jump": "break"}
 {"op": "out", "stream": "stdout", "text": "fact 1\n"}
 {"op": "value", "loc": 16, "value": {"kind": "number", "text": "3"}}
 {"op": "obj", "id": 0, "kind": "sequence", "type": "list", "items": [{"kind": "number", "text": "1"}]}
@@ -167,11 +166,7 @@ Range conventions:
   exception. On a block node it means the block was left by a propagating
   exception. On a stmt node it means the statement was interrupted by an
   exception that a handler in the same block caught; the handler's clause
-  header is the next statement. Expr nodes never carry it. `jump` (block nodes
-  without `exc` only) says a loop iteration cut its loop short: `break` ended
-  the loop, `return` ended the enclosing function call. It is absent when the
-  iteration reached its end or went on to the next one, so a loop whose last
-  iteration has neither `jump` nor `exc` ran until it had nothing left to do.
+  header is the next statement. Expr nodes never carry it.
 - `out` — output written while the innermost open node was executing. `stream`
   is `stdout` or `stderr`. Text is arbitrary chunks, not necessarily lines.
 - `value` — a value (see [Values](#values)), in one of two forms. `{loc, value}`

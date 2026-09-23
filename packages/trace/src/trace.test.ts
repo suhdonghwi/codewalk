@@ -318,16 +318,6 @@ describe("structural validation", () => {
         line: 5,
       },
       {
-        name: "jump on stmt exit",
-        input: traceOf(
-          header([root, stmt]),
-          { op: "enter", loc: 0 },
-          { op: "enter", loc: 1 },
-          { op: "exit", jump: "break" },
-        ),
-        line: 4,
-      },
-      {
         name: "value loc is not an expression",
         input: traceOf(
           header([root]),

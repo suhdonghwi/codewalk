@@ -92,7 +92,6 @@ const ExitEventSchema = z
   .object({
     op: z.literal("exit"),
     exc: z.string().optional(),
-    jump: z.enum(["break", "return"]).optional(),
   })
   .strict();
 

@@ -185,33 +185,3 @@ def test_repair_stops_at_a_block_when_the_static_parent_is_not_open() -> None:
         {"op": "exit"},
         {"op": "end", "status": "ok"},
     ]
-
-
-def test_a_return_whose_value_raises_and_is_caught_does_not_end_the_loop() -> None:
-    parents = [None, 0, 1, 2, 2]
-    sink = ListSink()
-    runtime = Runtime(parents, sink, {}, {}, {})
-
-    with runtime.block(0):
-        runtime.stmt(1)
-        with runtime.iteration(2):
-            try:
-                runtime.jump(3, "return")
-                raise ValueError("bad")
-            except ValueError:
-                runtime.caught(4)
-    runtime.finish("ok")
-
-    assert sink.events == [
-        {"op": "enter", "loc": 0},
-        {"op": "enter", "loc": 1},
-        {"op": "enter", "loc": 2},
-        {"op": "enter", "loc": 3},
-        {"op": "exit", "exc": "ValueError: bad"},
-        {"op": "enter", "loc": 4},
-        {"op": "exit"},
-        {"op": "exit"},
-        {"op": "exit"},
-        {"op": "exit"},
-        {"op": "end", "status": "ok"},
-    ]

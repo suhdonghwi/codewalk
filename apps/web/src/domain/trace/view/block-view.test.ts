@@ -8,7 +8,6 @@ import {
   siblingAfter,
   siblingCells,
   siblingColumns,
-  siblingEnding,
   siblingListTitle,
 } from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
@@ -248,7 +247,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
         {
           id: 1,
@@ -258,7 +256,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
         {
           id: 2,
@@ -268,7 +265,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
         {
           id: 3,
@@ -278,7 +274,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
         {
           id: 4,
@@ -288,7 +283,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
         {
           id: 5,
@@ -298,7 +292,6 @@ describe("buildBlockView", () => {
           outputs: [],
           values: [],
           exc: null,
-          jump: null,
         },
       ],
       outputs: [],
@@ -495,18 +488,6 @@ describe("buildBlockView", () => {
     );
     expect(line(module, 9).exception).toBe("ValueError: caught");
     expect(line(module, 15).exception).toMatch(/^JSONDecodeError: /);
-  });
-
-  test("a sibling list says how its loop ended only when a break or return cut it short", () => {
-    const broken = fixture("break_continue");
-    const exhausted = fixture("fact");
-
-    expect(siblingEnding(broken, blockNodes(broken, "iteration"))).toBe(
-      "ended by break",
-    );
-    expect(
-      siblingEnding(exhausted, blockNodes(exhausted, "iteration")),
-    ).toBeNull();
   });
 
   test("titles use trace labels, site indexes, and units", () => {
