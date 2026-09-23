@@ -1,10 +1,13 @@
 """AST instrumentation for codewalk traces."""
 
 import ast
+import symtable
 from dataclasses import dataclass
 from typing import Literal
 
 from codewalk.liveness import (
+    function_scope,
+    live_after_loops,
     loop_assigns,
     loop_state,
     statement_bindings,
@@ -24,10 +27,12 @@ _BRACKETED = (
 
 @dataclass(frozen=True)
 class StatementNames:
-    """Names a statement binds itself, and names whose changes it leaves out."""
+    """Names a statement binds itself, names whose changes it leaves out, and,
+    on a loop, the only names whose changes it records."""
 
     binds: tuple[str, ...]
     quiet: tuple[str, ...]
+    live: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -55,10 +60,12 @@ class _Instrumenter:
     def __init__(self, source: str, source_name: str) -> None:
         self.source = SourceMap(source)
         self.source_name = source_name
+        self.scope = symtable.symtable(source, source_name, "exec")
         self.locs: list[Loc] = []
         self.watched: dict[int, tuple[str, ...]] = {}
         self.inputs: dict[int, tuple[str, ...]] = {}
         self.statements: dict[int, StatementNames] = {}
+        self.live: dict[ast.stmt, frozenset[str]] = {}
 
     def module(self, node: ast.Module) -> ast.Module:
         start, end = self.source.module_range()
@@ -68,6 +75,7 @@ class _Instrumenter:
         prefix_count = _module_prefix_length(node.body)
         prefix = node.body[:prefix_count]
         self.watched[module_loc] = _mentioned(node)
+        self.live.update(live_after_loops(node.body, self.scope))
         body = self._body(node.body[prefix_count:], module_loc)
         wrapper = self._block_wrapper("block", module_loc, body, node)
         node.body = [*prefix, wrapper]
@@ -84,7 +92,7 @@ class _Instrumenter:
         start, end = self.source.statement_range(node)
         statement = self._loc("stmt", start, end, block)
         marker = self._marker(statement, node)
-        self._bind(statement, node)
+        self._bind(statement, node, live=self.live.get(node))
 
         if isinstance(node, ast.FunctionDef):
             if _is_generator(node):
@@ -102,6 +110,9 @@ class _Instrumenter:
             )
             self.watched[function] = mentioned
             values = self._parameter_values(node.args, statement)
+            scope = function_scope(self.scope, node)
+            if scope is not None:
+                self.live.update(live_after_loops(node.body, scope))
             doc, rest = _split_docstring(node.body)
             body = self._body(rest, function)
             node.body = [
@@ -302,11 +313,15 @@ class _Instrumenter:
         clause = self._loc("stmt", *header, block)
         return [self._marker(clause, statements[0], marker), *body]
 
-    def _bind(self, statement: int, node: ast.stmt) -> None:
+    def _bind(
+        self, statement: int, node: ast.stmt, *, live: frozenset[str] | None = None
+    ) -> None:
         binds = statement_bindings(node)
         quiet = target_names(node.target) if isinstance(node, ast.For) else []
-        if binds or quiet:
-            self.statements[statement] = StatementNames(tuple(binds), tuple(quiet))
+        if binds or quiet or live is not None:
+            self.statements[statement] = StatementNames(
+                tuple(binds), tuple(quiet), live
+            )
 
     def _track(self, node: ast.For | ast.While, iteration: int) -> list[ast.stmt]:
         inputs = loop_state(node)

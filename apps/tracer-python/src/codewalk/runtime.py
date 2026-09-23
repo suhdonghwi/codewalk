@@ -280,8 +280,11 @@ class Runtime:
         names = self._statements.get(stack[index].loc)
         binds = () if names is None or interrupted else names.binds
         quiet = () if names is None else names.quiet
+        live = None if names is None else names.live
         current = self._variables(block.loc, block.frame)
         for name, taken in current.items():
+            if live is not None and name not in live:
+                continue
             if (name in binds or watched.get(name) != taken) and (
                 name in binds or name not in quiet
             ):

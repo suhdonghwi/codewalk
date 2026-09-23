@@ -192,7 +192,8 @@ Range conventions:
     global, but not functions, classes or modules. A loop statement is a
     statement of its parent block, so the values on it are the loop's end
     state, taken before any `else` clause runs; its own loop targets are left
-    out. The viewer places them after the loop's body. Calls of one function
+    out, and so are variables no later code in the frame may read and that do
+    not outlive the frame. The viewer places them after the loop's body. Calls of one function
     beyond its first 1000 record none.
 - `obj` — the state of an object, referenced from values by `id`. It attaches
   to no node. See [Objects](#objects).

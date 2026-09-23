@@ -146,9 +146,12 @@ for i in _cw_e(_cw_b(15), range(2)):
   reuses that snapshot's shape, so an unchanged structure costs an identity
   check per member. Recording is paused while taking a snapshot, so a user
   `__repr__` cannot change the trace.
+- **Liveness.** One classic live-variable analysis, run backward over each
+  scope's syntax tree, answers both questions the tracer asks about loops. It
+  errs towards keeping a name, never hiding one that may be read.
 - **Loop state.** An iteration's inputs, beyond its loop targets, are the
-  variables the body may read before assigning them, found by a
-  definite-assignment walk over the body. Functions, classes and modules don't
+  variables live on entry to its body when nothing follows it: those the body
+  may read before assigning them. Functions, classes and modules don't
   count. Mutation needs no special case: a list the body appends to is read
   before it is assigned, and its value differs between iterations.
 - **Changes.** Every block watches the variables its code mentions. After each
@@ -156,8 +159,14 @@ for i in _cw_e(_cw_b(15), range(2)):
   every name it bound or whose snapshot changed. So `mid = (lo + hi) // 2` is
   recorded even when `mid` keeps its value, and `remember(seen, w)` records
   `seen` because it changed. A loop is a single statement of its parent block,
-  so the parent sees the loop's end state. Only the first thousand calls of a
-  function watch their variables, so deep recursion stays cheap.
+  so the parent sees the loop's end state, limited to what the loop hands on:
+  the names live after it. Names that outlive the frame count as live at its
+  exit, read from Python's own scope analysis (`symtable`): globals, names a
+  nested scope closes over, and parameters the function never rebinds, whose
+  objects the caller still holds. A scope that refers to `locals`, `eval` or
+  the like keeps every name.
+  Only the first thousand calls of a function watch their variables, so deep
+  recursion stays cheap.
 - **Limits** belong to the runner. The tracer flushes the trace periodically,
   so a run killed at the time limit or byte cap keeps what it recorded.
 

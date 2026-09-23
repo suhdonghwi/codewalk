@@ -38,3 +38,4 @@ misses = 0
 for even in [2, 4]:
     if even % 2:
         misses += 1
+print(seen, heads, tail)

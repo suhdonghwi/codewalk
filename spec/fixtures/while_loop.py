@@ -3,4 +3,4 @@ while i < 2:
     print(i)
     i += 1
 else:
-    print("done")
+    print("done", i)
