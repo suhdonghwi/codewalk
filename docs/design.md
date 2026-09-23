@@ -50,13 +50,13 @@ it, so debug prints carry their context.
 The server contains no Python. Instrumenting and running both happen inside the
 sandboxed process, so hostile source never reaches a parser outside the jail.
 
-| Dir                   | What                                                                                                                                            |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                       |
-| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook), CLI `python -m codewalk run foo.py`. Stdlib only. |
-| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder, derived views. Shared by `apps/web/` and `apps/server/`.              |
-| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                             |
-| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                               |
+| Dir                   | What                                                                                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                                        |
+| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook), CLI `python -m codewalk run foo.py`. Stdlib only.                  |
+| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder. Shared by `apps/web/` and `apps/server/`; the viewer derives its views in `apps/web/`. |
+| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                                              |
+| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                                                |
 
 ## Trace model
 

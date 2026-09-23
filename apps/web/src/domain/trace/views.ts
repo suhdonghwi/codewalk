@@ -1,9 +1,10 @@
 import { match, P } from "ts-pattern";
 
-import { isBlockRole } from "./schema.ts";
+import type { LocId, NodeId, Role, Trace, TraceNode } from "@codewalk/trace";
 
-import type { Trace, TraceNode } from "./model.ts";
-import type { LocId, NodeId, Role } from "./schema.ts";
+function isBlockRole(role: Role | undefined): boolean {
+  return role === "block";
+}
 
 export interface PathStep {
   block: NodeId;

@@ -1,4 +1,4 @@
-import { exceptionOrigin, pathTo } from "@codewalk/trace";
+import { exceptionOrigin, pathTo } from "../views.ts";
 
 import type { Path } from "./path.ts";
 import type { NodeId, Trace } from "@codewalk/trace";

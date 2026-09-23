@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 
-import { blockSites, parseTrace } from "@codewalk/trace";
+import { parseTrace } from "@codewalk/trace";
 import { describe, expect, test } from "vitest";
 
+import { blockSites } from "../views.ts";
 import {
   initialPath,
   pathColumn,

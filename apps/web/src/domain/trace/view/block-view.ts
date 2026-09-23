@@ -1,4 +1,4 @@
-import { blockSites, exceptionOrigin, statementStates } from "@codewalk/trace";
+import { blockSites, exceptionOrigin, statementStates } from "../views.ts";
 
 import { requireBlock } from "./block-title.ts";
 import { lineContaining, sourceLines } from "./source-lines.ts";
@@ -7,7 +7,8 @@ import { siteLocs, spansForLine } from "./spans.ts";
 import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span, ValueAnchor } from "./spans.ts";
 import type { Token } from "./tokens.ts";
-import type { NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
+import type { Site } from "../views.ts";
+import type { NodeId, Trace, TraceNode } from "@codewalk/trace";
 
 export interface InlineOutput {
   segments: { stream: "stdout" | "stderr"; text: string }[];

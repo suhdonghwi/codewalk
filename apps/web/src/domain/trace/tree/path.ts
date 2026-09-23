@@ -1,6 +1,7 @@
-import { blockSites } from "@codewalk/trace";
+import { blockSites } from "../views.ts";
 
-import type { LocId, NodeId, Site, Trace } from "@codewalk/trace";
+import type { Site } from "../views.ts";
+import type { LocId, NodeId, Trace } from "@codewalk/trace";
 
 export type Path = NodeId[];
 

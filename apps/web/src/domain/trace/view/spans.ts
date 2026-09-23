@@ -1,6 +1,7 @@
 import type { SourceLine } from "./source-lines.ts";
 import type { Token } from "./tokens.ts";
-import type { Loc, LocId, Site, StatementState, Trace } from "@codewalk/trace";
+import type { Site, StatementState } from "../views.ts";
+import type { Loc, LocId, Trace } from "@codewalk/trace";
 
 export interface Span {
   text: string;

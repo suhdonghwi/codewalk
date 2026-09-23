@@ -1,6 +1,7 @@
-import { blockSites } from "@codewalk/trace";
+import { blockSites } from "../views.ts";
 
-import type { Loc, NodeId, Site, Trace, TraceNode } from "@codewalk/trace";
+import type { Site } from "../views.ts";
+import type { Loc, NodeId, Trace, TraceNode } from "@codewalk/trace";
 
 export interface BlockTitle {
   text: string;
