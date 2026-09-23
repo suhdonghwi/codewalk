@@ -1,5 +1,7 @@
 import { requireBlock } from "../views.ts";
 
+import { previewText, valueKey } from "./value-text.ts";
+
 import type { NodeId, Trace } from "@codewalk/trace";
 
 export interface BlockTitle {
@@ -27,9 +29,9 @@ const MAX_COLUMN_WIDTH = 24;
 
 function blockValues(trace: Trace, block: NodeId): Map<string, string> {
   return new Map(
-    requireBlock(trace, block).node.values.map(({ name, text }) => [
-      name,
-      text,
+    requireBlock(trace, block).node.values.map((chunk) => [
+      chunk.name,
+      valueKey(trace, chunk),
     ]),
   );
 }
@@ -47,7 +49,9 @@ function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
       continue;
     }
 
-    for (const { name, text } of statement.values) values.set(name, text);
+    for (const chunk of statement.values) {
+      values.set(chunk.name, valueKey(trace, chunk));
+    }
   }
 
   return values;
@@ -91,13 +95,13 @@ export function siblingColumns(
 
     if (blocks.length > 1 && !varies) return [];
 
-    let width = Math.max(
-      name.length,
-      carried ? (exit.get(name)?.length ?? 0) : 0,
-    );
+    const shown = (key: string | undefined) =>
+      key === undefined ? 0 : previewText(key).length;
+
+    let width = Math.max(name.length, carried ? shown(exit.get(name)) : 0);
 
     for (const values of valuesByBlock) {
-      width = Math.max(width, values.get(name)?.length ?? 0);
+      width = Math.max(width, shown(values.get(name)));
     }
 
     return [{ name, width: Math.min(width, MAX_COLUMN_WIDTH), carried }];
@@ -133,11 +137,11 @@ export function siblingCells(
     previousBlock === undefined ? null : blockValues(trace, previousBlock);
 
   return columns.map(({ name }) => {
-    const text = values.get(name) ?? null;
+    const key = values.get(name) ?? null;
 
     return {
-      text,
-      repeated: text !== null && previous?.get(name) === text,
+      text: key === null ? null : previewText(key),
+      repeated: key !== null && previous?.get(name) === key,
     };
   });
 }
@@ -154,9 +158,12 @@ export function siblingAfter(
   const exit = blockExitValues(trace, last);
 
   const cells = columns.map(({ name, carried }) => {
-    const text = carried ? (exit.get(name) ?? null) : null;
+    const key = carried ? (exit.get(name) ?? null) : null;
 
-    return { text, repeated: text !== null && entry.get(name) === text };
+    return {
+      text: key === null ? null : previewText(key),
+      repeated: key !== null && entry.get(name) === key,
+    };
   });
 
   return cells.some(({ text, repeated }) => text !== null && !repeated)

@@ -160,7 +160,7 @@ describe("buildBlockView", () => {
   test("token, statement, and nested site boundaries all split spans without losing site order", () => {
     const trace: Trace = {
       header: {
-        codewalk: 1,
+        codewalk: 2,
         sources: [{ file: "boundaries.py", text: "abcdefgh" }],
         locs: [
           {
@@ -277,6 +277,7 @@ describe("buildBlockView", () => {
         },
       ],
       outputs: [],
+      objects: [],
       root: 0,
       end: { status: "ok" },
     };

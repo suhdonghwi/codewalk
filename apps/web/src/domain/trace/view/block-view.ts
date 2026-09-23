@@ -11,6 +11,7 @@ import {
   trimCommonIndent,
 } from "./source-lines.ts";
 import { siteLocs, spansForLine } from "./spans.ts";
+import { valueText } from "./value-text.ts";
 
 import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span, SpanContext } from "./spans.ts";
@@ -106,7 +107,10 @@ function changesByLine(
     if (line === null || statement.values.length === 0) continue;
     const entries = changes.get(line) ?? [];
 
-    for (const { name, text } of statement.values) entries.push({ name, text });
+    for (const chunk of statement.values) {
+      entries.push({ name: chunk.name, text: valueText(trace, chunk) });
+    }
+
     changes.set(line, entries);
   }
 
@@ -179,15 +183,20 @@ export function buildBlockView(
     states,
     nestedBlocks,
     sites: siteLocs(trace, sites),
-    values: node.values.flatMap(({ loc: locId, text }) => {
-      const anchor = locId === null ? undefined : trace.header.locs[locId];
+    values: node.values.flatMap((chunk) => {
+      const anchor =
+        chunk.loc === null ? undefined : trace.header.locs[chunk.loc];
 
-      return anchor === undefined ? [] : [{ end: anchor.end, text }];
+      return anchor === undefined
+        ? []
+        : [{ end: anchor.end, text: valueText(trace, chunk) }];
     }),
   };
 
-  const blockValues = node.values.flatMap(({ loc: locId, name, text }) =>
-    locId === null ? [{ name, text }] : [],
+  const blockValues = node.values.flatMap((chunk) =>
+    chunk.loc === null
+      ? [{ name: chunk.name, text: valueText(trace, chunk) }]
+      : [],
   );
 
   return {

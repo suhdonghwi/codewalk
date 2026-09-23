@@ -1,9 +1,7 @@
 from collections.abc import Mapping
 from contextlib import suppress
 
-import pytest
-
-from codewalk.runtime import Runtime, _format_value
+from codewalk.runtime import Runtime
 
 
 class ListSink:
@@ -12,40 +10,6 @@ class ListSink:
 
     def write(self, event: Mapping[str, object]) -> None:
         self.events.append(dict(event))
-
-
-def test_value_formatting_is_bounded_and_single_line() -> None:
-    class Multiline:
-        def __repr__(self) -> str:
-            return "first\r\nsecond\nthird\rfourth"
-
-    rendered = _format_value(["line one\nline two"] * 20)
-
-    assert len(rendered) == 48
-    assert rendered.endswith("…")
-    assert _format_value(Multiline()) == "first second third fourth"
-
-
-@pytest.mark.parametrize("error", [ValueError, SystemExit])
-def test_value_formatting_contains_user_exceptions_even_in_containers(
-    error: type[BaseException],
-) -> None:
-    class Broken:
-        def __repr__(self) -> str:
-            raise error("broken")
-
-    assert _format_value(Broken()) == "<Broken>"
-    assert _format_value([Broken()]) == "[<Broken>]"
-
-
-def test_default_object_reprs_use_class_names_even_inside_containers() -> None:
-    class Plain:
-        pass
-
-    value = Plain()
-
-    assert _format_value(value) == "<Plain>"
-    assert _format_value([value]) == "[<Plain>]"
 
 
 def test_a_caught_nested_expression_exception_leaves_no_stale_node() -> None:

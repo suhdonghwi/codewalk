@@ -135,18 +135,23 @@ for i in _cw_e(_cw_b(15), range(2)):
 - **Output.** `sys.stdout` and `sys.stderr` are replaced with writers that
   attach output to the innermost open node. Output from library code therefore
   lands on the user expression that caused it.
-- **Values** are short one-line `repr`s. Objects without a custom `__repr__`
-  render as `<ClassName>` and memory addresses are stripped, so traces are
-  deterministic. Recording is paused while formatting, so a user `__repr__`
-  cannot change the trace.
+- **Values** are structured snapshots: primitives inline, everything else a
+  reference to an object with an id, defined again only when it changes. The
+  tracer walks what a value reaches breadth-first, keeping the first 100
+  items of each container and opening at most 200 objects per value, and
+  holds every identified object so its address is never reused. A container
+  whose members are the same objects as in the variable's previous snapshot
+  reuses that snapshot's shape, so an unchanged structure costs an identity
+  check per member. Recording is paused while taking a snapshot, so a user
+  `__repr__` cannot change the trace.
 - **Loop state.** An iteration's inputs, beyond its loop targets, are the
   variables the body may read before assigning them, found by a
   definite-assignment walk over the body. Functions, classes and modules don't
   count. Mutation needs no special case: a list the body appends to is read
   before it is assigned, and its value differs between iterations.
 - **Changes.** Every block watches the variables its code mentions. After each
-  statement the runtime renders them again and records, on that statement,
-  every name it bound or whose value changed. So `mid = (lo + hi) // 2` is
+  statement the runtime snapshots them again and records, on that statement,
+  every name it bound or whose snapshot changed. So `mid = (lo + hi) // 2` is
   recorded even when `mid` keeps its value, and `remember(seen, w)` records
   `seen` because it changed. A loop is a single statement of its parent block,
   so the parent sees the loop's end state. Only the first thousand calls of a

@@ -194,8 +194,9 @@ mid-write. Any other unparseable line makes the whole trace invalid.
 A `value` event whose `loc` is out of range or not an `expr` loc is malformed,
 as is an anchored `value` event with no open block node and a named one
 attached to an `expr` node. An `obj` event whose `id` is neither already
-defined nor the next new id is malformed, as is a `value` event from which a
-reference is reachable that has no definition before it.
+defined nor the next new id is malformed, as is a `value` event when a
+reference in it, or in any `obj` event before it, names an id not defined
+before it.
 
 ### Values
 

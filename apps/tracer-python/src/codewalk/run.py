@@ -94,7 +94,7 @@ def run(path: Path, *, trace_fd: int = 1) -> None:
 
 def _header(source_name: str, source: str, locs: list[Loc]) -> dict[str, object]:
     return {
-        "codewalk": 1,
+        "codewalk": 2,
         "sources": [{"file": source_name, "text": source}],
         "locs": locs,
     }

@@ -1,8 +1,6 @@
 """The open-node stack: what instrumented code calls while it runs."""
 
 import io
-import re
-import reprlib
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
@@ -17,43 +15,13 @@ from typing import Literal
 
 from codewalk.instrument import StatementNames
 from codewalk.sink import EventSink
+from codewalk.values import Heap, Snapshot, snapshot
 
 type Stream = Literal["stdout", "stderr"]
 
-_VALUE_TEXT_LIMIT = 48
-
 _WATCHED_CALLS = 1000
 
-_ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
-
 _NOT_STATE = (BuiltinFunctionType, FunctionType, ModuleType, type)
-
-
-class _ValueRepr(reprlib.Repr):
-    def repr_instance(self, x: object, level: int) -> str:
-        if type(x).__repr__ is object.__repr__:
-            return f"<{type(x).__name__}>"
-        try:
-            text = _ADDRESS.sub("", repr(x))
-        except BaseException:
-            return f"<{type(x).__name__}>"
-        if len(text) > self.maxother:
-            head = (self.maxother - len(self.fillvalue)) // 2
-            tail = self.maxother - len(self.fillvalue) - head
-            return f"{text[:head]}{self.fillvalue}{text[-tail:]}"
-        return text
-
-
-_VALUE_REPR = _ValueRepr(
-    maxlevel=2,
-    maxlist=6,
-    maxtuple=6,
-    maxset=6,
-    maxdict=6,
-    maxstring=40,
-    maxother=40,
-    fillvalue="…",
-)
 
 
 class _Node:
@@ -64,7 +32,7 @@ class _Node:
         self.block = block
         self.pending = pending
         self.frame: FrameType | None = None
-        self.watched: dict[str, str] | None = None
+        self.watched: dict[str, Snapshot] | None = None
 
 
 class _BlockContext:
@@ -112,6 +80,8 @@ class Runtime:
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
+        self._heap = Heap(self._emit)
+        self._recent: dict[tuple[int, str], Snapshot] = {}
         # False once the trace has ended and while `render` runs user
         # formatting code; a plain attribute because it is read on every event.
         self._active = True
@@ -136,9 +106,9 @@ class Runtime:
         if not self._active or block is None or block.watched is None:
             return
         for name in self._inputs[loc]:
-            text = block.watched.get(name)
-            if text is not None:
-                self._emit({"op": "value", "name": name, "text": text})
+            taken = block.watched.get(name)
+            if taken is not None:
+                self._emit_value("name", name, taken)
 
     def stmt(self, loc: int) -> None:
         if not self._active:
@@ -180,11 +150,9 @@ class Runtime:
     def value(self, loc: int, value: object) -> None:
         if not self._active:
             return
-        self._emit(
-            {"op": "value", "loc": loc, "text": self.render(_format_value, value)}
-        )
+        self._emit_value("loc", loc, self._snapshot((loc, ""), value))
 
-    def render[T](self, format_: Callable[[T], str], subject: T) -> str:
+    def render[T, R](self, format_: Callable[[T], R], subject: T) -> R:
         active = self._active
         self._active = False
         try:
@@ -260,13 +228,27 @@ class Runtime:
                 return node
         return None
 
-    def _variables(self, block: int, frame: FrameType) -> dict[str, str]:
-        variables: dict[str, str] = {}
+    def _variables(self, block: int, frame: FrameType) -> dict[str, Snapshot]:
+        variables: dict[str, Snapshot] = {}
         for name in self._watched.get(block, ()):
             found, value = _lookup(frame, name)
             if found and not isinstance(value, _NOT_STATE):
-                variables[name] = self.render(_format_value, value)
+                variables[name] = self._snapshot((block, name), value)
         return variables
+
+    def _snapshot(self, key: tuple[int, str], value: object) -> Snapshot:
+        active = self._active
+        self._active = False
+        try:
+            taken = snapshot(value, self._recent.get(key))
+        finally:
+            self._active = active
+        self._recent[key] = taken
+        return taken
+
+    def _emit_value(self, anchor: str, key: object, taken: Snapshot) -> None:
+        value = self._heap.define(taken)
+        self._emit({"op": "value", anchor: key, "value": value})
 
     def _settle(self, block: _Node) -> None:
         # Records what the block's open statement assigned or changed, as
@@ -289,11 +271,11 @@ class Runtime:
         binds = () if names is None else names.binds
         quiet = () if names is None else names.quiet
         current = self._variables(block.loc, block.frame)
-        for name, text in current.items():
-            if (name in binds or watched.get(name) != text) and (
+        for name, taken in current.items():
+            if (name in binds or watched.get(name) != taken) and (
                 name in binds or name not in quiet
             ):
-                self._emit({"op": "value", "name": name, "text": text})
+                self._emit_value("name", name, taken)
         block.watched = current
 
     def _repair(self, parent: int | None) -> None:
@@ -351,17 +333,6 @@ def _lookup(frame: FrameType, name: str) -> tuple[bool, object]:
         return True, frame.f_globals[name]
     except KeyError:
         return False, None
-
-
-def _format_value(value: object) -> str:
-    try:
-        text = _VALUE_REPR.repr(value)
-    except BaseException:
-        text = f"<{type(value).__name__}>"
-    text = text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-    if len(text) > _VALUE_TEXT_LIMIT:
-        return f"{text[: _VALUE_TEXT_LIMIT - 1]}…"
-    return text
 
 
 def _exception_summary(exc: BaseException) -> str:
