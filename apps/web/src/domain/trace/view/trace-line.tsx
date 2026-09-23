@@ -288,7 +288,7 @@ export function TraceLine({
       ) : null}
       {line.loopEnd === null
         ? null
-        : stateRow(`${line.loopEnd.indent}(after loop)`, loopEndEntries, "→")}
+        : stateRow(`${line.loopEnd.indent}(after)`, loopEndEntries, "→")}
     </div>
   );
 }

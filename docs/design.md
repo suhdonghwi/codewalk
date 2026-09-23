@@ -223,7 +223,7 @@ exception, the changes a statement made like `lo → 8`) follows its code, and
 chips on consecutive lines share a column set by the longest of them, so a run
 of changes reads top to bottom as a list. A line without chips, a blank line or
 a label row ends the run, so a lone chip stays next to its code. A loop's end
-state is not a change its header made, so it sits on an `(after loop)` row below
+state is not a change its header made, so it sits on an `(after)` row below
 the loop's body, before any `else` clause. Likewise an iteration's starting
 state sits on a `(before)` row above its header rather than on it, limited to
 the values that change between iterations, the same ones the sibling list has
