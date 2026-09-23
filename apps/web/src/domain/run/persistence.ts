@@ -1,14 +1,6 @@
 import { z } from "zod";
 
-const DEFAULT_SOURCE = `def fact(n):
-    print("fact", n)
-    if n <= 1:
-        return 1
-    return n * fact(n - 1)
-
-for i in range(2):
-    print(fact(i + 1))
-`;
+import { EXAMPLES } from "./examples.ts";
 
 const STORAGE_KEY = "codewalk.web.input.v1";
 
@@ -25,8 +17,8 @@ export interface StoredState {
 }
 
 const DEFAULT_STORED_STATE: StoredState = {
-  source: DEFAULT_SOURCE,
-  stdin: "",
+  source: EXAMPLES[0].source,
+  stdin: EXAMPLES[0].stdin,
 };
 
 export function parseStoredState(value: string | null): StoredState {

@@ -4,19 +4,25 @@ import { LoaderCircle, Play } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 import { CanvasWindow } from "@/domain/canvas/index.ts";
-import { useRunStore } from "@/domain/run/index.ts";
+import { type Example, useRunStore } from "@/domain/run/index.ts";
 import { Button } from "@/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip.tsx";
 
+import { ExampleMenu } from "./example-menu.tsx";
 import { editorExtensions } from "./extensions.ts";
 import { setSyntaxError } from "./syntax-error.ts";
 
 interface EditorWindowProps {
   onRun: () => void;
+  onOpenExample: (example: Example) => void;
   shortcut: string;
 }
 
-export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
+export function EditorWindow({
+  onRun,
+  onOpenExample,
+  shortcut,
+}: EditorWindowProps) {
   const editorHost = useRef<HTMLDivElement>(null);
   const running = useRunStore((state) => state.running);
 
@@ -36,6 +42,15 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
     });
 
     const unsubscribe = useRunStore.subscribe((state, previous) => {
+      if (
+        state.source !== previous.source &&
+        state.source !== view.state.doc.toString()
+      ) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: state.source },
+        });
+      }
+
       if (state.outcome === previous.outcome) return;
 
       const end =
@@ -71,9 +86,17 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
         }
       >
         {running ? (
-          <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
+          <LoaderCircle
+            aria-hidden
+            className="size-3.5 animate-spin"
+            data-icon="inline-start"
+          />
         ) : (
-          <Play aria-hidden className="size-3.5 fill-current" />
+          <Play
+            aria-hidden
+            className="size-3.5 fill-current"
+            data-icon="inline-start"
+          />
         )}
         Run
       </TooltipTrigger>
@@ -86,7 +109,12 @@ export function EditorWindow({ onRun, shortcut }: EditorWindowProps) {
       className="w-112"
       id="editor"
       title="main.py"
-      titleAction={runButton}
+      titleAction={
+        <span className="inline-flex items-center gap-0.5">
+          <ExampleMenu onOpenExample={onOpenExample} />
+          {runButton}
+        </span>
+      }
     >
       <div ref={editorHost} />
     </CanvasWindow>

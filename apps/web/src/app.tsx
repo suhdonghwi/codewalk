@@ -11,7 +11,7 @@ import {
 import { TraceTree, useTraceStore } from "@/domain/trace/index.ts";
 import { TooltipProvider } from "@/ui/tooltip.tsx";
 
-import type { RunOutcome } from "@/domain/run/index.ts";
+import type { Example, RunOutcome } from "@/domain/run/index.ts";
 
 function runShortcut(): string {
   return /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘↵" : "Ctrl↵";
@@ -42,6 +42,11 @@ export function App() {
       });
   }
 
+  function openExample(example: Example): void {
+    useRunStore.getState().setInput(example);
+    run();
+  }
+
   function selectOutputChunk(chunk: number): void {
     const current = useRunStore.getState().outcome;
 
@@ -69,7 +74,11 @@ export function App() {
   return (
     <TooltipProvider delay={300}>
       <Canvas>
-        <EditorWindow onRun={run} shortcut={runShortcut()} />
+        <EditorWindow
+          onOpenExample={openExample}
+          onRun={run}
+          shortcut={runShortcut()}
+        />
         <StdinWindow />
         <OutputWindow onSelectChunk={selectOutputChunk} />
         {traceTree}

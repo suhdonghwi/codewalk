@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { readStoredState, writeStoredState } from "./persistence.ts";
 
+import type { StoredState } from "./persistence.ts";
 import type { RunOutcome } from "./types.ts";
 
 interface RunState {
@@ -11,6 +12,7 @@ interface RunState {
   running: boolean;
   setSource: (source: string) => void;
   setStdin: (stdin: string) => void;
+  setInput: (input: StoredState) => void;
   setRunning: (running: boolean) => void;
   setOutcome: (outcome: RunOutcome) => void;
 }
@@ -31,6 +33,10 @@ export const useRunStore = create<RunState>()((set, get) => ({
     const source = get().source;
     writeStoredState(window.localStorage, { source, stdin });
     set({ stdin });
+  },
+  setInput: (input) => {
+    writeStoredState(window.localStorage, input);
+    set({ source: input.source, stdin: input.stdin });
   },
   setRunning: (running) => {
     set({ running });
