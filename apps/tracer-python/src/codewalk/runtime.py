@@ -91,10 +91,10 @@ class Runtime:
         self._out_stream: Stream | None = None
         self._out_text = ""
         self._truncated = False
-        # False once the trace has ended (finished or truncated); a plain
-        # attribute because it is read several times per event.
+        # False once the trace has ended (finished or truncated) and while a
+        # value is formatted; a plain attribute because it is read several
+        # times per event.
         self._active = True
-        self._muted = False
         self._stop: str | None = None
         self._exhausted = False
 
@@ -129,21 +129,21 @@ class Runtime:
     def stmt(self, loc: int) -> None:
         if self._stop is not None:
             raise ExecutionStopped(self._stop)
-        if not self._recording:
+        if not self._active:
             return
         self._repair(self._parents[loc])
-        if self._recording and self._emit({"op": "enter", "loc": loc}):
+        if self._active and self._emit({"op": "enter", "loc": loc}):
             self._stack.append(_Node(loc, block=False, pending=False))
 
     def begin(self, loc: int) -> int:
-        if self._recording:
+        if self._active:
             self._repair(self._parents[loc])
-            if self._recording:
+            if self._active:
                 self._stack.append(_Node(loc, block=False, pending=True))
         return loc
 
     def end[T](self, loc: int, value: T) -> T:
-        if not self._recording:
+        if not self._active:
             return value
 
         match = len(self._stack) - 1
@@ -157,33 +157,33 @@ class Runtime:
         else:
             return value
 
-        while self._recording and len(self._stack) > match:
+        while self._active and len(self._stack) > match:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
         return value
 
     def value(self, loc: int, value: object) -> None:
-        if not self._recording:
+        if not self._active:
             return
-        self._muted = True
+        self._active = False
         try:
             text = _format_value(value)
         finally:
-            self._muted = False
+            self._active = True
         self._emit({"op": "value", "loc": loc, "text": text})
 
     def out(self, stream: Stream, text: str) -> None:
-        if not self._recording or not self._stack:
+        if not self._active or not self._stack:
             return
         self._materialize()
-        if not self._recording or not self._stack:
+        if not self._active or not self._stack:
             return
         if self._out_stream == stream:
             self._out_text += text
             return
         self._flush_output()
-        if self._recording:
+        if self._active:
             self._out_stream = stream
             self._out_text = text
 
@@ -191,14 +191,14 @@ class Runtime:
         return OutputCapture(self.out)
 
     def finish(self, status: str, **fields: object) -> None:
-        if not self._recording:
+        if not self._active:
             return
         self._flush_output()
-        while self._recording and self._stack:
+        while self._active and self._stack:
             node = self._stack.pop()
             if not node.pending:
                 self._emit({"op": "exit"})
-        if not self._recording:
+        if not self._active:
             return
         event: dict[str, object] = {"op": "end", "status": status}
         event.update(fields)
@@ -206,21 +206,21 @@ class Runtime:
             self._active = False
 
     def _enter_block(self, loc: int, *, repair: bool) -> _Node | None:
-        if not self._recording:
+        if not self._active:
             return None
         if repair:
             self._repair(self._parents[loc])
         self._materialize()
-        if not self._recording or not self._emit({"op": "enter", "loc": loc}):
+        if not self._active or not self._emit({"op": "enter", "loc": loc}):
             return None
         node = _Node(loc, block=True, pending=False)
         self._stack.append(node)
         return node
 
     def _exit_block(self, target: _Node | None, exc: BaseException | None) -> None:
-        if not self._recording or target is None:
+        if not self._active or target is None:
             return
-        while self._recording and self._stack:
+        while self._active and self._stack:
             node = self._stack.pop()
             if node is target:
                 if exc is None or isinstance(exc, ExecutionStopped):
@@ -232,7 +232,7 @@ class Runtime:
                 self._emit({"op": "exit"})
 
     def _repair(self, parent: int | None) -> None:
-        while self._recording and self._stack:
+        while self._active and self._stack:
             node = self._stack[-1]
             if node.loc == parent or node.block:
                 return
@@ -253,10 +253,10 @@ class Runtime:
             node.pending = False
 
     def _emit(self, event: Mapping[str, object]) -> bool:
-        if not self._recording:
+        if not self._active:
             return False
         self._flush_output()
-        if not self._recording:
+        if not self._active:
             return False
         return self._write(event)
 
@@ -270,7 +270,7 @@ class Runtime:
         self._write({"op": "out", "stream": stream, "text": text})
 
     def _write(self, event: Mapping[str, object]) -> bool:
-        if not self._recording:
+        if not self._active:
             return False
         if self._event_count >= self._max_events:
             self._sink.write({"op": "end", "status": "truncated"})
@@ -284,10 +284,6 @@ class Runtime:
         self._sink.write(event)
         self._event_count += 1
         return True
-
-    @property
-    def _recording(self) -> bool:
-        return self._active and not self._muted
 
 
 def _format_value(value: object) -> str:
