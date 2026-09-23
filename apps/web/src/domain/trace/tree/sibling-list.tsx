@@ -6,6 +6,7 @@ import { cn } from "@/ui/utils.ts";
 import { TITLE_BAR } from "./layout.ts";
 import {
   buildBlockTitle,
+  siblingCells,
   siblingListTitle,
   type SiblingColumn,
 } from "../view/block-title.ts";
@@ -225,15 +226,20 @@ export function SiblingList({
                   <span className="truncate">{title.label}</span>
                   {titleIndicator(title.hasException)}
                 </span>
-                {title.cells.map((cell, column) => (
-                  <span
-                    className="truncate text-inline-value"
-                    key={columns[column]?.name}
-                    title={cell ?? undefined}
-                  >
-                    {cell}
-                  </span>
-                ))}
+                {siblingCells(trace, blocks, index, columns).map(
+                  (cell, column) => (
+                    <span
+                      className={cn(
+                        "truncate text-inline-value",
+                        cell.repeated && "opacity-40",
+                      )}
+                      key={columns[column]?.name}
+                      title={cell.text ?? undefined}
+                    >
+                      {cell.text}
+                    </span>
+                  ),
+                )}
               </button>
             );
           })}

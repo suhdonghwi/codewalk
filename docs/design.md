@@ -272,7 +272,9 @@ path: NodeId[]      // expanded block windows, root → deepest
   per sibling (its indexed title and red dot) and a column per entry value
   that differs between siblings, with an empty cell where a sibling has none
   (a loop-state variable not bound yet). Reading down a column shows how the
-  state moves from one iteration to the next. The list sizes to its columns
+  state moves from one iteration to the next; a value that repeats the row
+  above it is faded, so the rows where a variable changes stand out. The list
+  sizes to its columns
   and is measured before its column is laid out. It has a bounded height
   and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
   range, and an edge connects range → column. Choosing a sibling therefore moves

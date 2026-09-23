@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   buildBlockTitle,
+  siblingCells,
   siblingColumns,
   siblingListTitle,
 } from "./block-title.ts";
@@ -370,12 +371,34 @@ describe("buildBlockView", () => {
       "iteration 3 (lo = 2, hi = 2)",
     ]);
     expect(
-      lastIterations.map(
-        (block) => titleAmong(trace, lastIterations, block).cells,
+      lastIterations.map((_, index) =>
+        siblingCells(
+          trace,
+          lastIterations,
+          index,
+          siblingColumns(trace, lastIterations),
+        ),
       ),
     ).toEqual([
-      ["3", null],
-      ["1", "3"],
+      [
+        { text: "3", repeated: false },
+        { text: null, repeated: false },
+      ],
+      [
+        { text: "1", repeated: false },
+        { text: "3", repeated: false },
+      ],
+    ]);
+    expect(
+      siblingCells(
+        trace,
+        searchIterations,
+        2,
+        siblingColumns(trace, searchIterations),
+      ),
+    ).toEqual([
+      { text: "2", repeated: false },
+      { text: "2", repeated: true },
     ]);
   });
 });

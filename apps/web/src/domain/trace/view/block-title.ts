@@ -4,9 +4,13 @@ import type { NodeId, Trace } from "@codewalk/trace";
 
 export interface BlockTitle {
   label: string;
-  cells: (string | null)[];
   text: string;
   hasException: boolean;
+}
+
+export interface SiblingCell {
+  text: string | null;
+  repeated: boolean;
 }
 
 export interface SiblingPosition {
@@ -73,20 +77,42 @@ export function buildBlockTitle(
   const label =
     position.count > 1 ? `${loc.title} ${position.index + 1}` : loc.title;
 
-  const cells = columns.map(({ name }) => values.get(name) ?? null);
+  const entries = columns.flatMap(({ name }) => {
+    const text = values.get(name);
 
-  const entries = columns.flatMap(({ name }, index) => {
-    const text = cells[index];
-
-    return text === null || text === undefined ? [] : [`${name} = ${text}`];
+    return text === undefined ? [] : [`${name} = ${text}`];
   });
 
   return {
     label,
-    cells,
     text: entries.length === 0 ? label : `${label} (${entries.join(", ")})`,
     hasException: node.exc !== null,
   };
+}
+
+export function siblingCells(
+  trace: Trace,
+  blocks: NodeId[],
+  index: number,
+  columns: SiblingColumn[],
+): SiblingCell[] {
+  const block = blocks[index];
+  const previousBlock = blocks[index - 1];
+
+  const values =
+    block === undefined ? new Map<string, string>() : blockValues(trace, block);
+
+  const previous =
+    previousBlock === undefined ? null : blockValues(trace, previousBlock);
+
+  return columns.map(({ name }) => {
+    const text = values.get(name) ?? null;
+
+    return {
+      text,
+      repeated: text !== null && previous?.get(name) === text,
+    };
+  });
 }
 
 export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {
