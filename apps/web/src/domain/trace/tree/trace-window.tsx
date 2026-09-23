@@ -48,7 +48,6 @@ function measureWindow(
 
   return {
     width: bounds.width / scale,
-    height,
     anchorCenterY:
       anchorBounds === undefined
         ? null

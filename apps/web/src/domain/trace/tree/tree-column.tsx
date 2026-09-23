@@ -3,9 +3,14 @@ import type { HTMLAttributes } from "react";
 import { ResizeHandles, type Size } from "@/domain/canvas/index.ts";
 
 import { SiblingList } from "./sibling-list.tsx";
-import { SIBLING_LIST_WIDTH, type Measurement } from "./layout.ts";
+import type { Measurement } from "./layout.ts";
 import { TraceWindow } from "./trace-window.tsx";
-import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
+import {
+  partSize,
+  siblingListWidth,
+  useTraceStore,
+  type ColumnPart,
+} from "../store.ts";
 
 import type { ColumnLayout } from "./layout.ts";
 import type { PathColumn } from "./path.ts";
@@ -59,8 +64,12 @@ export function TreeColumn({
     partSize(state.columnSizes, columnIndex, "window"),
   );
 
-  const siblingsSize = useTraceStore((state) =>
-    partSize(state.columnSizes, columnIndex, "siblings"),
+  const siblingsHeight = useTraceStore(
+    (state) => partSize(state.columnSizes, columnIndex, "siblings").height,
+  );
+
+  const siblingsWidth = useTraceStore((state) =>
+    siblingListWidth(state.columnSizes, columnIndex),
   );
 
   return (
@@ -73,9 +82,9 @@ export function TreeColumn({
         >
           <SiblingList
             blocks={column.blocks}
-            height={siblingsSize.height}
+            height={siblingsHeight}
             resizeHandles={columnResizeHandles(columnIndex, "siblings")}
-            width={siblingsSize.width ?? SIBLING_LIST_WIDTH}
+            width={siblingsWidth}
             onChoose={(block) => onChoose(columnIndex, block)}
             selectedIndex={column.expandedIndex}
             trace={trace}

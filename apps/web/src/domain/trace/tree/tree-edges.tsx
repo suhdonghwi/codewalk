@@ -1,48 +1,26 @@
-import { TITLE_BAR, type ColumnLayout, type Measurement } from "./layout.ts";
+import type { ColumnLayout } from "./layout.ts";
 import type { NodeId } from "@codewalk/trace";
 
 interface TreeEdgesProps {
   layouts: ColumnLayout[];
-  measurements: (Measurement | null)[];
   path: NodeId[];
 }
 
-export function TreeEdges({ layouts, measurements, path }: TreeEdgesProps) {
+export function TreeEdges({ layouts, path }: TreeEdgesProps) {
   return (
     <svg
       aria-hidden
       className="pointer-events-none absolute z-0 size-px overflow-visible"
     >
-      {layouts.slice(1).map((layout, relativeIndex) => {
-        const column = relativeIndex + 1;
-        const parentLayout = layouts[column - 1];
-        const parentMeasurement = measurements[column - 1];
-        const child = path[column];
-
-        if (
-          parentLayout === undefined ||
-          parentMeasurement === null ||
-          parentMeasurement === undefined ||
-          parentMeasurement.anchorCenterY === null ||
-          child === undefined
-        ) {
-          return null;
-        }
-
-        const startX = parentLayout.windowX + parentMeasurement.width;
-        const startY = parentLayout.top + parentMeasurement.anchorCenterY;
-        const endX = layout.x;
-        const endY = layout.top + TITLE_BAR / 2;
-        const controlX = (startX + endX) / 2;
-
-        return (
+      {layouts.map(({ edge }, column) =>
+        edge === null ? null : (
           <path
             className="animate-tree-fade-in fill-none stroke-site-accent/60 stroke-[1.5]"
-            d={`M ${startX} ${startY} C ${controlX} ${startY}, ${controlX} ${endY}, ${endX} ${endY}`}
-            key={`${column}:${child}`}
+            d={`M ${edge.fromX} ${edge.y} H ${edge.toX}`}
+            key={`${column}:${path[column]}`}
           />
-        );
-      })}
+        ),
+      )}
     </svg>
   );
 }

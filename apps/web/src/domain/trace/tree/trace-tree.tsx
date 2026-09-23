@@ -2,17 +2,11 @@ import { useEffect, useState } from "react";
 
 import { useCanvasStore, useWindowDrag } from "@/domain/canvas/index.ts";
 
-import {
-  layoutableColumns,
-  layoutTree,
-  sameMeasurement,
-  SIBLING_LIST_WIDTH,
-  type Measurement,
-} from "./layout.ts";
+import { layoutTree, sameMeasurement, type Measurement } from "./layout.ts";
 import { pathColumns, selectSibling, toggleSite } from "./path.ts";
 import { TreeEdges } from "./tree-edges.tsx";
 import { TreeColumn } from "./tree-column.tsx";
-import { partSize, useTraceStore } from "../store.ts";
+import { siblingListWidth, useTraceStore } from "../store.ts";
 import { mountCodeHighlightStyle } from "../view/tokens.ts";
 
 import type { LocId, NodeId, Trace } from "@codewalk/trace";
@@ -34,43 +28,18 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   const columns = pathColumns(trace, path);
 
-  // A measurement stays usable for its own column while the open site changes;
-  // only the anchor it carries goes stale (see `layoutableColumns`).
-  const columnMeasurements = columns.map((column, index) => {
-    const measurement = measurements[index];
-
-    return measurement !== undefined && measurement.block === column.block
-      ? measurement
-      : null;
-  });
-
-  const layoutable = layoutableColumns(
-    columnMeasurements.map((measurement, index) => ({
-      measured: measurement !== null,
-      anchorFresh:
-        measurement !== null &&
-        measurement.anchorCenterY !== null &&
-        measurement.openSite === columns[index]?.openSite,
-    })),
-  );
-
   const layouts = layoutTree(
-    columnMeasurements.slice(0, layoutable).flatMap((measurement, index) => {
-      const column = columns[index];
+    columns.map((column, index) => {
+      const measurement = measurements[index];
 
-      if (measurement === null || column === undefined) return [];
-
-      return [
-        {
-          siblingListWidth:
-            column.blocks.length > 1
-              ? (partSize(columnSizes, index, "siblings").width ??
-                SIBLING_LIST_WIDTH)
-              : null,
-          width: measurement.width,
-          anchorCenterY: measurement.anchorCenterY,
-        },
-      ];
+      return {
+        measurement: measurement?.block === column.block ? measurement : null,
+        openSite: column.openSite,
+        siblingListWidth:
+          column.blocks.length > 1
+            ? siblingListWidth(columnSizes, index)
+            : null,
+      };
     }),
   );
 
@@ -91,10 +60,7 @@ export function TraceTree({ trace }: { trace: Trace }) {
 
   function chooseSibling(column: number, block: NodeId): void {
     const current = useTraceStore.getState().path;
-    const next = selectSibling(current, column, block);
-
-    if (next === current) return;
-    useTraceStore.getState().setPath(next);
+    useTraceStore.getState().setPath(selectSibling(current, column, block));
   }
 
   if (path.length === 0) return null;
@@ -106,28 +72,20 @@ export function TraceTree({ trace }: { trace: Trace }) {
       onPointerDown={() => useCanvasStore.getState().bringToFront("trace")}
       style={{ left: treeWindow.x, top: treeWindow.y, zIndex: treeWindow.z }}
     >
-      <TreeEdges
-        layouts={layouts}
-        measurements={columnMeasurements}
-        path={path}
-      />
-      {columns.map((column, columnIndex) => {
-        return (
-          <TreeColumn
-            column={column}
-            columnIndex={columnIndex}
-            key={columnIndex}
-            layout={layouts[columnIndex]}
-            onChoose={chooseSibling}
-            onMeasure={onMeasure}
-            onToggleSite={openSite}
-            rootTitlebarProps={
-              columnIndex === 0 ? rootTitlebarProps : undefined
-            }
-            trace={trace}
-          />
-        );
-      })}
+      <TreeEdges layouts={layouts} path={path} />
+      {columns.map((column, columnIndex) => (
+        <TreeColumn
+          column={column}
+          columnIndex={columnIndex}
+          key={columnIndex}
+          layout={layouts[columnIndex]}
+          onChoose={chooseSibling}
+          onMeasure={onMeasure}
+          onToggleSite={openSite}
+          rootTitlebarProps={columnIndex === 0 ? rootTitlebarProps : undefined}
+          trace={trace}
+        />
+      ))}
     </div>
   );
 }

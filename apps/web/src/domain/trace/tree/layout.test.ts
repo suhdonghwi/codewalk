@@ -1,48 +1,56 @@
 import { expect, test } from "vitest";
 
-import { layoutableColumns, layoutTree, type ColumnInput } from "./layout.ts";
+import { layoutTree, type ColumnInput } from "./layout.ts";
+
+function column(
+  width: number | null,
+  anchorCenterY: number | null,
+  options: { siblingListWidth?: number; stale?: boolean } = {},
+): ColumnInput {
+  return {
+    measurement:
+      width === null
+        ? null
+        : {
+            block: 0,
+            openSite: options.stale === true ? 2 : 1,
+            width,
+            anchorCenterY,
+          },
+    openSite: 1,
+    siblingListWidth: options.siblingListWidth ?? null,
+  };
+}
 
 test("columns accumulate parent widths, make room for sibling lists at their own width and align to measured anchors", () => {
-  const columns: ColumnInput[] = [
-    { siblingListWidth: null, width: 300, anchorCenterY: 90 },
-    { siblingListWidth: 200, width: 180, anchorCenterY: 50 },
-    { siblingListWidth: null, width: 120, anchorCenterY: null },
-  ];
-
-  expect(layoutTree(columns)).toEqual([
-    { x: 0, windowX: 0, top: 0 },
-    { x: 364, windowX: 572, top: 76 },
-    { x: 816, windowX: 816, top: 112 },
+  expect(
+    layoutTree([
+      column(300, 90),
+      column(180, 50, { siblingListWidth: 200 }),
+      column(120, null),
+    ]),
+  ).toEqual([
+    { x: 0, windowX: 0, top: 0, edge: null },
+    { x: 364, windowX: 572, top: 76, edge: { fromX: 300, toX: 364, y: 90 } },
+    { x: 816, windowX: 816, top: 112, edge: { fromX: 752, toX: 816, y: 126 } },
   ]);
 });
 
 test.each([
   {
-    name: "a stale anchor in the deepest open column still lays out that column",
+    name: "a stale anchor lays out its own column but not the next",
     columns: [
-      { measured: true, anchorFresh: true },
-      { measured: true, anchorFresh: false },
-      { measured: false, anchorFresh: false },
+      column(300, 90),
+      column(180, 50, { stale: true }),
+      column(120, 0),
     ],
     expected: 2,
   },
   {
     name: "an unmeasured column stops the layout before it",
-    columns: [
-      { measured: true, anchorFresh: true },
-      { measured: false, anchorFresh: false },
-      { measured: true, anchorFresh: true },
-    ],
+    columns: [column(300, 90), column(null, null), column(120, 0)],
     expected: 1,
   },
-  {
-    name: "a fully measured path lays out every column",
-    columns: [
-      { measured: true, anchorFresh: true },
-      { measured: true, anchorFresh: false },
-    ],
-    expected: 2,
-  },
 ])("$name", ({ columns, expected }) => {
-  expect(layoutableColumns(columns)).toBe(expected);
+  expect(layoutTree(columns)).toHaveLength(expected);
 });
