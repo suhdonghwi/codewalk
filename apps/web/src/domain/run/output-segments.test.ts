@@ -87,6 +87,11 @@ const cases: OutputCase[] = [
     ],
   },
   {
+    name: "reports a gateway that could not reach the server as unreachable",
+    outcome: { kind: "failed", status: 502 },
+    expected: [{ kind: "notice", text: "Could not reach the server" }],
+  },
+  {
     name: "reports a server that failed to run the program",
     outcome: { kind: "failed", status: 500 },
     expected: [
