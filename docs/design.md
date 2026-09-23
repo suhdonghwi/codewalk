@@ -229,7 +229,8 @@ held at the window's top or bottom edge once the line scrolls out of view.
     value follows its name on the `def` line, a loop target's value follows
     its name on the `for` line. Loop state is bound nowhere in the window, so
     its values are a group of chips on the loop's first line, the iteration's
-    inputs. Only the window's own block contributes values, so a `for` line in
+    inputs. A value that is the same in every sibling is faded there, the way
+    the title and sibling table leave it out. Only the window's own block contributes values, so a `for` line in
     the parent window carries none. Values are already short, so their chips
     never expand;
   - the exception on the origin statement: the line is faintly tinted, its line

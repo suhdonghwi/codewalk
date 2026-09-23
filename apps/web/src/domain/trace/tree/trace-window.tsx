@@ -70,6 +70,7 @@ interface WindowBodyProps {
   trace: Trace;
   block: NodeId;
   openSite: LocId | null;
+  columns: SiblingColumn[];
   fitsContent: boolean;
   onToggleSite: (site: LocId) => void;
 }
@@ -78,6 +79,7 @@ function WindowBody({
   trace,
   block,
   openSite,
+  columns,
   fitsContent,
   onToggleSite,
 }: WindowBodyProps) {
@@ -117,6 +119,7 @@ function WindowBody({
             key={line.number}
             line={line}
             row={index + 1}
+            varyingNames={columns.map(({ name }) => name)}
             onHoverSite={setHoveredSite}
             onToggleSite={onToggleSite}
             openSite={openSite}
@@ -181,6 +184,7 @@ export function TraceWindow({
     >
       <WindowBody
         block={block}
+        columns={columns}
         fitsContent={width === null}
         onToggleSite={onToggleSite}
         openSite={openSite}

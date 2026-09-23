@@ -15,6 +15,7 @@ interface TraceLineProps {
   anchor: boolean;
   hoveredSite: LocId | null;
   openSite: LocId | null;
+  varyingNames: string[];
   onHoverSite: (site: LocId | null) => void;
   onToggleSite: (site: LocId) => void;
 }
@@ -53,6 +54,7 @@ export function TraceLine({
   anchor,
   hoveredSite,
   openSite,
+  varyingNames,
   onHoverSite,
   onToggleSite,
 }: TraceLineProps) {
@@ -154,7 +156,11 @@ export function TraceLine({
         </div>
         <div className="flex items-baseline gap-[1ch] pr-4">
           {line.values.map(({ name, text }) => (
-            <InlineChip key={name} tone="value">
+            <InlineChip
+              className={cn(!varyingNames.includes(name) && "opacity-40")}
+              key={name}
+              tone="value"
+            >
               {name} = {text}
             </InlineChip>
           ))}
