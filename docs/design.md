@@ -222,21 +222,27 @@ held at the window's top or bottom edge once the line scrolls out of view.
     (runs in a child window) faded but still syntax-coloured; dimmed (did not
     run) faded and grey;
   - clickable ranges for sites that contain blocks;
-  - inline output as a tinted chip right after the code of the line whose sites
-    contain output; long or multi-line output expands into a panel below it;
+  - inline output as a tinted chip on the line whose sites contain output; long
+    or multi-line output expands into a panel below it;
   - values as chips of the same shape in the value colour, inserted in the
     code right after the name they belong to, reading `= 3`: a parameter's
     value follows its name on the `def` line, a loop target's value follows
-    its name on the `for` line. Only the window's own block contributes
-    values, so a `for` line in the parent window carries none. Values are
-    already short, so their chips never expand;
+    its name on the `for` line. Loop state is bound nowhere in the window, so
+    its values are a group of chips on the loop's first line, the iteration's
+    inputs. Only the window's own block contributes values, so a `for` line in
+    the parent window carries none. Values are already short, so their chips
+    never expand;
   - the exception on the origin statement: the line is faintly tinted, its line
-    number turns red, and the one-line summary follows the code as a chip of the
-    same shape as inline output, in the exception colour.
+    number turns red, and the one-line summary is a chip of the same shape as
+    inline output, in the exception colour.
 
   Chips are one primitive with three tints: value, output and exception. A
-  chip sits immediately after the range it annotates; output and the exception
-  annotate the whole statement, so they sit at the end of the line.
+  chip about a name sits immediately after the name, where it is bound. A chip
+  about a whole line — output, the exception, loop state — sits in a column to
+  the right of the code: the window body is a grid whose first column is as
+  wide as the longest line, so these chips line up and read top to bottom as
+  the block's data beside its code. Hovering a line with chips highlights the
+  whole row.
 
   Title bar: the trace's `title`, with ` N` appended by the viewer when the site
   ran several blocks (a callback, a call in a comprehension). Iteration windows

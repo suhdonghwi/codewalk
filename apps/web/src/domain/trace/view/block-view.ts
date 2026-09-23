@@ -19,9 +19,15 @@ export interface InlineSegment {
   text: string;
 }
 
+interface LineValue {
+  name: string;
+  text: string;
+}
+
 export interface Line {
   number: number;
   spans: Span[];
+  values: LineValue[];
   output: InlineSegment[] | null;
   exception: string | null;
 }
@@ -143,10 +149,15 @@ export function buildBlockView(
     }),
   };
 
+  const blockValues = node.values.flatMap(({ loc: locId, name, text }) =>
+    locId === null ? [{ name, text }] : [],
+  );
+
   return {
-    lines: lines.map((line) => ({
+    lines: lines.map((line, index) => ({
       number: line.number,
       spans: spansForLine(context, line),
+      values: index === 0 ? blockValues : [],
       output: outputs.get(line.number) ?? null,
       exception: exceptions.get(line.number) ?? null,
     })),

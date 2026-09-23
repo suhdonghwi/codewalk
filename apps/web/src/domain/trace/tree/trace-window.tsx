@@ -104,7 +104,7 @@ function WindowBody({
         fitsContent && "max-w-trace",
       )}
     >
-      <div className="grid w-max min-w-full py-2">
+      <div className="grid w-max min-w-full grid-cols-[max-content_minmax(max-content,1fr)] py-2">
         <div
           aria-hidden
           className="sticky left-0 z-1 col-start-1 row-start-1 -my-2 box-content w-gutter border-r border-gutter-divider bg-white"
