@@ -1,6 +1,6 @@
 import { requireBlock } from "../views.ts";
 
-import { valueKey } from "./values.ts";
+import { preview, PREVIEW_BUDGET, valueKey } from "./values.ts";
 
 import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
@@ -46,6 +46,12 @@ function blockValues(trace: Trace, block: NodeId): Shown {
 
 function keyOf(trace: Trace, chunk: ValueChunk | undefined): string | null {
   return chunk === undefined ? null : valueKey(trace, chunk.value, chunk.at);
+}
+
+function cellText(trace: Trace, chunk: ValueChunk | undefined): string | null {
+  return chunk === undefined
+    ? null
+    : preview(trace, chunk.value, chunk.at, PREVIEW_BUDGET);
 }
 
 function blockExitValues(trace: Trace, block: NodeId): Shown {
@@ -108,7 +114,7 @@ export function siblingColumns(
     if (blocks.length > 1 && !varies) return [];
 
     const shown = (chunk: ValueChunk | undefined) =>
-      textWidth(keyOf(trace, chunk) ?? "");
+      textWidth(cellText(trace, chunk) ?? "");
 
     let width = Math.max(textWidth(name), carried ? shown(exit.get(name)) : 0);
 
@@ -152,7 +158,7 @@ export function siblingCells(
     const key = keyOf(trace, values.get(name));
 
     return {
-      text: key,
+      text: cellText(trace, values.get(name)),
       repeated: key !== null && keyOf(trace, previous?.get(name)) === key,
     };
   });
@@ -170,10 +176,11 @@ export function siblingAfter(
   const exit = blockExitValues(trace, last);
 
   const cells = columns.map(({ name, carried }) => {
-    const key = carried ? keyOf(trace, exit.get(name)) : null;
+    const chunk = carried ? exit.get(name) : undefined;
+    const key = keyOf(trace, chunk);
 
     return {
-      text: key,
+      text: cellText(trace, chunk),
       repeated: key !== null && keyOf(trace, entry.get(name)) === key,
     };
   });

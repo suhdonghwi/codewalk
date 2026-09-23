@@ -1,12 +1,10 @@
 import { cn } from "@/ui/utils.ts";
 
 import { InlineChip } from "./inline-chip.tsx";
-import { preview, valueChildren } from "./values.ts";
+import { preview, PREVIEW_BUDGET, valueChildren } from "./values.ts";
 
 import type { LineValue } from "./block-view.ts";
 import type { Trace } from "@codewalk/trace";
-
-const CHIP_BUDGET = 40;
 
 interface ValueChipProps {
   trace: Trace;
@@ -37,7 +35,7 @@ export function ValueChip({
       onToggle={onToggle}
       tone="value"
     >
-      {label} {preview(trace, entry.value, entry.at, CHIP_BUDGET)}
+      {label} {preview(trace, entry.value, entry.at, PREVIEW_BUDGET)}
     </InlineChip>
   );
 }

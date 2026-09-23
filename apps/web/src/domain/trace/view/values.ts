@@ -20,6 +20,8 @@ interface Layout {
   total: number;
 }
 
+export const PREVIEW_BUDGET = 40;
+
 const KEY_BUDGET = 24;
 
 function cut(text: string, budget: number): string {
