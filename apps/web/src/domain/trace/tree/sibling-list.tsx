@@ -43,11 +43,10 @@ function Cells({
   return cells.map((cell, column) => (
     <span
       className={cn(
-        "truncate text-inline-value",
+        "whitespace-pre text-inline-value",
         cell.repeated && "opacity-40",
       )}
       key={columns[column]?.name}
-      title={cell.text ?? undefined}
     >
       {cell.text}
     </span>

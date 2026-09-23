@@ -438,6 +438,15 @@ describe("buildBlockView", () => {
     ).toEqual(["key 1", "key 2"]);
   });
 
+  test("a sibling column is as wide as its full preview, counting double-width characters twice", () => {
+    const trace = fixture("unicode_offsets");
+    const echoes = blockNodes(trace, "echo");
+
+    expect(siblingColumns(trace, echoes)).toEqual([
+      { name: "value", width: 9, carried: false },
+    ]);
+  });
+
   test("sibling columns keep only the values that differ between siblings, including ones some siblings lack", () => {
     const trace = fixture("loop_state");
     const iterations = blockNodes(trace, "iteration");

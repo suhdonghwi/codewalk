@@ -166,7 +166,8 @@ function writeValue(
   }
 
   open.add(value.ref);
-  const text = joinWithin(framing, budget);
+  const whole = joinWithin(framing, Number.POSITIVE_INFINITY);
+  const text = whole.length <= budget ? whole : joinWithin(framing, budget);
   open.delete(value.ref);
 
   return text;

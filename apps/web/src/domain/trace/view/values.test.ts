@@ -38,7 +38,10 @@ function previews(trace: Trace, name: string, budget = 80): string[] {
 test("a preview stops adding items at its budget and counts the rest", () => {
   const trace = fixture("values");
 
+  const whole = `[${Array.from({ length: 30 }, (_, index) => index).join(", ")}]`;
+
   expect(previews(trace, "long_values", 20)).toEqual(["[0, 1, 2, … 27 more]"]);
+  expect(previews(trace, "long_values", whole.length)).toEqual([whole]);
 });
 
 test("a nested object that does not fit its room collapses to its brackets", () => {
