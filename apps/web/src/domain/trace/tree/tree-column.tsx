@@ -6,7 +6,7 @@ import { SiblingList } from "./sibling-list.tsx";
 import type { Measurement } from "./layout.ts";
 import { TraceWindow } from "./trace-window.tsx";
 import { partSize, useTraceStore, type ColumnPart } from "../store.ts";
-import { siblingColumns } from "../view/block-title.ts";
+import { siblingAfter, siblingColumns } from "../view/block-title.ts";
 
 import type { ColumnLayout } from "./layout.ts";
 import type { PathColumn } from "./path.ts";
@@ -79,6 +79,7 @@ export function TreeColumn({
         >
           <SiblingList
             blocks={column.blocks}
+            after={siblingAfter(trace, column.blocks, columns)}
             columns={columns}
             height={siblingsSize.height}
             resizeHandles={columnResizeHandles(columnIndex, "siblings")}

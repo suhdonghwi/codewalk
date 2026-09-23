@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   buildBlockTitle,
+  siblingAfter,
   siblingCells,
   siblingColumns,
   siblingListTitle,
@@ -381,7 +382,7 @@ describe("buildBlockView", () => {
     const trace = fixture("loop_state");
     const iterations = blockNodes(trace, "iteration");
     const searchIterations = iterations.slice(0, 3);
-    const lastIterations = iterations.slice(6);
+    const lastIterations = iterations.slice(7);
 
     expect(
       siblingColumns(trace, searchIterations).map(({ name }) => name),
@@ -426,6 +427,27 @@ describe("buildBlockView", () => {
       { text: "2", repeated: true },
     ]);
   });
+});
+
+test("the after row shows a loop's end state only when its last iteration changed it", () => {
+  const trace = fixture("loop_state");
+  const iterations = blockNodes(trace, "iteration");
+  const searchIterations = iterations.slice(0, 3);
+  const wordIterations = iterations.slice(3, 7);
+
+  expect(
+    siblingAfter(trace, wordIterations, siblingColumns(trace, wordIterations)),
+  ).toEqual([
+    { text: null, repeated: false },
+    { text: "['a', 'b', 'c']", repeated: false },
+  ]);
+  expect(
+    siblingAfter(
+      trace,
+      searchIterations,
+      siblingColumns(trace, searchIterations),
+    ),
+  ).toBeNull();
 });
 
 test.each([

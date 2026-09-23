@@ -21,6 +21,7 @@ export interface SiblingPosition {
 export interface SiblingColumn {
   name: string;
   width: number;
+  carried: boolean;
 }
 
 const MAX_COLUMN_WIDTH = 24;
@@ -31,6 +32,33 @@ function blockValues(trace: Trace, block: NodeId): Map<string, string> {
       name,
       text,
     ]),
+  );
+}
+
+function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
+  const values = blockValues(trace, block);
+
+  for (const child of requireBlock(trace, block).node.children) {
+    const statement = trace.nodes[child];
+
+    if (
+      statement === undefined ||
+      trace.header.locs[statement.loc]?.role !== "stmt"
+    ) {
+      continue;
+    }
+
+    for (const { name, text } of statement.values) values.set(name, text);
+  }
+
+  return values;
+}
+
+function isCarried(trace: Trace, blocks: NodeId[], name: string): boolean {
+  return blocks.some((block) =>
+    requireBlock(trace, block).node.values.some(
+      (value) => value.name === name && value.loc === null,
+    ),
   );
 }
 
@@ -48,6 +76,12 @@ export function siblingColumns(
   }
 
   const [first] = valuesByBlock;
+  const last = blocks.at(-1);
+
+  const exit =
+    last === undefined
+      ? new Map<string, string>()
+      : blockExitValues(trace, last);
 
   return names.flatMap((name) => {
     const varies = valuesByBlock.some(
@@ -55,13 +89,18 @@ export function siblingColumns(
     );
 
     if (blocks.length > 1 && !varies) return [];
-    let width = name.length;
+    const carried = isCarried(trace, blocks, name);
+
+    let width = Math.max(
+      name.length,
+      carried ? (exit.get(name)?.length ?? 0) : 0,
+    );
 
     for (const values of valuesByBlock) {
       width = Math.max(width, values.get(name)?.length ?? 0);
     }
 
-    return [{ name, width: Math.min(width, MAX_COLUMN_WIDTH) }];
+    return [{ name, width: Math.min(width, MAX_COLUMN_WIDTH), carried }];
   });
 }
 
@@ -113,6 +152,28 @@ export function siblingCells(
       repeated: text !== null && previous?.get(name) === text,
     };
   });
+}
+
+export function siblingAfter(
+  trace: Trace,
+  blocks: NodeId[],
+  columns: SiblingColumn[],
+): SiblingCell[] | null {
+  const last = blocks.at(-1);
+
+  if (last === undefined) return null;
+  const entry = blockValues(trace, last);
+  const exit = blockExitValues(trace, last);
+
+  const cells = columns.map(({ name, carried }) => {
+    const text = carried ? (exit.get(name) ?? null) : null;
+
+    return { text, repeated: text !== null && entry.get(name) === text };
+  });
+
+  return cells.some(({ text, repeated }) => text !== null && !repeated)
+    ? cells
+    : null;
 }
 
 export function siblingListTitle(trace: Trace, blocks: NodeId[]): string {

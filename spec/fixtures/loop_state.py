@@ -16,7 +16,7 @@ def remember(items, item):
 print(search([1, 3, 5, 7], 5))
 
 seen = []
-for word in ["a", "b", "a"]:
+for word in ["a", "b", "a", "c"]:
     if word not in seen:
         remember(seen, word)
 

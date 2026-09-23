@@ -8,6 +8,7 @@ import {
   buildBlockTitle,
   siblingCells,
   siblingListTitle,
+  type SiblingCell,
   type SiblingColumn,
 } from "../view/block-title.ts";
 import { requireBlock } from "../views.ts";
@@ -28,12 +29,34 @@ interface SiblingListProps {
   trace: Trace;
   blocks: NodeId[];
   columns: SiblingColumn[];
+  after: SiblingCell[] | null;
   selectedIndex: number;
   width: number | null;
   height: number | null;
   resizeHandles: ReactNode;
   onChoose: (block: NodeId) => void;
   onMeasureWidth: (width: number) => void;
+}
+
+function Cells({
+  cells,
+  columns,
+}: {
+  cells: SiblingCell[];
+  columns: SiblingColumn[];
+}) {
+  return cells.map((cell, column) => (
+    <span
+      className={cn(
+        "truncate text-inline-value",
+        cell.repeated && "opacity-40",
+      )}
+      key={columns[column]?.name}
+      title={cell.text ?? undefined}
+    >
+      {cell.text}
+    </span>
+  ));
 }
 
 function gridTemplate(labelWidth: number, columns: SiblingColumn[]): string {
@@ -56,6 +79,7 @@ export function SiblingList({
   trace,
   blocks,
   columns,
+  after,
   selectedIndex,
   width,
   height,
@@ -69,7 +93,9 @@ export function SiblingList({
   const [scrollTop, setScrollTop] = useState(0);
   const headerRows = columns.length > 0 ? 1 : 0;
   const headerHeight = headerRows * ROW_HEIGHT;
-  const contentHeight = (blocks.length + headerRows) * ROW_HEIGHT;
+  const afterRows = after === null ? 0 : 1;
+
+  const contentHeight = (blocks.length + headerRows + afterRows) * ROW_HEIGHT;
 
   const viewportHeight =
     height === null
@@ -226,23 +252,29 @@ export function SiblingList({
                   <span className="truncate">{title.label}</span>
                   {titleIndicator(title.hasException)}
                 </span>
-                {siblingCells(trace, blocks, index, columns).map(
-                  (cell, column) => (
-                    <span
-                      className={cn(
-                        "truncate text-inline-value",
-                        cell.repeated && "opacity-40",
-                      )}
-                      key={columns[column]?.name}
-                      title={cell.text ?? undefined}
-                    >
-                      {cell.text}
-                    </span>
-                  ),
-                )}
+                <Cells
+                  cells={siblingCells(trace, blocks, index, columns)}
+                  columns={columns}
+                />
               </button>
             );
           })}
+          {after === null ? null : (
+            <div
+              className={cn(
+                row,
+                "absolute inset-x-0 border-t border-window-border text-neutral-400 italic",
+              )}
+              style={{
+                gridTemplateColumns: template,
+                top: (blocks.length + headerRows) * ROW_HEIGHT,
+                height: ROW_HEIGHT,
+              }}
+            >
+              <span>after</span>
+              <Cells cells={after} columns={columns} />
+            </div>
+          )}
         </div>
       </div>
       {resizeHandles}

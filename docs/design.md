@@ -287,7 +287,12 @@ path: NodeId[]      // expanded block windows, root → deepest
   that differs between siblings, with an empty cell where a sibling has none
   (a loop-state variable not bound yet). Reading down a column shows how the
   state moves from one iteration to the next; a value that repeats the row
-  above it is faded, so the rows where a variable changes stand out. The list
+  above it is faded, so the rows where a variable changes stand out. When the
+  last sibling changed its loop state, an `after` row closes the table with the
+  end state: the last sibling's inputs with its statements' changes applied.
+  It has cells only for loop state (loop targets and parameters have no
+  "after"), and is left out when it would repeat the last row, as after a
+  `while` loop's final failed check. The list
   sizes to its columns
   and is measured before its column is laid out. It has a bounded height
   and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
