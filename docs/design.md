@@ -251,7 +251,8 @@ held at the window's top or bottom edge once the line scrolls out of view.
 
   Chips are one primitive with three tints: value, output and exception. A
   chip about a name sits immediately after the name, where it is bound. A chip
-  about a whole line — output, the exception, loop state — sits in a column to
+  about a whole line — output, the exception, loop state, and the changes a
+  statement made (`lo → 8`) — sits in a column to
   the right of the code: the window body is a grid whose first column is as
   wide as the longest line, so these chips line up and read top to bottom as
   the block's data beside its code. Hovering a line with chips highlights the

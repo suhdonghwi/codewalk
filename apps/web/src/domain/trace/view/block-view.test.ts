@@ -300,6 +300,31 @@ describe("buildBlockView", () => {
     expect(textWithValues(moduleView, 7)).toBe("for i in range(2):");
   });
 
+  test("an iteration's inputs sit on its first line and each change on the line that made it", () => {
+    const trace = fixture("loop_state");
+    const [, secondSearch, , firstWord] = blockNodes(trace, "iteration");
+
+    if (secondSearch === undefined || firstWord === undefined) {
+      throw new Error("Missing loop_state iterations");
+    }
+
+    const search = buildBlockView(trace, secondSearch, []);
+    const words = buildBlockView(trace, firstWord, []);
+
+    expect(line(search, 3).values.map(({ name }) => name)).toEqual([
+      "lo",
+      "hi",
+      "items",
+      "target",
+    ]);
+    expect(
+      search.lines.flatMap(({ number, changes }) =>
+        changes.map(({ name, text }) => `${number}: ${name} → ${text}`),
+      ),
+    ).toEqual(["4: mid → 1", "6: lo → 2"]);
+    expect(line(words, 21).changes).toEqual([{ name: "seen", text: "['a']" }]);
+  });
+
   test("only the uncaught exception's deepest block marks its origin statement", () => {
     const uncaught = fixture("uncaught_exception");
     const functionBlock = blockNodes(uncaught, "fail")[0];

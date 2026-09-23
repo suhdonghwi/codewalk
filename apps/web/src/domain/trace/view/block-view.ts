@@ -28,6 +28,7 @@ export interface Line {
   number: number;
   spans: Span[];
   values: LineValue[];
+  changes: LineValue[];
   output: InlineSegment[] | null;
   exception: string | null;
 }
@@ -80,6 +81,32 @@ function outputsByLine(
   }
 
   return outputs;
+}
+
+function changesByLine(
+  trace: Trace,
+  node: TraceNode,
+  lines: SourceLine[],
+): Map<number, LineValue[]> {
+  const changes = new Map<number, LineValue[]>();
+
+  for (const child of node.children) {
+    const statement = trace.nodes[child];
+
+    const loc =
+      statement === undefined ? undefined : trace.header.locs[statement.loc];
+
+    if (statement === undefined || loc?.role !== "stmt") continue;
+    const line = lineContaining(lines, loc.end);
+
+    if (line === null || statement.values.length === 0) continue;
+    const entries = changes.get(line) ?? [];
+
+    for (const { name, text } of statement.values) entries.push({ name, text });
+    changes.set(line, entries);
+  }
+
+  return changes;
 }
 
 function exceptionByLine(
@@ -135,6 +162,7 @@ export function buildBlockView(
 
   const outputs = outputsByLine(trace, sites, lines);
   const exceptions = exceptionByLine(trace, block, node, lines);
+  const changes = changesByLine(trace, node, lines);
 
   const context: SpanContext = {
     source,
@@ -158,6 +186,7 @@ export function buildBlockView(
       number: line.number,
       spans: spansForLine(context, line),
       values: index === 0 ? blockValues : [],
+      changes: changes.get(line.number) ?? [],
       output: outputs.get(line.number) ?? null,
       exception: exceptions.get(line.number) ?? null,
     })),

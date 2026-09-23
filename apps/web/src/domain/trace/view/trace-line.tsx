@@ -64,7 +64,10 @@ export function TraceLine({
     line.output === null ? null : previewInlineOutput(line.output);
 
   const annotated =
-    line.values.length > 0 || line.output !== null || line.exception !== null;
+    line.values.length > 0 ||
+    line.changes.length > 0 ||
+    line.output !== null ||
+    line.exception !== null;
 
   return (
     <div
@@ -162,6 +165,11 @@ export function TraceLine({
               tone="value"
             >
               {name} = {text}
+            </InlineChip>
+          ))}
+          {line.changes.map(({ name, text }, index) => (
+            <InlineChip key={index} tone="value">
+              {name} → {text}
             </InlineChip>
           ))}
           {outputPreview === null ? null : (
