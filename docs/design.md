@@ -357,10 +357,11 @@ never renders trace content as HTML.
 ## Tech stack
 
 **Repo.** One repo, two ecosystems. **mise** pins Node, pnpm, Python and uv and
-is the single task runner (`mise run dev`, `mise run check`); CI runs
-`mise run check`. **pnpm** workspaces: `apps/web/`, `apps/server/`,
-`packages/trace/`. `apps/tracer-python/` is a **uv** project next to them; tracers
-for other languages become `apps/tracer-<language>/`.
+is the single task runner (`mise run dev`, `mise run check`). CI runs only
+lint, typecheck and test, each as its own check; format, knip and the schema
+check run locally through `mise run check`. **pnpm** workspaces: `apps/web/`,
+`apps/server/`, `packages/trace/`. `apps/tracer-python/` is a **uv** project
+next to them; tracers for other languages become `apps/tracer-<language>/`.
 
 **TypeScript (all packages).**
 
