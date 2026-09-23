@@ -13,7 +13,6 @@ const RESIZE_HANDLE = "absolute z-4 touch-none";
 interface CanvasWindowProps {
   id: ResizableWindowId;
   title: string;
-  titleIndicator?: ReactNode;
   titleAction?: ReactNode;
   minimumSize: Size;
   children: ReactNode;
@@ -121,7 +120,6 @@ export function ResizeHandles({
 export function CanvasWindow({
   id,
   title,
-  titleIndicator,
   titleAction,
   minimumSize,
   children,
@@ -145,7 +143,6 @@ export function CanvasWindow({
         style={{ width: size.width, height: size.height }}
         title={title}
         titleAction={titleAction}
-        titleIndicator={titleIndicator}
         titlebarProps={titlebarProps}
       >
         {children}

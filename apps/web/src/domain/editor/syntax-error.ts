@@ -1,7 +1,6 @@
 import { StateEffect, StateField } from "@codemirror/state";
 import { Decoration, EditorView } from "@codemirror/view";
 
-import type { Extension } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
 
 export interface SyntaxErrorRange {
@@ -28,7 +27,7 @@ export function syntaxErrorRange(
     : { from, to: from + 1 };
 }
 
-const syntaxErrorField = StateField.define<DecorationSet>({
+export const syntaxErrorField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
   update(value, transaction) {
     if (transaction.docChanged) return Decoration.none;
@@ -58,5 +57,3 @@ const syntaxErrorField = StateField.define<DecorationSet>({
   },
   provide: (field) => EditorView.decorations.from(field),
 });
-
-export const syntaxErrorExtension: Extension = syntaxErrorField;

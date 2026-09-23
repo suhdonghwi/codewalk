@@ -10,7 +10,7 @@
     "format": "prettier --check .",
     "knip": "knip",
     "lint": "oxlint --type-aware .",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit -p packages/trace && tsc --noEmit -p apps/server && tsc --noEmit -p apps/web"
   },
   "devDependencies": {
