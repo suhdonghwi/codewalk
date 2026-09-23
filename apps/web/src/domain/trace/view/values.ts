@@ -24,7 +24,7 @@ export interface ValueChildren {
 interface Layout {
   opening: Piece[];
   closing: Piece[];
-  parts: ((budget: number) => Piece[])[];
+  parts: ((budget: number, cuttable: boolean) => Piece[] | null)[];
   total: number;
 }
 
@@ -88,36 +88,46 @@ function brackets(
 function layout(
   trace: Trace,
   object: HeapObject,
-  write: (value: Value, budget: number) => Piece[],
+  write: (value: Value, budget: number, cuttable: boolean) => Piece[] | null,
 ): Layout {
   return match(object)
     .with({ kind: "sequence" }, { kind: "set" }, (collection) => ({
       ...brackets(trace, collection),
       parts: collection.items.map(
-        (item) => (budget: number) => write(item, budget),
+        (item) => (budget: number, cuttable: boolean) =>
+          write(item, budget, cuttable),
       ),
       total: collection.length ?? collection.items.length,
     }))
     .with({ kind: "mapping" }, (mapping) => ({
       ...brackets(trace, mapping),
-      parts: mapping.entries.map(([key, item]) => (budget: number) => {
-        const shown = [
-          ...write(key, Math.min(budget, KEY_BUDGET)),
-          piece("punctuation", ": "),
-        ];
+      parts: mapping.entries.map(
+        ([key, item]) =>
+          (budget: number, cuttable: boolean) => {
+            const keyPieces = write(key, Math.min(budget, KEY_BUDGET), true);
 
-        return [...shown, ...write(item, budget - width(shown))];
-      }),
+            if (keyPieces === null) return null;
+            const shown = [...keyPieces, piece("punctuation", ": ")];
+            const value = write(item, budget - width(shown), cuttable);
+
+            return value === null ? null : [...shown, ...value];
+          },
+      ),
       total: mapping.length ?? mapping.entries.length,
     }))
     .with({ kind: "record" }, ({ type, fields, length }) => ({
       opening: [piece("type", type), piece("punctuation", "(")],
       closing: [piece("punctuation", ")")],
-      parts: fields.map(([name, item]) => (budget: number) => [
-        piece("plain", name),
-        piece("punctuation", "="),
-        ...write(item, budget - name.length - 1),
-      ]),
+      parts: fields.map(
+        ([name, item]) =>
+          (budget: number, cuttable: boolean) => {
+            const value = write(item, budget - name.length - 1, cuttable);
+
+            return value === null
+              ? null
+              : [piece("plain", name), piece("punctuation", "="), ...value];
+          },
+      ),
       total: length ?? fields.length,
     }))
     .with({ kind: "opaque" }, ({ text }) => ({
@@ -147,12 +157,17 @@ function joinWithin(framing: Layout, budget: number): Piece[] {
       remaining > 0 ? SEPARATOR.text.length + more(remaining).text.length : 0;
 
     const room = budget - width(pieces) - width(separator) - reserve;
-    const candidate = [...pieces, ...separator, ...part(room - closing)];
+    const item = part(room - closing, index === 0);
 
-    if (index > 0 && width(candidate) + reserve + closing > budget) {
+    const candidate = item === null ? null : [...pieces, ...separator, ...item];
+
+    if (
+      candidate === null ||
+      (index > 0 && width(candidate) + reserve + closing > budget)
+    ) {
       return [
         ...pieces,
-        SEPARATOR,
+        ...separator,
         more(framing.total - index),
         ...framing.closing,
       ];
@@ -174,6 +189,12 @@ function joinWithin(framing: Layout, budget: number): Piece[] {
   return [...pieces, ...framing.closing];
 }
 
+function isText(trace: Trace, value: Value, at: number): boolean {
+  return (
+    !("ref" in value) || requireObject(trace, value.ref, at).text !== undefined
+  );
+}
+
 function collapsed(
   trace: Trace,
   value: Value,
@@ -189,7 +210,7 @@ function collapsed(
   if (object.text !== undefined)
     return cut(piece("plain", object.text), budget);
 
-  const { opening, closing } = layout(trace, object, () => []);
+  const { opening, closing } = layout(trace, object, () => null);
 
   return [...opening, piece("muted", "…"), ...closing];
 }
@@ -209,10 +230,14 @@ function writeValue(
     return collapsed(trace, value, at, budget);
   }
 
-  const nested = (item: Value, room: number) => {
+  const nested = (item: Value, room: number, cuttable: boolean) => {
     const whole = writeValue(trace, item, at, Number.POSITIVE_INFINITY, open);
 
-    return width(whole) <= room ? whole : collapsed(trace, item, at, room);
+    if (width(whole) <= room) return whole;
+
+    if (!isText(trace, item, at)) return collapsed(trace, item, at, room);
+
+    return cuttable && room > 1 ? collapsed(trace, item, at, room) : null;
   };
 
   const framing = layout(trace, object, nested);

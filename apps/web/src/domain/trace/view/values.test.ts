@@ -50,6 +50,15 @@ test("a preview stops adding items at its budget and counts the rest", () => {
   expect(previews(trace, "long_values", whole.length)).toEqual([whole]);
 });
 
+test("an item that does not fit whole is counted with the rest instead of cut to an ellipsis", () => {
+  const trace = fixture("values");
+
+  expect(previews(trace, "long_values", 44)).toEqual([
+    "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, … 20 more]",
+  ]);
+  expect(previews(trace, "long_values", 12)).toEqual(["[… 30 more]"]);
+});
+
 test("a nested object that does not fit its room collapses to its brackets", () => {
   const trace = fixture("object_identity");
 
