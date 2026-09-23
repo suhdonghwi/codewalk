@@ -1,8 +1,8 @@
 import { requireBlock } from "../views.ts";
 
-import { previewText, valueKey } from "./value-text.ts";
+import { preview, valueKey } from "./values.ts";
 
-import type { NodeId, Trace } from "@codewalk/trace";
+import type { NodeId, Trace, ValueChunk } from "@codewalk/trace";
 
 export interface BlockTitle {
   text: string;
@@ -27,16 +27,25 @@ export interface SiblingColumn {
 
 const MAX_COLUMN_WIDTH = 24;
 
-function blockValues(trace: Trace, block: NodeId): Map<string, string> {
+type Shown = Map<string, ValueChunk>;
+
+function blockValues(trace: Trace, block: NodeId): Shown {
   return new Map(
-    requireBlock(trace, block).node.values.map((chunk) => [
-      chunk.name,
-      valueKey(trace, chunk),
-    ]),
+    requireBlock(trace, block).node.values.map((chunk) => [chunk.name, chunk]),
   );
 }
 
-function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
+function keyOf(trace: Trace, chunk: ValueChunk | undefined): string | null {
+  return chunk === undefined ? null : valueKey(trace, chunk.value, chunk.at);
+}
+
+function cellText(trace: Trace, chunk: ValueChunk | undefined): string | null {
+  return chunk === undefined
+    ? null
+    : preview(trace, chunk.value, chunk.at, MAX_COLUMN_WIDTH);
+}
+
+function blockExitValues(trace: Trace, block: NodeId): Shown {
   const values = blockValues(trace, block);
 
   for (const child of requireBlock(trace, block).node.children) {
@@ -49,9 +58,7 @@ function blockExitValues(trace: Trace, block: NodeId): Map<string, string> {
       continue;
     }
 
-    for (const chunk of statement.values) {
-      values.set(chunk.name, valueKey(trace, chunk));
-    }
+    for (const chunk of statement.values) values.set(chunk.name, chunk);
   }
 
   return values;
@@ -81,22 +88,24 @@ export function siblingColumns(
   const [first] = valuesByBlock;
   const last = blocks.at(-1);
 
-  const exit =
-    last === undefined
-      ? new Map<string, string>()
-      : blockExitValues(trace, last);
+  const exit: Shown =
+    last === undefined ? new Map() : blockExitValues(trace, last);
+
+  const firstKey = (name: string) => keyOf(trace, first?.get(name));
 
   return names.flatMap((name) => {
     const carried = isCarried(trace, blocks, name);
 
     const varies =
-      valuesByBlock.some((values) => values.get(name) !== first?.get(name)) ||
-      (carried && exit.get(name) !== first?.get(name));
+      valuesByBlock.some(
+        (values) => keyOf(trace, values.get(name)) !== firstKey(name),
+      ) ||
+      (carried && keyOf(trace, exit.get(name)) !== firstKey(name));
 
     if (blocks.length > 1 && !varies) return [];
 
-    const shown = (key: string | undefined) =>
-      key === undefined ? 0 : previewText(key).length;
+    const shown = (chunk: ValueChunk | undefined) =>
+      cellText(trace, chunk)?.length ?? 0;
 
     let width = Math.max(name.length, carried ? shown(exit.get(name)) : 0);
 
@@ -130,18 +139,18 @@ export function siblingCells(
   const block = blocks[index];
   const previousBlock = blocks[index - 1];
 
-  const values =
-    block === undefined ? new Map<string, string>() : blockValues(trace, block);
+  const values: Shown =
+    block === undefined ? new Map() : blockValues(trace, block);
 
   const previous =
     previousBlock === undefined ? null : blockValues(trace, previousBlock);
 
   return columns.map(({ name }) => {
-    const key = values.get(name) ?? null;
+    const key = keyOf(trace, values.get(name));
 
     return {
-      text: key === null ? null : previewText(key),
-      repeated: key !== null && previous?.get(name) === key,
+      text: cellText(trace, values.get(name)),
+      repeated: key !== null && keyOf(trace, previous?.get(name)) === key,
     };
   });
 }
@@ -158,11 +167,12 @@ export function siblingAfter(
   const exit = blockExitValues(trace, last);
 
   const cells = columns.map(({ name, carried }) => {
-    const key = carried ? (exit.get(name) ?? null) : null;
+    const chunk = carried ? exit.get(name) : undefined;
+    const key = keyOf(trace, chunk);
 
     return {
-      text: key === null ? null : previewText(key),
-      repeated: key !== null && entry.get(name) === key,
+      text: cellText(trace, chunk),
+      repeated: key !== null && keyOf(trace, entry.get(name)) === key,
     };
   });
 

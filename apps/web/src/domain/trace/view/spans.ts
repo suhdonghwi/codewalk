@@ -1,3 +1,4 @@
+import type { LineValue } from "./block-view.ts";
 import type { SourceLine } from "./source-lines.ts";
 import type { Token } from "./tokens.ts";
 import type { Site, StatementState } from "../views.ts";
@@ -8,7 +9,7 @@ export interface Span {
   classes: string;
   state: StatementState;
   sites: LocId[];
-  value: string | null;
+  value: LineValue | null;
 }
 
 export interface LocatedState {
@@ -18,7 +19,7 @@ export interface LocatedState {
 
 interface ValueAnchor {
   end: number;
-  text: string;
+  value: LineValue;
 }
 
 interface SiteLoc {
@@ -114,7 +115,7 @@ export function spansForLine(context: SpanContext, line: SourceLine): Span[] {
       classes: token?.classes ?? "",
       state: stateAt(from, states, nestedBlocks),
       sites: coveredSites,
-      value: values.find((value) => value.end === to)?.text ?? null,
+      value: values.find((anchor) => anchor.end === to)?.value ?? null,
     });
     from = to;
   }

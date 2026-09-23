@@ -10,9 +10,14 @@ import {
   siblingColumns,
   siblingListTitle,
 } from "./block-title.ts";
-import { buildBlockView, type BlockView } from "./block-view.ts";
+import {
+  buildBlockView,
+  type BlockView,
+  type LineValue,
+} from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 import { sourceLines, trimCommonIndent } from "./source-lines.ts";
+import { preview } from "./values.ts";
 
 import type { NodeId, Trace } from "@codewalk/trace";
 
@@ -55,10 +60,16 @@ function line(view: BlockView, number: number) {
   return found;
 }
 
-function textWithValues(view: BlockView, number: number): string {
+function shown(trace: Trace, { value, at }: LineValue): string {
+  return preview(trace, value, at, 80);
+}
+
+function textWithValues(trace: Trace, view: BlockView, number: number): string {
   return line(view, number)
     .spans.map((span) =>
-      span.value === null ? span.text : `${span.text} = ${span.value}`,
+      span.value === null
+        ? span.text
+        : `${span.text} = ${shown(trace, span.value)}`,
     )
     .join("");
 }
@@ -339,11 +350,13 @@ describe("buildBlockView", () => {
     const iterationView = buildBlockView(trace, firstIteration, []);
     const moduleView = buildBlockView(trace, 0, []);
 
-    expect(textWithValues(firstFactView, 1)).toBe("def fact(n = 1):");
-    expect(textWithValues(secondFactView, 1)).toBe("def fact(n = 2):");
-    expect(textWithValues(iterationView, 7)).toBe("for i = 0 in range(2):");
-    expect(textWithValues(moduleView, 1)).toBe("def fact(n):");
-    expect(textWithValues(moduleView, 7)).toBe("for i in range(2):");
+    expect(textWithValues(trace, firstFactView, 1)).toBe("def fact(n = 1):");
+    expect(textWithValues(trace, secondFactView, 1)).toBe("def fact(n = 2):");
+    expect(textWithValues(trace, iterationView, 7)).toBe(
+      "for i = 0 in range(2):",
+    );
+    expect(textWithValues(trace, moduleView, 1)).toBe("def fact(n):");
+    expect(textWithValues(trace, moduleView, 7)).toBe("for i in range(2):");
   });
 
   test("an iteration's inputs sit on its first line and each change on the line that made it", () => {
@@ -365,10 +378,14 @@ describe("buildBlockView", () => {
     ]);
     expect(
       search.lines.flatMap(({ number, changes }) =>
-        changes.map(({ name, text }) => `${number}: ${name} → ${text}`),
+        changes.map(
+          (change) => `${number}: ${change.name} → ${shown(trace, change)}`,
+        ),
       ),
     ).toEqual(["4: mid → 1", "6: lo → 2"]);
-    expect(line(words, 21).changes).toEqual([{ name: "seen", text: "['a']" }]);
+    expect(
+      line(words, 21).changes.map((change) => shown(trace, change)),
+    ).toEqual(["['a']"]);
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {

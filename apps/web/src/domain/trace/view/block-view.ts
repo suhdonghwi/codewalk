@@ -11,22 +11,22 @@ import {
   trimCommonIndent,
 } from "./source-lines.ts";
 import { siteLocs, spansForLine } from "./spans.ts";
-import { valueText } from "./value-text.ts";
 
 import type { SourceLine } from "./source-lines.ts";
 import type { LocatedState, Span, SpanContext } from "./spans.ts";
 import type { Token } from "./tokens.ts";
 import type { Site } from "../views.ts";
-import type { NodeId, Trace, TraceNode } from "@codewalk/trace";
+import type { NodeId, Trace, TraceNode, Value } from "@codewalk/trace";
 
 export interface InlineSegment {
   stream: "stdout" | "stderr";
   text: string;
 }
 
-interface LineValue {
+export interface LineValue {
   name: string;
-  text: string;
+  value: Value;
+  at: number;
 }
 
 export interface Line {
@@ -107,8 +107,8 @@ function changesByLine(
     if (line === null || statement.values.length === 0) continue;
     const entries = changes.get(line) ?? [];
 
-    for (const chunk of statement.values) {
-      entries.push({ name: chunk.name, text: valueText(trace, chunk) });
+    for (const { name, value, at } of statement.values) {
+      entries.push({ name, value, at });
     }
 
     changes.set(line, entries);
@@ -183,20 +183,17 @@ export function buildBlockView(
     states,
     nestedBlocks,
     sites: siteLocs(trace, sites),
-    values: node.values.flatMap((chunk) => {
-      const anchor =
-        chunk.loc === null ? undefined : trace.header.locs[chunk.loc];
+    values: node.values.flatMap(({ loc: locId, name, value, at }) => {
+      const anchor = locId === null ? undefined : trace.header.locs[locId];
 
       return anchor === undefined
         ? []
-        : [{ end: anchor.end, text: valueText(trace, chunk) }];
+        : [{ end: anchor.end, value: { name, value, at } }];
     }),
   };
 
-  const blockValues = node.values.flatMap((chunk) =>
-    chunk.loc === null
-      ? [{ name: chunk.name, text: valueText(trace, chunk) }]
-      : [],
+  const blockValues = node.values.flatMap(({ loc: locId, name, value, at }) =>
+    locId === null ? [{ name, value, at }] : [],
   );
 
   return {
