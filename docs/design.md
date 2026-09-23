@@ -1,40 +1,41 @@
 # codewalk — design
 
-codewalk is a code execution visualizer. You write a program, run it, and then
-freely navigate _what happened_ as a structure in space — call by call,
-iteration by iteration — instead of stepping through it in time.
+codewalk is a code execution visualizer. You write a program, run it, and
+codewalk records everything that happened. Instead of stepping through the run
+in time, you explore it as a structure laid out in space: every call and every
+loop iteration gets a window of its own, and you open them as you go.
 
-## Problem
+## Why
 
-When people write a program or solve an algorithm problem they cannot see what
-the code does while it runs.
+When you write a program or work through an algorithm problem, you can't see
+what the code actually does while it runs. The usual tools make you work for
+it:
 
-- **Debuggers** need breakpoints in the right places, endless step-step-step,
-  and a restart whenever you step past the interesting point.
-- **Debug prints** are flat lines of text; you have to infer when and where each
-  line was produced.
+- A **debugger** needs breakpoints in the right places and a lot of stepping,
+  and you start over whenever you step past the moment you cared about.
+- **Debug prints** give you a flat stream of text, and you have to work out
+  when and where each line came from.
 
-codewalk records the whole run up front and shows it in the natural structure of
-execution. You start from a window showing the entry file, click the range where
-a call happened, and a window for that call opens next to it — recursively.
-Loops unroll into iterations. Output is shown inline at the line that produced
-it, so debug prints carry their context.
+codewalk records the whole run first and then shows it in the shape of the
+execution. You start with a window showing the program. Click the place where a
+call happened and a window for that call opens beside it, and so on down. Loops
+unroll into iterations. Output appears on the line that printed it, so debug
+prints keep their context.
 
 ## Principles
 
-1. **One UI language.** No special-case widgets. Everything is: _a window shows
-   one execution of a source range; ranges in it that spawned child executions
-   are clickable; clicking opens the child windows._ Calls, loops, callbacks and
-   navigation jumps all use this. The sibling list reads as a table of the
-   siblings' entry values; further views over repetition (scrubbers,
-   abbreviation of repetition) come later, once real repetition patterns show up.
-2. **Language-agnostic trace.** The tracer is per-language; the trace format and
-   the viewer are not. The viewer only knows source ranges and three roles.
-3. **Degrade gracefully.** Anything the tracer does not understand behaves as an
-   opaque expression: it runs correctly, its output is attributed to the line
-   that caused it, and it simply is not expandable.
-4. **v1 audience: learners and algorithm solvers.** Single file, small inputs,
-   Python. Hard limits instead of scalability machinery.
+1. **One UI idea.** A window shows one execution of a piece of source. The
+   ranges in it that started further executions are clickable, and clicking
+   one opens those executions as windows. Calls, loops, callbacks and
+   navigation all work this way; there are no special-purpose widgets.
+2. **A language-agnostic trace.** Each language needs its own tracer, but the
+   trace format and the viewer are shared. The viewer knows only source ranges
+   and three node roles.
+3. **Degrade gracefully.** Code the tracer doesn't understand still runs
+   correctly and its output still lands on the line that caused it. It just
+   can't be expanded.
+4. **Learners and algorithm solvers first.** v1 handles a single Python file
+   with small inputs. Hard limits stand in for scalability work.
 
 ## Architecture
 
@@ -49,39 +50,46 @@ it, so debug prints carry their context.
 ```
 
 The server contains no Python. Instrumenting and running both happen inside the
-sandboxed process, so hostile source never reaches a parser outside the jail.
+sandboxed process, so untrusted source never reaches a parser outside the
+sandbox.
 
-| Dir                   | What                                                                                                                                                             |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec/`               | [Trace format](../spec/trace-format.md), generated `trace.schema.json`, fixtures. The contract between tracer and viewer.                                        |
-| `apps/tracer-python/` | Python (uv), import name `codewalk`: `ast` instrumenter, runtime (event writer, stdout hook), CLI `python -m codewalk run foo.py`. Stdlib only.                  |
-| `packages/trace/`     | TypeScript: Zod schemas for the trace format, JSONL parser, tree builder. Shared by `apps/web/` and `apps/server/`; the viewer derives its views in `apps/web/`. |
-| `apps/server/`        | TypeScript, Fastify. `POST /run {source, stdin}` → trace (JSONL). Pluggable runner.                                                                              |
-| `apps/web/`           | React + TypeScript + Vite. Canvas, windows, editor, trace viewer.                                                                                                |
+- `spec/` — the [trace format](../spec/trace-format.md), its JSON Schema and
+  fixtures: the contract between tracers and the viewer.
+- `apps/tracer-python/` — the Python tracer (instrumenter and runtime), stdlib
+  only.
+- `packages/trace/` — trace schemas, parser and tree builder, shared by the web
+  client and the server.
+- `apps/server/` — `POST /run {source, stdin}` → trace, through a pluggable
+  runner.
+- `apps/web/` — the viewer: canvas, editor and trace windows.
 
 ## Trace model
 
-Specified in [`spec/trace-format.md`](../spec/trace-format.md). In short: a tree
-of nodes, each one execution of a source range, with three roles.
+The [trace format](../spec/trace-format.md) has the details. A trace is a tree
+of nodes; each node is one execution of a source range and has one of three
+roles:
 
-- **block** — a module run, function activation or loop iteration → a window.
-- **stmt** — a statement that ran in its block; always recorded → lit vs. dimmed.
-- **expr** — an expression; recorded only if something happened inside it.
+- **block** — a module run, function call or loop iteration. Each block is a
+  window.
+- **stmt** — a statement that ran in its block. Always recorded, so the viewer
+  knows which lines ran.
+- **expr** — an expression, recorded only when something happened inside it.
 
-A **site** is a stmt/expr node that directly contains blocks (→ clickable range)
-or output (→ inline output). A call and a loop are the same thing to the viewer;
-so are a function activation and an iteration.
+A **site** is a stmt or expr that directly contains blocks or output. Sites
+with blocks become clickable ranges, and sites with output get their output
+shown inline. The viewer doesn't tell calls from loops, or function calls from
+iterations: they are all sites and blocks.
 
-v1 records structure, statement coverage, output and exceptions. It also
-records block inputs — function parameters, loop targets and loop state — at
-block entry, and in every block the value each statement gave to the variables
-it assigned or changed.
+Besides structure, v1 records which statements ran, output, exceptions and
+values: each block's inputs on entry (parameters, loop targets and loop state)
+and the values each statement gave to the variables it assigned or changed.
 
-## Tracer (Python)
+## Tracer
 
-Source-to-source `ast` transform plus a small runtime. Hybrid of two ideas:
-in-place brackets for expressions and statements (semantics-preserving, general),
-explicit blocks for functions and iterations (reliable structure).
+The Python tracer rewrites the source with `ast` and runs the result against a
+small runtime. Expressions and statements get lightweight markers placed
+in-line, which leave the program's behaviour intact. Functions and loop
+iterations get explicit blocks, which make the structure reliable.
 
 ```python
 def fact(n):
@@ -100,343 +108,195 @@ for i in _cw_e(_cw_b(15), range(2)):
         _cw.stmt(17); _cw_e(_cw_b(18), print(_cw_e(_cw_b(19), fact(_cw_e(_cw_b(20), i + 1)))))
 ```
 
-- **Injected names.** `_cw` (the runtime), `_cw_b`, `_cw_e` — prefixed so that a
-  learner's own `_e = 1e-9` cannot break the run.
-- **Expressions: in-place brackets.** `_cw_e(_cw_b(id), <expr>)` — argument order
-  guarantees begin → evaluate → end, and the expression is still evaluated in
-  the user's own frame. No wrapper frame, so zero-arg `super()`, `locals()`,
-  frame inspection, recursion depth and tracebacks are unaffected.
-- **Selective bracketing.** Bracket expressions that can run code: `Call`,
-  binary/unary operators, `Compare`, `Attribute`, `Subscript`, `Await`. Skip
-  `Name`/`Constant` leaves — on their own they carry no structural information.
-  Widening this set later changes neither the format nor the viewer.
-- **Statements: a point marker.** `_cw.stmt(id)` before each statement. It needs
-  no end marker: the next sibling's marker (or the block's exit) closes it.
-  Compound statements are header-only; their body statements are siblings.
-  A clause header (`else:`, `except …:`, `finally:`, `case …:`) gets a marker
-  of its own as the first thing its body runs, so a clause that was not
-  entered is dimmed like any statement that did not run.
-- **Blocks: explicit and reliable.** `with _cw.block(id)` around module and
-  function bodies, `with _cw.iteration(id)` around loop bodies (equivalent to
-  `try/finally`; adds no frame). Exit is
-  guaranteed on `return`, `break`, `continue` and exceptions, and sees the
-  propagating exception for `exit.exc`.
-- **Stack repair.** The runtime keeps a stack of open nodes. `_cw_e` never runs when
-  an expression raises, so the stack can go stale. Every loc has a static
-  `parent`; on `stmt(id)`, `_cw_b(id)` and iteration-block entry the runtime pops
-  until the top is that parent. Function-block entry does no repair (its dynamic
-  parent is whatever is open). Block exit pops down to the block. Repair never
-  pops a block — if it would have to, something is wrong and it stops.
-- **Lazy emission.** `_cw_b` pushes a _pending_ node and writes nothing. The first
-  thing that happens inside it (output or block entry) writes the pending chain's
-  `enter` events first. A pending node that closes untouched is dropped. So the
-  trace contains only meaningful expr nodes, however much is bracketed; the
-  remaining cost is CPU only.
-- **Statement fallback.** A block entered with no open expr attaches to the
-  current statement: `for` → `__next__`, `with` → `__enter__`, `a[i] = v` →
-  `__setitem__`, `a += b` → `__iadd__`. That statement becomes the site.
-- **Output.** `sys.stdout`/`sys.stderr` are replaced by writers that emit `out`
-  events on the innermost open node. This catches output from library code too
-  and attributes it to the user expression that caused it.
-- **Values.** `_cw.value(id, name)` opens a function or iteration block, once
-  per parameter or loop target; `_cw.state(id)` then records the iteration's
-  loop state (see below). Values use a one-line `repr` of at most 48
-  characters, the length an inline chip shows. Recording and output capture
-  are muted while formatting so an instrumented user `__repr__` cannot change
-  the trace. Objects without a custom `__repr__` render as `<ClassName>`,
-  including inside containers, and memory addresses are dropped from built-in
-  reprs (`<function <lambda>>`) so traces stay deterministic.
-- **Loop state.** An iteration's inputs beyond its targets are the variables it
-  may read before assigning them: a definite-assignment walk over the body (for
-  `while`, the condition first) that intersects at branch joins and drops paths
-  that `break`, `continue`, `return` or `raise`. Only names bound in the frame
-  to something other than a function, class or module count (see below), so
-  builtins, functions, classes and imported modules are not state. Mutation needs no
-  special case: a list the body appends to is read before it is assigned, and
-  its value differs between iterations. A variable not bound yet (typically in
-  the first iteration) is left out.
-- **Changes.** Every block watches the variables its code mentions: the
-  instrumenter hands the runtime, per block loc, every name in the block's
-  source (a function's parameters, a loop's target and condition included),
-  and per statement loc the names the statement binds itself and, for a `for`,
-  its targets, which that statement does not report. Entering a block looks
-  those names up in its frame (`f_locals`, then `f_globals`), keeps the ones
-  bound to something other than a function, class or module, and remembers
-  each rendering; `_cw.state(id)` then emits an iteration's inputs from that
-  snapshot. At every statement boundary in the block, and at its exit, the
-  runtime renders them again and emits a named value on the statement that
-  just ran for each name it binds or whose rendering changed. So
-  `mid = (lo + hi) // 2` is recorded even when it repeats last iteration's
-  value, `remember(seen, w)` is recorded because `seen` rendered differently
-  after it, and a function that appends to a global it names records the
-  change on its own line. Statements of a called function belong to that
-  function's block and are not settled against the iteration. A loop is one
-  statement of its parent block, so what the parent records on it is the
-  loop's end state. Only the first 1000 calls of each function watch their
-  variables, so heavy recursion does not spend its time limit on renderings.
-- **stdin** is fed from the request; `input()` is an ordinary call site.
-- **Limits** belong to the runner, not the tracer. The runner kills the process
-  at its time limit or once the trace reaches its byte cap. The tracer flushes
-  the trace on a timer, so what it recorded before the kill survives, and the
-  nodes that were open stay open.
+- **Expressions** are wrapped as `_cw_e(_cw_b(id), <expr>)`. Argument order
+  gives begin → evaluate → end, and the expression still runs in the user's
+  own frame, so `super()`, `locals()`, recursion depth and tracebacks behave as
+  before. Only expressions that can run code are wrapped: calls, operators,
+  comparisons, attribute access, subscripts and `await`.
+- **Statements** get a `_cw.stmt(id)` marker in front. The next marker or the
+  block's exit closes them, so they need no end marker. Compound statements
+  record only their header. Clause headers (`else`, `except`, `finally`,
+  `case`) get a marker of their own, so a clause that never ran shows as not
+  run.
+- **Blocks** wrap module and function bodies (`_cw.block`) and loop bodies
+  (`_cw.iteration`) in a `with`. That guarantees the block closes on `return`,
+  `break`, `continue` and exceptions, and lets it see the exception that left
+  it.
+- **Stack repair.** When an expression raises, its `_cw_e` never runs, so the
+  runtime's stack of open nodes can go stale. Every location knows its static
+  parent, and at each statement, expression and iteration start the runtime
+  pops back to it.
+- **Lazy emission.** An expression is only written to the trace once something
+  happens inside it (output or a block). The rest are dropped, so wrapping
+  generously costs CPU time but not trace size.
+- **Statement fallback.** A block that starts with no expression open belongs
+  to the current statement, which becomes the site: `for` calling `__next__`,
+  `a[i] = v` calling `__setitem__`, and so on.
+- **Output.** `sys.stdout` and `sys.stderr` are replaced with writers that
+  attach output to the innermost open node. Output from library code therefore
+  lands on the user expression that caused it.
+- **Values** are short one-line `repr`s. Objects without a custom `__repr__`
+  render as `<ClassName>` and memory addresses are stripped, so traces are
+  deterministic. Recording is paused while formatting, so a user `__repr__`
+  cannot change the trace.
+- **Loop state.** An iteration's inputs, beyond its loop targets, are the
+  variables the body may read before assigning them, found by a
+  definite-assignment walk over the body. Functions, classes and modules don't
+  count. Mutation needs no special case: a list the body appends to is read
+  before it is assigned, and its value differs between iterations.
+- **Changes.** Every block watches the variables its code mentions. After each
+  statement the runtime renders them again and records, on that statement,
+  every name it bound or whose value changed. So `mid = (lo + hi) // 2` is
+  recorded even when `mid` keeps its value, and `remember(seen, w)` records
+  `seen` because it changed. A loop is a single statement of its parent block,
+  so the parent sees the loop's end state. Only the first thousand calls of a
+  function watch their variables, so deep recursion stays cheap.
+- **Limits** belong to the runner. The tracer flushes the trace periodically,
+  so a run killed at the time limit or byte cap keeps what it recorded.
 
-Python construct mapping:
+How Python constructs map onto the trace:
 
-| Construct                                                        | v1 treatment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `def` (incl. nested, methods)                                    | `def` header is a stmt in the defining block; body is a `function` block.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `for` / `while`                                                  | Header is a `loop` stmt that stays open and contains the `iteration` blocks. A `for` iterable is evaluated once and belongs to the loop stmt (parent window). A `while` condition is evaluated per pass and belongs to the iteration: `while t: body` is rewritten to `while True:` whose iteration block runs a `test` stmt (the header range), leaves on a false test, then runs the body. The final failed check is therefore an iteration of its own with a dimmed body. `while`/`else` keeps its meaning through a flag held by the runtime. |
-| `if`/`with`/`try`/`class`                                        | Header-only stmt; body statements are siblings in the enclosing block.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Comprehensions                                                   | No iteration blocks; expressions inside are bracketed, so calls inside still expand (same loc entered N times → one merged stack).                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Lambdas, generator expressions, generator functions, `async def` | Body left uninstrumented: these run later or re-entrantly, when their static parent is no longer on the stack (repair would unwind the consumer's open nodes), and generator/coroutine activations do not nest. They run normally, output is attributed to the calling site, not expandable.                                                                                                                                                                                                                                                      |
-| Builtins / library calls                                         | Opaque: a call expr with output and no blocks (`print(...)` is exactly this).                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Threads                                                          | Unsupported; single stack assumed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+- **`def`** — the header is a statement of the defining block; the body is a
+  function block.
+- **`for` / `while`** — the header is a loop statement that contains the
+  iteration blocks. A `for` iterable is evaluated once, in the parent window. A
+  `while` condition is checked inside each iteration, so the final failed check
+  is an iteration of its own in which nothing else ran.
+- **`if`, `with`, `try`, `class`** — only the header is recorded; the body
+  statements are siblings in the enclosing block.
+- **Comprehensions** — no iteration blocks, but calls inside them still
+  expand.
+- **Lambdas, generators, generator expressions, `async`** — not instrumented.
+  They run later or re-entrantly, outside the code that defined them, which
+  breaks the stack discipline. They run normally and their output goes to the
+  calling site.
+- **Builtins and library code** — opaque call expressions. `print(...)` is
+  exactly this.
+- **Threads** — unsupported.
 
-Expected slowdown is roughly 5–20×; time limits account for it. Instrumentation
-preserves line numbers (`ast.copy_location`) and `_cw` frames are filtered out of
-user-facing tracebacks.
-
-Testing: golden files — source in, expected trace out — plus an invariant
-checker (proper nesting, role nesting rules, program output == concatenated
-`out` events == output of the uninstrumented program). Every produced trace is
-also validated against `spec/trace.schema.json`.
+Instrumentation preserves line numbers, and tracer frames are hidden from
+tracebacks. Expect a 5–20× slowdown; the time limits allow for it.
 
 ## Viewer
 
 ### Canvas
 
-Hand-made infinite canvas (pan/zoom) and window components — no React Flow; the
-layout and interaction logic is too custom. A wheel over content that
-scrolls (editor, sibling list) belongs to that content, also once it has reached
-its end; only a wheel over nothing scrollable pans. A pan holds for the rest
-of the wheel gesture (until the wheel pauses for 150 ms), so a window moving
-under the cursor does not stop it.
+The viewer is a hand-made infinite canvas with pan and zoom. The layout and
+interactions are too specific for a graph library.
 
-Movable objects on the canvas: the **editor** window, the **stdin** window, the
-**output** window, and the **trace tree** (dragged by its root window). Windows
-_inside_ the trace tree are not individually draggable: the tree is laid out
-automatically and moves as one rigid unit, so users cannot wreck its shape.
+The editor, stdin and output windows can each be dragged, and so can the trace
+tree as a whole. Windows inside the tree cannot: the tree is laid out
+automatically and moves as one unit, so its shape can't be broken. By default
+the editor sits at the origin, stdin and output are to its left, and the trace
+tree grows rightwards from its right side.
 
-Default placement: editor at the origin; stdin and output in a column to its
-left (the editor grows downward with its content, so nothing sits below it); the
-trace root to the right of the editor, growing rightwards.
+Windows don't resize. Each follows a fixed size rule, and its content scrolls
+once it no longer fits. A scroll wheel over scrollable content scrolls it;
+anywhere else it pans the canvas.
 
-Windows cannot be resized. Each window's size follows a fixed rule, and its
-content scrolls inside once it no longer fits. The stdin and output windows
-have a fixed size. The editor has a fixed width, and its height follows its
-line count between 12 and 40 lines. Windows in the trace tree size to their
-content up to a cap: a trace window up to 60rem wide and 30 lines tall, a
-sibling list up to 60rem wide and 10 rows tall. When a trace window scrolls,
-its child column stays attached to the clicked line, held at the window's top
-or bottom edge once the line scrolls out of view.
+Navigation never moves the canvas. Only the user pans or zooms.
 
 ### Windows
 
-- **Editor** — CodeMirror 6, Python. A Run button sends source + stdin.
+- **Editor** — CodeMirror with a Run button that sends source and stdin.
 - **stdin** — plain text fed to the program.
-- **Output** — concatenated `out` events (stderr styled differently), followed by
-  the traceback / truncation / timeout notice. Every chunk is clickable
-  (reverse navigation).
-- **Trace window** — custom read-only React component, _not_ CodeMirror. Renders
-  the block's source range from the trace's own `sources`, highlighted with the
-  same engine as the editor: Lezer (`@lezer/python` + `@lezer/highlight`) with
-  the shared `HighlightStyle`. The indentation every non-blank line of the
-  range shares is trimmed, so a loop nested in a function starts at the left
-  edge of its window. Tokens are split at loc boundaries so highlight
-  spans and interactive ranges are one flat span list. Shows:
-  - statement state (see spec, "Statement state"): lit at full strength; inert
-    (runs in a child window) faded but still syntax-coloured; dimmed (did not
-    run) faded and grey;
+- **Output** — the program's output, followed by a traceback, truncation or
+  timeout notice. Clicking any chunk opens the path to the site that printed
+  it.
+- **Trace window** — a read-only view of one block's source, highlighted the
+  same way as the editor, with shared indentation trimmed. It shows:
+  - which statements ran: lit if they ran here, faded if they belong to a
+    nested function or loop body (they come alive in that block's own window),
+    grey if they did not run;
   - clickable ranges for sites that contain blocks;
-  - inline output as a tinted chip on the line whose sites contain output; long
-    or multi-line output expands into a panel below it;
-  - values as chips of the same shape in the value colour, inserted in the
-    code right after the name they belong to, reading `= 3`: a parameter's
-    value follows its name on the `def` line, a loop target's value follows
-    its name on the `for` line. Loop state is bound nowhere in the window, so
-    its values are a group of chips on the loop's first line, the iteration's
-    inputs. A value that is the same in every sibling is faded there, the way
-    the sibling table leaves it out. Only the window's own block contributes values, so a `for` line in
-    the parent window carries none. Values are already short, so their chips
-    never expand;
-  - the exception on the origin statement: the line is faintly tinted, its line
-    number turns red, and the one-line summary is a chip of the same shape as
-    inline output, in the exception colour.
+  - chips for values, output and exceptions.
 
-  Chips are one primitive with three tints: value, output and exception. A
-  chip about a name sits immediately after the name, where it is bound. A chip
-  about a whole line — output, the exception, loop state, and the changes a
-  statement made (`lo → 8`) — sits in a column to
-  the right of the code: the window body is a grid whose first column is as
-  wide as the longest line, so these chips line up and read top to bottom as
-  the block's data beside its code. Chips are a little shorter than a code
-  line, so chips on consecutive lines keep a gap. Hovering any line highlights
-  its whole row.
+**Chips** are one primitive in three tints: value, output and exception. A chip
+about a name follows the name where it is bound, like a parameter on the `def`
+line or a loop target on the `for` line. A chip about a whole line (output, an
+exception, loop state, the changes a statement made like `lo → 8`) sits in a
+column to the right of the code, so the block's data reads top to bottom beside
+its code. Long output expands into a panel below its line. A value that is the
+same in every sibling is faded. The line an exception came from is tinted and
+its line number turns red.
 
-  Title bar: the trace's `title`, with ` N` appended by the viewer when the site
-  ran several blocks (a callback, a call in a comprehension). Iteration windows
-  therefore read `iteration 2`. Entry values are not repeated in the title:
-  the window shows them on its lines and the sibling list in its columns. A
-  red dot
-  marks a block that was left by an exception; it is the only title indicator,
-  output is not marked. A window is either expanded or collapsed to its title
-  bar.
+The title bar shows the block's title, numbered when its site ran several
+blocks (`iteration 2`). A red dot marks a block that exited with an exception.
+A window can collapse to its title bar.
 
-Running replaces the previous trace (the tree keeps its position).
+Running again replaces the trace; the tree keeps its position on the canvas.
 
-### View state = one path
+### Navigation: one path
 
-Only one sibling is expanded at a time, across the whole tree. The entire trace
-view is derived from
+Only one sibling is expanded at a time, across the whole tree, so the trace
+view is derived from a single value:
 
 ```
-path: NodeId[]      // expanded block windows, root → deepest
+path: NodeId[]      // expanded blocks, root → deepest
 ```
 
-- Column _k_ of the tree holds the children of the site selected in column
-  _k−1_: the expanded child window, preceded — when the site has several child
-  blocks — by a **sibling list** of all of them with the expanded one
-  highlighted. (Finder column view, on a canvas.) The list is a table: a row
-  per sibling (its indexed title and red dot) and a column per entry value
-  that differs between siblings, with an empty cell where a sibling has none
-  (a loop-state variable not bound yet). Reading down a column shows how the
-  state moves from one iteration to the next; a value that repeats the row
-  above it is faded, so the rows where a variable changes stand out. When the
-  last sibling changed its loop state, an `after` row closes the table with the
-  end state: the last sibling's inputs with its statements' changes applied.
-  It stays pinned to the bottom of the list, as the header stays at the top,
-  so the end state is visible however the list is scrolled. It has cells only
-  for loop state (loop targets and parameters have no
-  "after"), and is left out when it would repeat the last row, as after a
-  `while` loop's final failed check. The list
-  sizes to its columns, and the window sits right after it in the same row,
-  so the column is measured as a whole. It has a bounded height
-  and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
-  range, and an edge connects range → column. Choosing a sibling therefore moves
-  nothing on the canvas, however long the loop.
-- **Click a site** → truncate `path` at that window, append the site's first
-  child. **Click a row** in a sibling list (or ↑/↓ inside it) → replace that
+- Column _k_ of the tree shows the children of the site selected in column
+  _k−1_: the expanded child window, preceded by a **sibling list** when the
+  site ran several blocks. Think Finder's column view, on a canvas.
+- The sibling list is a table with a row per sibling and a column per input
+  value that differs between them. Reading down a column shows how the state
+  evolves; a value that repeats the row above is faded, so changes stand out.
+  If the last iteration changed the loop state, a pinned `after` row shows the
+  end state. The list and the window are top-aligned to the clicked range, so
+  switching siblings moves nothing on the canvas.
+- Clicking a site truncates `path` at its window and appends the site's first
+  child. Clicking a row in a sibling list (or pressing ↑/↓) replaces that
   column's entry.
-- **Reverse navigation** (click output) and **exception auto-open** (on a failed
-  run) are both just `path = pathTo(node)`: they leave no state or styling
-  behind.
-- Navigation never moves the canvas. The view changes only when the user pans
-  or zooms.
-- `path` is serializable (URL → "look at this exact moment").
+- Clicking output and auto-opening an exception are both just
+  `path = pathTo(node)`.
+- `path` is serializable, so a URL can point at an exact moment.
 
 ## Server and sandbox
 
-`POST /run {source, stdin}` → run `python -m codewalk run` in the sandbox →
-JSONL trace. Syntax errors return a header plus `end: syntax_error`. No
-streaming in v1.
+`POST /run {source, stdin}` runs the tracer in the sandbox and returns the
+JSONL trace. A syntax error comes back as a header plus `end: syntax_error`.
+v1 doesn't stream.
 
-The sandboxed process gets the source as a file in its workdir, the request's
-stdin on fd 0, and writes the trace to a dedicated fd (not stdout — the program's
-own raw writes to fd 1/2 must not corrupt the trace). The server relays the
-trace and enforces the limits: it kills the process group at the time limit
-or when the trace exceeds its byte cap, and appends `end: truncated` when it
-cut the trace. A trace left without an end line reads as a timeout.
+The sandboxed process gets the source as a file, stdin on fd 0, and writes the
+trace to a dedicated fd, so the program's own writes to stdout and stderr
+cannot corrupt it. The server kills the process group at the time limit or when
+the trace exceeds its byte cap, and appends `end: truncated` when it cut the
+trace. A trace with no end line reads as a timeout.
 
-Runner interface (injected, so tests use a fake runner rather than module mocks)
-with two implementations:
+The runner is an injected interface with two implementations:
 
-- `SubprocessRunner` — dev only. Subprocess with timeout.
-- `NsjailRunner` — production (public hosting); **not built yet**. nsjail: no network namespace
-  interfaces, read-only bind-mounted minimal rootfs with Python, small tmpfs
-  workdir, cgroup memory (~256 MB) and pids limits, CPU and wall time limits,
-  unprivileged user, seccomp policy. The server caps trace bytes read.
-
-Around it: rate limiting and a small concurrency queue. nsjail needs real kernel
-access, so host on a VM (e.g. EC2), not a gVisor/PaaS container. The box holds no
-secrets and is disposable.
+- `SubprocessRunner` — development only, no isolation.
+- `NsjailRunner` — for public hosting; not built yet. No network, a read-only
+  minimal rootfs, a small tmpfs workdir, memory, pid and CPU limits, an
+  unprivileged user and a seccomp policy. nsjail needs real kernel access, so
+  it runs on a VM rather than a gVisor or PaaS container. The host holds no
+  secrets and is disposable. Rate limiting and a small run queue sit in front.
 
 **The trace is untrusted input.** User code shares a process with the tracer
-runtime and can forge events. The viewer validates the schema, caps sizes, and
+runtime and can forge events. The viewer validates the schema, caps sizes and
 never renders trace content as HTML.
 
-## Tech stack
+## Not built yet
 
-**Repo.** One repo, two ecosystems. **mise** pins Node, pnpm, Python and uv and
-is the single task runner (`mise run dev`, `mise run check`). CI runs only
-lint, typecheck and test, each as its own check; format, knip and the schema
-check run locally through `mise run check`. **pnpm** workspaces: `apps/web/`,
-`apps/server/`, `packages/trace/`. `apps/tracer-python/` is a **uv** project
-next to them; tracers for other languages become `apps/tracer-<language>/`.
+The MVP is done: tracer, run server, canvas, trace tree and navigation. Still
+missing:
 
-**TypeScript (all packages).**
-
-- `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
-  `verbatimModuleSyntax`, `erasableSyntaxOnly`.
-- **oxlint**, type-aware mode on, plus the vendored
-  [anti-slop](https://github.com/dmmulroy/anti-slop) plugin (generic rules only,
-  no Effect rules). Its stance — parse at boundaries, no runtime `typeof`, no
-  unsafe assertions, no module mocking — is the house style. Blank lines
-  between statements come from `@stylistic/eslint-plugin`'s
-  `padding-line-between-statements`, loaded as a JS plugin.
-- **Zod 4** for every boundary: the trace (untrusted) in `packages/trace`, the
-  HTTP API via `fastify-type-provider-zod`. `spec/trace.schema.json` is generated
-  from the Zod schemas and checked in; the Python tests validate against it, so
-  the contract is enforced from both sides.
-- **ts-pattern** for branching on the format's discriminated unions (`op`,
-  `role`, `end.status`), always `.exhaustive()`.
-- **Prettier** (also formats md/json/css), **knip** for unused
-  files/exports/dependencies, **Vitest** for tests, Playwright for end-to-end
-  from M3.
-
-**web.** Vite, React 19 with **React Compiler** (Babel preset, Babel 7 — the
-compiler skips components under Babel 8), Tailwind v4 + **shadcn** for chrome only (title bars,
-buttons, toolbar, toasts, dialogs, menus) — never inside the trace window body.
-**Zustand** for state: the canvas transform is read via transient subscription
-and written straight to a CSS transform, so pan/zoom does not re-render React;
-`path` and window positions are ordinary store state. `codemirror` +
-`@codemirror/lang-python` for the editor; `@lezer/python` + `@lezer/highlight`
-with the same `HighlightStyle` for trace windows. No canvas, gesture or layout
-library.
-
-**server.** Node 24 running TypeScript directly (type stripping; `tsc --noEmit`
-is only a check), **Fastify**, `@fastify/rate-limit` and an in-process semaphore
-for the run queue (M5). In dev, Vite proxies `/api` to it.
-
-**tracer.** One pinned Python minor version everywhere (dev, CI, sandbox rootfs)
-— `ast` node shapes differ between minors. Runtime dependencies: none (stdlib
-only; it runs inside the jail's minimal rootfs). Dev: **ruff** (lint + format),
-**ty** (type check), **pytest**, `jsonschema` for validating traces against the
-spec.
-
-## Testing
-
-Follow the `writing-tests` skill. Project-specific designations it refers to:
-
-- **Golden contract:** tracer output only (`spec/fixtures/`, source → trace).
-  No goldens or snapshots anywhere else.
-- **Core end-to-end journeys** — none are automated yet; when an end-to-end suite
-  is added, this is the complete list it may cover:
-  1. Run a program → click a call site → the callee window opens.
-  2. Click a loop → sibling list opens → switch iteration.
-  3. Click an output line → the path to its site opens.
-  4. A run that raises → the path to the exception origin opens automatically.
-  5. A syntax error is shown and no trace tree appears.
-
-## Deferred
-
-The MVP is built: tracer, run server, canvas, trace tree, navigation. Not built:
-
-- Production: the `NsjailRunner`, rate limiting, a run queue, deployment. Until
-  then the server runs code unsandboxed and must stay on loopback.
-- An automated end-to-end suite (see Testing for its scope).
-- Opening the path to where a timed-out or truncated program was: the parsed
-  trace does not record which nodes were still open at the end.
-- The path in the URL — only meaningful once traces are shareable.
+- Production hosting: the `NsjailRunner`, rate limiting, the run queue and
+  deployment. Until then the server runs code unsandboxed and must stay on
+  loopback.
+- Opening the path to where a timed-out or truncated program was. The parsed
+  trace doesn't record which nodes were still open.
+- Putting the path in the URL, which only matters once traces can be shared.
 
 Further out:
 
-- Expression values in general (`_cw_e` already sees them), then return values,
-  then variable/heap state. Block inputs are the completed first step.
-- Instrumenting lambdas, generator expressions, generators, `async`; iteration
-  blocks for comprehensions.
-- Further views over repetition (scrubbers, abbreviation).
-- Skeleton-first recording with on-demand deterministic re-execution for large
-  runs; compact event encoding.
-- Multi-file programs, more languages (the second language is the real test of
-  the format).
-- Keeping several traces side by side.
+- General expression values (`_cw_e` already sees them), then return values,
+  then variable and heap state.
+- Instrumenting lambdas, generators and `async`; iteration blocks for
+  comprehensions.
+- More views over repetition, such as scrubbers and collapsing repeats.
+- Skeleton-first recording with deterministic re-execution on demand for large
+  runs, and a more compact event encoding.
+- Multi-file programs and more languages. The second language is the real test
+  of the format.
+- Several traces side by side.

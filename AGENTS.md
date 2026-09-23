@@ -15,3 +15,12 @@
   simplification passes; adapt behaviour at the call sites instead. They use
   the `base-vega` style (Base UI primitives) and import `cn` from shadcn's `cn`
   package.
+- Tests follow the `writing-tests` skill. The only golden contract is tracer
+  output (`spec/fixtures/`, source → trace); there are no goldens or snapshots
+  anywhere else. No end-to-end suite exists yet; when one is added, it may
+  cover only these core journeys:
+  1. Run a program → click a call site → the callee window opens.
+  2. Click a loop → the sibling list opens → switch iteration.
+  3. Click an output line → the path to its site opens.
+  4. A run that raises → the path to the exception origin opens automatically.
+  5. A syntax error is shown and no trace tree appears.
