@@ -202,11 +202,13 @@ function exceptionByLine(
   return result;
 }
 
-function isBlank(line: Line): boolean {
-  return line.spans.every(({ text }) => text.trim().length === 0);
+export function hasChips(line: Line): boolean {
+  return (
+    line.changes.length > 0 || line.output !== null || line.exception !== null
+  );
 }
 
-function paragraphs(lines: Line[]): Line[][] {
+function runs(lines: Line[]): Line[][] {
   const groups: Line[][] = [];
 
   for (const [index, line] of lines.entries()) {
@@ -214,12 +216,14 @@ function paragraphs(lines: Line[]): Line[][] {
     const current = groups.at(-1);
 
     if (
-      current === undefined ||
-      (previous !== undefined && isBlank(previous) && !isBlank(line))
+      current !== undefined &&
+      previous !== undefined &&
+      previous.loopEnd === null &&
+      hasChips(previous) === hasChips(line)
     ) {
-      groups.push([line]);
-    } else {
       current.push(line);
+    } else {
+      groups.push([line]);
     }
   }
 
@@ -278,7 +282,7 @@ export function buildBlockView(
   const inputs = node.values.filter(({ loc }) => loc === null);
 
   return {
-    groups: paragraphs(
+    groups: runs(
       lines.map((line, index) => ({
         number: line.number,
         spans: spansForLine(context, line),

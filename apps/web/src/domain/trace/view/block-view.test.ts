@@ -435,16 +435,28 @@ describe("buildBlockView", () => {
     ]);
   });
 
-  test("a window splits into paragraphs at blank lines, each keeping the blank lines that follow it", () => {
+  test("chip lines group only with adjacent chip lines, and a loop's end row ends the group", () => {
     const trace = fixture("loop_state");
 
     if (trace.root === null) throw new Error("Missing fixture root");
 
     expect(
-      buildBlockView(trace, trace.root, []).groups.map(
-        (group) => `${group[0]?.number}-${group.at(-1)?.number}`,
+      buildBlockView(trace, trace.root, []).groups.map((group) =>
+        group.length === 1
+          ? String(group[0]?.number)
+          : `${group[0]?.number}-${group.at(-1)?.number}`,
       ),
-    ).toEqual(["1-11", "12-15", "16-17", "18-22", "23-28", "29-35"]);
+    ).toEqual([
+      "1-15",
+      "16",
+      "17",
+      "18",
+      "19-21",
+      "22-27",
+      "28",
+      "29-30",
+      "31-35",
+    ]);
   });
 
   test("only the uncaught exception's deepest block marks its origin statement", () => {

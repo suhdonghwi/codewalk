@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 
 import { cn } from "@/ui/utils.ts";
 
+import { hasChips } from "./block-view.ts";
 import { InlineChip } from "./inline-chip.tsx";
 import { previewInlineOutput } from "./inline-output.ts";
 import { ValueChip } from "./value-chip.tsx";
@@ -78,10 +79,10 @@ function ValuePanel({ trace, values }: ValuePanelProps) {
   );
 }
 
-function rowClasses(hasChips: boolean): string {
+function rowClasses(aligned: boolean): string {
   return cn(
     "col-span-full min-h-code-line items-baseline whitespace-pre",
-    hasChips ? "grid grid-cols-subgrid" : "flex",
+    aligned ? "grid grid-cols-subgrid" : "flex",
   );
 }
 
@@ -148,7 +149,7 @@ export function TraceLine({
   function stateRow(label: string, entries: OpenValue[], operator: string) {
     return (
       <>
-        <div className={cn(rowClasses(true), "hover:bg-neutral-50")}>
+        <div className={cn(rowClasses(false), "hover:bg-neutral-50")}>
           <div className="flex items-baseline pr-[2ch]">
             <span
               aria-hidden
@@ -168,9 +169,6 @@ export function TraceLine({
   const outputPreview =
     line.output === null ? null : previewInlineOutput(line.output);
 
-  const hasChips =
-    line.changes.length > 0 || line.output !== null || line.exception !== null;
-
   return (
     <div className="col-span-full grid grid-cols-subgrid">
       {startEntries.length === 0
@@ -178,7 +176,7 @@ export function TraceLine({
         : stateRow("(before)", startEntries, "=")}
       <div
         className={cn(
-          rowClasses(hasChips),
+          rowClasses(hasChips(line)),
           line.exception === null ? "hover:bg-neutral-50" : "bg-exception/8",
         )}
         data-site-anchor={anchor || undefined}
