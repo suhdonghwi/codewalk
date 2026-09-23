@@ -272,8 +272,8 @@ The sandboxed process gets the source as a file in its workdir, the request's
 stdin on fd 0, and writes the trace to a dedicated fd (not stdout — the program's
 own raw writes to fd 1/2 must not corrupt the trace). The server relays the
 trace and enforces the limits: it kills the process group at the time limit
-or when the trace exceeds its byte cap, and appends `end: truncated` for the
-cap or `end: timeout` when the trace has no end line.
+or when the trace exceeds its byte cap, and appends `end: truncated` when it
+cut the trace. A trace left without an end line reads as a timeout.
 
 Runner interface (injected, so tests use a fake runner rather than module mocks)
 with two implementations:

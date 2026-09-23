@@ -7,7 +7,6 @@ import { afterEach, expect, test } from "vitest";
 
 import { parseTrace, type Trace } from "@codewalk/trace";
 
-import { RunnerError } from "./runner.ts";
 import {
   SubprocessRunner,
   type SubprocessRunnerOptions,
@@ -152,7 +151,7 @@ test("an output flood is cut at a complete line and ends as truncated", async ()
   );
 });
 
-test("a runner that cannot start throws RunnerError and removes its temp directory", async () => {
+test("a runner that cannot start rejects and removes its temp directory", async () => {
   const root = await tempRoot();
 
   const runner = new SubprocessRunner(
@@ -161,6 +160,6 @@ test("a runner that cannot start throws RunnerError and removes its temp directo
 
   await expect(
     runner.run({ source: "print('never')\n", stdin: "" }),
-  ).rejects.toBeInstanceOf(RunnerError);
+  ).rejects.toThrow("Tracer did not produce a trace");
   expect(await readdir(root)).toEqual([]);
 });

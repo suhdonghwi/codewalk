@@ -6,5 +6,3 @@ export interface RunRequest {
 export interface Runner {
   run(request: RunRequest): Promise<string>;
 }
-
-export class RunnerError extends Error {}

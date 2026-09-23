@@ -7,9 +7,7 @@ import {
 } from "fastify-type-provider-zod";
 import { z } from "zod";
 
-import { TRACE_FORMAT_VERSION } from "@codewalk/trace";
-
-import { RunnerError, type Runner } from "./runner.ts";
+import type { Runner } from "./runner.ts";
 
 const RunRequestSchema = z
   .object({
@@ -53,26 +51,13 @@ export function buildApp(options: {
     void reply.status(500).send({ error: "runner_failed" });
   });
 
-  app.get("/api/health", () => ({
-    ok: true,
-    traceFormat: TRACE_FORMAT_VERSION,
-  }));
-
   app.post(
     "/api/run",
     { schema: { body: RunRequestSchema } },
     async (request, reply) => {
-      try {
-        const trace = await options.runner.run(request.body);
+      const trace = await options.runner.run(request.body);
 
-        return reply.type("application/x-ndjson; charset=utf-8").send(trace);
-      } catch (error) {
-        if (!(error instanceof RunnerError)) throw error;
-
-        request.log.error(error, "runner failed");
-
-        return reply.status(500).send({ error: "runner_failed" });
-      }
+      return reply.type("application/x-ndjson; charset=utf-8").send(trace);
     },
   );
 

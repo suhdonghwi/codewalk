@@ -155,8 +155,8 @@ Range conventions:
   - `exception` — uncaught exception; `traceback` holds the user-facing text.
   - `truncated` — the runner cut the trace at its size cap and killed the
     process (appended by the runner, not the tracer).
-  - `timeout` — the runner killed the process at its time limit (appended by
-    the runner, not the tracer).
+  - `timeout` — the runner killed the process at its time limit. Nothing
+    writes it: a trace without an `end` line reads as `timeout`.
   - `syntax_error` — the source did not parse; `message`, `file`, `start`,
     `end` locate it. No `enter` events precede it.
 
