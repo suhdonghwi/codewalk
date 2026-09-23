@@ -30,7 +30,7 @@ export function InlineChip({
   onToggle,
 }: InlineChipProps) {
   const classes = cn(
-    "inline-block flex-none rounded-sm px-[0.5ch] [font:inherit] leading-4!",
+    "inline-block flex-none rounded-sm px-[0.5ch] [font:inherit] leading-[18px]!",
     TONE_CLASSES[tone],
     expandable &&
       "cursor-pointer border-0 py-0 pl-[0.15ch] hover:brightness-95",
