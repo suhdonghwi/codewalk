@@ -1,4 +1,4 @@
-{"codewalk":1,"sources":[{"file":"while_condition_call.py","text":"def below(n, limit):\n    print(\"check\", n)\n    return n < limit\n\n\ni = 0\nwhile below(i, 1):\n    i += 1\nelse:\n    print(\"done\")\n\nwhile below(i, 9):\n    break\nelse:\n    print(\"unreachable\")\n"}],"locs":[{"role":"block","file":0,"start":0,"end":186,"parent":null,"title":"while_condition_call.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":20,"parent":0},{"role":"block","file":0,"start":0,"end":63,"parent":1,"title":"below","unit":"call"},{"role":"expr","file":0,"start":10,"end":11,"parent":1},{"role":"expr","file":0,"start":13,"end":18,"parent":1},{"role":"stmt","file":0,"start":25,"end":42,"parent":2},{"role":"expr","file":0,"start":25,"end":42,"parent":5},{"role":"stmt","file":0,"start":47,"end":63,"parent":2},{"role":"expr","file":0,"start":54,"end":63,"parent":7},{"role":"stmt","file":0,"start":66,"end":71,"parent":0},{"role":"stmt","file":0,"start":72,"end":90,"parent":0},{"role":"block","file":0,"start":72,"end":125,"parent":10,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":72,"end":90,"parent":11},{"role":"expr","file":0,"start":78,"end":89,"parent":12},{"role":"stmt","file":0,"start":95,"end":101,"parent":11},{"role":"stmt","file":0,"start":112,"end":125,"parent":0},{"role":"expr","file":0,"start":112,"end":125,"parent":15},{"role":"stmt","file":0,"start":127,"end":145,"parent":0},{"role":"block","file":0,"start":127,"end":186,"parent":17,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":127,"end":145,"parent":18},{"role":"expr","file":0,"start":133,"end":144,"parent":19},{"role":"stmt","file":0,"start":150,"end":155,"parent":18},{"role":"stmt","file":0,"start":166,"end":186,"parent":0},{"role":"expr","file":0,"start":166,"end":186,"parent":22}]}
+{"codewalk":1,"sources":[{"file":"while_condition_call.py","text":"def below(n, limit):\n    print(\"check\", n)\n    return n < limit\n\n\ni = 0\nwhile below(i, 1):\n    i += 1\nelse:\n    print(\"done\")\n\nwhile below(i, 9):\n    break\nelse:\n    print(\"unreachable\")\n"}],"locs":[{"role":"block","file":0,"start":0,"end":186,"parent":null,"title":"while_condition_call.py","unit":"module"},{"role":"stmt","file":0,"start":0,"end":20,"parent":0},{"role":"block","file":0,"start":0,"end":63,"parent":1,"title":"below","unit":"call"},{"role":"expr","file":0,"start":10,"end":11,"parent":1},{"role":"expr","file":0,"start":13,"end":18,"parent":1},{"role":"stmt","file":0,"start":25,"end":42,"parent":2},{"role":"expr","file":0,"start":25,"end":42,"parent":5},{"role":"stmt","file":0,"start":47,"end":63,"parent":2},{"role":"expr","file":0,"start":54,"end":63,"parent":7},{"role":"stmt","file":0,"start":66,"end":71,"parent":0},{"role":"stmt","file":0,"start":72,"end":90,"parent":0},{"role":"block","file":0,"start":72,"end":125,"parent":10,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":72,"end":90,"parent":11},{"role":"expr","file":0,"start":78,"end":89,"parent":12},{"role":"stmt","file":0,"start":95,"end":101,"parent":11},{"role":"stmt","file":0,"start":112,"end":125,"parent":0},{"role":"expr","file":0,"start":112,"end":125,"parent":15},{"role":"stmt","file":0,"start":102,"end":107,"parent":0},{"role":"stmt","file":0,"start":127,"end":145,"parent":0},{"role":"block","file":0,"start":127,"end":186,"parent":18,"title":"iteration","unit":"iteration"},{"role":"stmt","file":0,"start":127,"end":145,"parent":19},{"role":"expr","file":0,"start":133,"end":144,"parent":20},{"role":"stmt","file":0,"start":150,"end":155,"parent":19},{"role":"stmt","file":0,"start":166,"end":186,"parent":0},{"role":"expr","file":0,"start":166,"end":186,"parent":23},{"role":"stmt","file":0,"start":156,"end":161,"parent":0}]}
 {"op":"enter","loc":0}
 {"op":"enter","loc":1}
 {"op":"exit"}
@@ -47,16 +47,18 @@
 {"op":"exit"}
 {"op":"value","name":"i","text":"1"}
 {"op":"exit"}
+{"op":"enter","loc":17}
+{"op":"exit"}
 {"op":"enter","loc":15}
 {"op":"enter","loc":16}
 {"op":"out","stream":"stdout","text":"done\n"}
 {"op":"exit"}
 {"op":"exit"}
-{"op":"enter","loc":17}
 {"op":"enter","loc":18}
-{"op":"value","name":"i","text":"1"}
 {"op":"enter","loc":19}
+{"op":"value","name":"i","text":"1"}
 {"op":"enter","loc":20}
+{"op":"enter","loc":21}
 {"op":"enter","loc":2}
 {"op":"value","loc":3,"text":"1"}
 {"op":"value","loc":4,"text":"9"}
@@ -70,7 +72,7 @@
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}
-{"op":"enter","loc":21}
+{"op":"enter","loc":22}
 {"op":"exit"}
 {"op":"exit"}
 {"op":"exit"}

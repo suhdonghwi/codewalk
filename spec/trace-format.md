@@ -119,6 +119,11 @@ Range conventions:
   are separate `stmt` locs whose `parent` is the enclosing _block_, not the
   compound statement. Exception: the body of a loop belongs to the loop's
   iteration block, whose `parent` is the loop `stmt`.
+- A clause header inside a compound statement (`else:`, `except …:`,
+  `finally:`, `case …:`) is a `stmt` loc of its own, covering only the header,
+  whose `parent` is the enclosing block. It starts executing when its body
+  does, so a clause that was not entered has no node and reads as dimmed.
+  (Python's `elif` is an `if` statement already.)
 - A header that is re-evaluated on every pass (a `while` condition) is covered
   by a second `stmt` loc with the same range whose `parent` is the iteration
   block. The condition's `expr` locs hang under it, so each check, and whatever

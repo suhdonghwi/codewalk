@@ -113,6 +113,9 @@ for i in _cw_e(_cw_b(15), range(2)):
 - **Statements: a point marker.** `_cw.stmt(id)` before each statement. It needs
   no end marker: the next sibling's marker (or the block's exit) closes it.
   Compound statements are header-only; their body statements are siblings.
+  A clause header (`else:`, `except …:`, `finally:`, `case …:`) gets a marker
+  of its own as the first thing its body runs, so a clause that was not
+  entered is dimmed like any statement that did not run.
 - **Blocks: explicit and reliable.** `with _cw.block(id)` around module and
   function bodies, `with _cw.iteration(id)` around loop bodies (equivalent to
   `try/finally`; adds no frame). Exit is

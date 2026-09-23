@@ -98,6 +98,32 @@ describe("buildBlockView", () => {
     ).toBe("dimmed");
   });
 
+  test("a clause header is lit only in the executions that entered its body", () => {
+    const trace = fixture("clauses");
+    const iterations = blockNodes(trace, "iteration");
+    const root = trace.root;
+
+    if (root === null) throw new Error("Missing fixture root");
+
+    const headerStates = (block: NodeId, number: number) =>
+      line(buildBlockView(trace, block, []), number)
+        .spans.filter((span) => span.text.trim().length > 0)
+        .map((span) => span.state);
+
+    expect(
+      iterations
+        .slice(0, 3)
+        .map((block) => [headerStates(block, 4)[0], headerStates(block, 6)[0]]),
+    ).toEqual([
+      ["dimmed", "dimmed"],
+      ["lit", "dimmed"],
+      ["lit", "lit"],
+    ]);
+    expect(
+      [11, 13, 15, 20, 24, 26].map((number) => headerStates(root, number)[0]),
+    ).toEqual(["lit", "dimmed", "lit", "lit", "lit", "dimmed"]);
+  });
+
   test("a window drops the indentation all its lines share, and only that", () => {
     const source =
       "def search():\n    while lo < hi:\n        mid = lo\n\n        if mid:\n            lo = mid\n";

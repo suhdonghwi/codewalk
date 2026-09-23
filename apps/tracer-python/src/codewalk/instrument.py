@@ -121,6 +121,7 @@ class _Instrumenter:
             self._target(node.target, statement)
             values = self._target_values(node.target, statement)
             node.iter = self._expression(node.iter, statement)
+            else_range = self.source.clause_range("else", node.body[-1])
             loop_start, loop_end = self.source.node_range(node)
             iteration = self._loc(
                 "block",
@@ -143,11 +144,14 @@ class _Instrumenter:
                     node,
                 )
             ]
-            node.orelse = self._body(node.orelse, block)
+            node.orelse = self._clause_body(else_range, node.orelse, block)
         elif isinstance(node, ast.If):
             node.test = self._expression(node.test, statement)
+            last = node.body[-1]
             node.body = self._body(node.body, block)
-            node.orelse = self._body(node.orelse, block)
+            node.orelse = self._clause_body(
+                self.source.clause_range("else", last), node.orelse, block
+            )
         elif isinstance(node, (ast.With, ast.AsyncWith)):
             for item in node.items:
                 item.context_expr = self._expression(item.context_expr, statement)
@@ -155,19 +159,27 @@ class _Instrumenter:
                     self._target(item.optional_vars, statement)
             node.body = self._body(node.body, block)
         elif isinstance(node, (ast.Try, ast.TryStar)):
+            before_else = (node.handlers[-1].body if node.handlers else node.body)[-1]
+            else_range = self.source.clause_range("else", before_else)
+            before_finally = (node.orelse or [before_else])[-1]
+            finally_range = self.source.clause_range("finally", before_finally)
             node.body = self._body(node.body, block)
             for handler in node.handlers:
                 if handler.type is not None:
                     handler.type = self._expression(handler.type, statement)
-                handler.body = self._body(handler.body, block)
-            node.orelse = self._body(node.orelse, block)
-            node.finalbody = self._body(node.finalbody, block)
+                handler.body = self._clause_body(
+                    self.source.handler_range(handler), handler.body, block
+                )
+            node.orelse = self._clause_body(else_range, node.orelse, block)
+            node.finalbody = self._clause_body(finally_range, node.finalbody, block)
         elif isinstance(node, ast.Match):
             node.subject = self._expression(node.subject, statement)
             for case in node.cases:
                 if case.guard is not None:
                     case.guard = self._expression(case.guard, statement)
-                case.body = self._body(case.body, block)
+                case.body = self._clause_body(
+                    self.source.case_range(case), case.body, block
+                )
         elif isinstance(node, ast.Assign):
             for target in node.targets:
                 self._target(target, statement)
@@ -227,7 +239,9 @@ class _Instrumenter:
             ast.copy_location(check, node),
             *self._body(node.body, iteration),
         ]
-        orelse = self._body(node.orelse, block)
+        orelse = self._clause_body(
+            self.source.clause_range("else", node.body[-1]), node.orelse, block
+        )
         node.test = ast.Constant(True)
         node.body = [self._block_wrapper("iteration", iteration, body, node)]
         node.orelse = []
@@ -267,6 +281,18 @@ class _Instrumenter:
             )
             for parameter in parameters
         ]
+
+    def _clause_body(
+        self,
+        header: tuple[int, int] | None,
+        statements: list[ast.stmt],
+        block: int,
+    ) -> list[ast.stmt]:
+        body = self._body(statements, block)
+        if header is None or not statements:
+            return body
+        clause = self._loc("stmt", *header, block)
+        return [self._marker(clause, statements[0]), *body]
 
     def _bind(self, statement: int, node: ast.stmt) -> None:
         binds = statement_bindings(node)
