@@ -5,8 +5,6 @@ export const TITLE_BAR = 28;
 
 const COLUMN_GAP = 64;
 
-export const SIBLING_LIST_WIDTH = 168;
-
 const SIBLING_LIST_GAP = 8;
 
 export interface Measurement {

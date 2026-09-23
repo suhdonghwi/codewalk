@@ -25,7 +25,8 @@ it, so debug prints carry their context.
 1. **One UI language.** No special-case widgets. Everything is: _a window shows
    one execution of a source range; ranges in it that spawned child executions
    are clickable; clicking opens the child windows._ Calls, loops, callbacks and
-   navigation jumps all use this. Convenience abstractions (tables, scrubbers,
+   navigation jumps all use this. The sibling list reads as a table of the
+   siblings' entry values; further views over repetition (scrubbers,
    abbreviation of repetition) come later, once real repetition patterns show up.
 2. **Language-agnostic trace.** The tracer is per-language; the trace format and
    the viewer are not. The viewer only knows source ranges and three roles.
@@ -239,10 +240,12 @@ held at the window's top or bottom edge once the line scrolls out of view.
   Title bar: the trace's `title`, with ` N` appended by the viewer when the site
   ran several blocks (a callback, a call in a comprehension). Iteration windows
   therefore read `iteration 2`. The block's entry values follow in parentheses
-  (`fact 2 (n = 3)`), which is how one iteration is told from the next in a
-  sibling list. A red dot marks a block that was left by an exception; it is the
-  only title indicator, output is not marked. Sibling-list rows use the same
-  text and dot. A window is either expanded or collapsed to its title bar.
+  (`fact 2 (n = 3)`, `iteration 3 (lo = 5, hi = 6)`). When the site ran
+  several blocks, only the values that differ between them are listed, so
+  constant inputs such as the array a search runs over drop out. A red dot
+  marks a block that was left by an exception; it is the only title indicator,
+  output is not marked. A window is either expanded or collapsed to its title
+  bar.
 
 Running replaces the previous trace (the tree keeps its position).
 
@@ -258,8 +261,13 @@ path: NodeId[]      // expanded block windows, root → deepest
 - Column _k_ of the tree holds the children of the site selected in column
   _k−1_: the expanded child window, preceded — when the site has several child
   blocks — by a **sibling list** of all of them with the expanded one
-  highlighted. (Finder column view, on a canvas.) The list has a bounded height
-  and scrolls inside; both it and the window are top-aligned to the clicked
+  highlighted. (Finder column view, on a canvas.) The list is a table: a row
+  per sibling (its indexed title and red dot) and a column per entry value
+  that differs between siblings, with an empty cell where a sibling has none
+  (a loop-state variable not bound yet). Reading down a column shows how the
+  state moves from one iteration to the next. The list sizes to its columns
+  and is measured before its column is laid out. It has a bounded height
+  and scrolls inside under a sticky header row; both it and the window are top-aligned to the clicked
   range, and an edge connects range → column. Choosing a sibling therefore moves
   nothing on the canvas, however long the loop.
 - **Click a site** → truncate `path` at that window, append the site's first
@@ -381,7 +389,7 @@ Further out:
   then variable/heap state. Block inputs are the completed first step.
 - Instrumenting lambdas, generator expressions, generators, `async`; iteration
   blocks for comprehensions.
-- Convenience views over repetition (iteration tables, scrubbers, abbreviation).
+- Further views over repetition (scrubbers, abbreviation).
 - Skeleton-first recording with on-demand deterministic re-execution for large
   runs; compact event encoding.
 - Multi-file programs, more languages (the second language is the real test of

@@ -5,7 +5,11 @@ import { useCanvasStore, WindowChrome } from "@/domain/canvas/index.ts";
 import { cn } from "@/ui/utils.ts";
 
 import { TITLE_BAR, type Measurement } from "./layout.ts";
-import { buildBlockTitle, type SiblingPosition } from "../view/block-title.ts";
+import {
+  buildBlockTitle,
+  type SiblingColumn,
+  type SiblingPosition,
+} from "../view/block-title.ts";
 import { buildBlockView } from "../view/block-view.ts";
 import { tokenizePython } from "../view/tokens.ts";
 import { TraceLine } from "../view/trace-line.tsx";
@@ -17,6 +21,7 @@ interface TraceWindowProps {
   trace: Trace;
   block: NodeId;
   position: SiblingPosition;
+  columns: SiblingColumn[];
   openSite: LocId | null;
   column: number;
   width: number | null;
@@ -126,6 +131,7 @@ export function TraceWindow({
   trace,
   block,
   position,
+  columns,
   openSite,
   column,
   width,
@@ -136,7 +142,7 @@ export function TraceWindow({
   onToggleSite,
 }: TraceWindowProps) {
   const windowRef = useRef<HTMLElement>(null);
-  const title = buildBlockTitle(trace, block, position);
+  const title = buildBlockTitle(trace, block, position, columns);
 
   useLayoutEffect(() => {
     const element = windowRef.current;

@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { parseTrace } from "@codewalk/trace";
 import { describe, expect, test } from "vitest";
 
-import { buildBlockTitle, siblingListTitle } from "./block-title.ts";
+import {
+  buildBlockTitle,
+  siblingColumns,
+  siblingListTitle,
+} from "./block-title.ts";
 import { buildBlockView, type BlockView } from "./block-view.ts";
 import { previewInlineOutput } from "./inline-output.ts";
 
@@ -31,6 +35,15 @@ function blockNodes(trace: Trace, title: string): NodeId[] {
 
     return loc?.role === "block" && loc.title === title ? [node.id] : [];
   });
+}
+
+function titleAmong(trace: Trace, blocks: NodeId[], block: NodeId) {
+  return buildBlockTitle(
+    trace,
+    block,
+    { index: blocks.indexOf(block), count: blocks.length },
+    siblingColumns(trace, blocks),
+  );
 }
 
 function line(view: BlockView, number: number) {
@@ -319,22 +332,13 @@ describe("buildBlockView", () => {
       throw new Error("Missing fact fixture blocks");
     }
 
-    expect(buildBlockTitle(fact, 0, { index: 0, count: 1 })).toEqual({
-      text: "fact.py",
-      hasException: false,
-    });
-    expect(
-      buildBlockTitle(fact, secondIteration, { index: 1, count: 2 }),
-    ).toEqual({
-      text: "iteration 2 (i = 1)",
-      hasException: false,
-    });
-    expect(
-      buildBlockTitle(fact, firstFunction, { index: 0, count: 1 }),
-    ).toEqual({
-      text: "fact (n = 1)",
-      hasException: false,
-    });
+    expect(titleAmong(fact, [0], 0).text).toBe("fact.py");
+    expect(titleAmong(fact, iterations, secondIteration).text).toBe(
+      "iteration 2 (i = 1)",
+    );
+    expect(titleAmong(fact, [firstFunction], firstFunction).text).toBe(
+      "fact (n = 1)",
+    );
     expect(siblingListTitle(fact, iterations)).toBe("2 iterations");
 
     const callbacks = fixture("native_callback");
@@ -342,13 +346,37 @@ describe("buildBlockView", () => {
 
     expect(
       callbackBlocks.map(
-        (block, index) =>
-          buildBlockTitle(callbacks, block, {
-            index,
-            count: callbackBlocks.length,
-          }).text,
+        (block) => titleAmong(callbacks, callbackBlocks, block).text,
       ),
     ).toEqual(["key 1 (number = 1)", "key 2 (number = 2)"]);
+  });
+
+  test("sibling columns keep only the values that differ between siblings, including ones some siblings lack", () => {
+    const trace = fixture("loop_state");
+    const iterations = blockNodes(trace, "iteration");
+    const searchIterations = iterations.slice(0, 3);
+    const lastIterations = iterations.slice(6);
+
+    expect(
+      siblingColumns(trace, searchIterations).map(({ name }) => name),
+    ).toEqual(["lo", "hi"]);
+    expect(
+      searchIterations.map(
+        (block) => titleAmong(trace, searchIterations, block).text,
+      ),
+    ).toEqual([
+      "iteration 1 (lo = 0, hi = 4)",
+      "iteration 2 (lo = 0, hi = 2)",
+      "iteration 3 (lo = 2, hi = 2)",
+    ]);
+    expect(
+      lastIterations.map(
+        (block) => titleAmong(trace, lastIterations, block).cells,
+      ),
+    ).toEqual([
+      ["3", null],
+      ["1", "3"],
+    ]);
   });
 });
 
