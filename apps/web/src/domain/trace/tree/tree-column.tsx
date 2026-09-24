@@ -94,7 +94,7 @@ export function TreeColumn({
       )}
       {column.blocks.length > 1 ? (
         <div
-          className="animate-tree-fade-in"
+          className="pointer-events-auto animate-tree-fade-in"
           key={`siblings:${column.blocks[0]?.id}`}
         >
           <SiblingList
@@ -108,7 +108,7 @@ export function TreeColumn({
         </div>
       ) : null}
       <div
-        className="animate-tree-fade-in"
+        className="pointer-events-auto animate-tree-fade-in"
         data-block={block.id}
         key={block.id}
         ref={windowRef}

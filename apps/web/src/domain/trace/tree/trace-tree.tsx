@@ -56,7 +56,7 @@ export function TraceTree({ trace, path, onNavigate }: TraceTreeProps) {
 
   return (
     <div
-      className="absolute flex w-max items-start gap-16"
+      className="pointer-events-none absolute flex w-max items-start gap-16"
       data-trace-tree
       onPointerDown={() => useCanvasStore.getState().bringToFront("trace")}
       style={{ left: treeWindow.x, top: treeWindow.y, zIndex: treeWindow.z }}
