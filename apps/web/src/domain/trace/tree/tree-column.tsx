@@ -89,7 +89,7 @@ export function TreeColumn({
         <div
           aria-hidden
           className="pointer-events-none absolute top-[calc(var(--spacing-titlebar)/2)] right-full h-[1.5px] w-16 -translate-y-1/2 animate-tree-fade-in bg-site-accent/60"
-          key={`edge:${block.id}`}
+          key={`edge:${column.blocks[0]?.id}`}
         />
       )}
       {column.blocks.length > 1 ? (
