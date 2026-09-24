@@ -1,4 +1,4 @@
-# codewalk trace format (v2)
+# codewalk trace format (v3)
 
 A trace is the complete, language-agnostic record of one program run. The tracer
 (per language) produces it; the viewer consumes it and knows nothing about the
@@ -51,8 +51,8 @@ killed mid-way.
 
 ```json
 {
-  "codewalk": 2,
-  "sources": [{ "file": "main.py", "text": "def fact(n):\n ..." }],
+  "codewalk": 3,
+  "source": { "file": "main.py", "text": "def fact(n):\n ..." },
   "literals": {
     "list": ["[", "]"],
     "tuple": ["(", ")"],
@@ -64,14 +64,12 @@ killed mid-way.
       "role": "block",
       "title": "main.py",
       "unit": "module",
-      "file": 0,
       "start": 0,
       "end": 135,
       "parent": null
     },
     {
       "role": "stmt",
-      "file": 0,
       "start": 0,
       "end": 12,
       "parent": 0
@@ -80,14 +78,12 @@ killed mid-way.
       "role": "block",
       "title": "fact",
       "unit": "call",
-      "file": 0,
       "start": 0,
       "end": 92,
       "parent": 1
     },
     {
       "role": "expr",
-      "file": 0,
       "start": 9,
       "end": 10,
       "parent": 1
@@ -97,8 +93,8 @@ killed mid-way.
 ```
 
 - `codewalk` — format version.
-- `sources` — full text of every instrumented file. The viewer renders from this
-  text, never from the editor, which may have changed since the run.
+- `source` — the name and full text of the instrumented file. The viewer renders
+  from this text, never from the editor, which may have changed since the run.
 - `literals` — the types the language writes with a bare literal, each with
   its opening and closing bracket. The viewer writes a sequence, set or mapping
   of one of these types between its brackets and without a type name, and any
@@ -111,9 +107,8 @@ killed mid-way.
     an execution index; the viewer adds one when a site ran several blocks.
   - `unit` — required on `block` locs and absent from other locs. The singular
     noun used when the viewer counts siblings; it pluralises by appending `s`.
-  - `file` — index into `sources`.
-  - `start`, `end` — half-open range, as absolute offsets into `text` in
-    **UTF-16 code units** (what JS strings and Lezer use; tracers convert).
+  - `start`, `end` — half-open range, as absolute offsets into the source text
+    in **UTF-16 code units** (what JS strings and Lezer use; tracers convert).
   - `parent` — index of the static (lexical) parent loc, `null` for the root.
     Used by the tracer runtime for stack repair and by the viewer to decide
     which statements belong to which block.
@@ -128,8 +123,9 @@ Python uses the file name and `module` for module blocks, the function name and
 
 Range conventions:
 
-- A `block` loc covers everything its window should show: the whole `def`, the
-  whole loop statement (header included), the whole module.
+- A `block` loc covers everything its window should show: the whole `def`, a
+  loop's header and body (not its `else` clause, which runs after the last
+  iteration), the whole module.
 - A compound statement's `stmt` loc covers **only its header**
   (`if n <= 1:`, `for i in range(2):`, `def fact(n):`). Statements in its body
   are separate `stmt` locs whose `parent` is the enclosing _block_, not the
@@ -219,8 +215,8 @@ Range conventions:
     process (appended by the runner, not the tracer).
   - `timeout` — the runner killed the process at its time limit. Nothing
     writes it: a trace without an `end` line reads as `timeout`.
-  - `syntax_error` — the source did not parse; `message`, `file`, `start`,
-    `end` locate it. No `enter` events precede it.
+  - `syntax_error` — the source did not parse; `message`, `start`, `end`
+    locate it. No `enter` events precede it.
 
 Well-formedness: `enter`/`exit` are properly nested. Nodes still open at `end`
 or at EOF are implicitly closed there (truncation, timeout, hard kill). If the

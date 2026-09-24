@@ -4,24 +4,16 @@ import io
 import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from types import (
-    BuiltinFunctionType,
-    FrameType,
-    FunctionType,
-    ModuleType,
-    TracebackType,
-)
+from types import FrameType, TracebackType
 from typing import Literal
 
-from codewalk.instrument import StatementNames
+from codewalk.instrument import LocFacts
 from codewalk.sink import EventSink
-from codewalk.values import Heap, Snapshot, snapshot
+from codewalk.values import DEFINITIONS, Heap, Snapshot, snapshot
 
 type Stream = Literal["stdout", "stderr"]
 
 _WATCHED_CALLS = 1000
-
-_NOT_STATE = (BuiltinFunctionType, FunctionType, ModuleType, type)
 
 
 class _Node:
@@ -63,26 +55,17 @@ class _BlockContext:
 class Runtime:
     """Maintain the open-node stack and emit trace events."""
 
-    def __init__(
-        self,
-        parents: Sequence[int | None],
-        sink: EventSink,
-        watched: Mapping[int, Sequence[str]],
-        inputs: Mapping[int, Sequence[str]],
-        statements: Mapping[int, StatementNames],
-    ) -> None:
-        self._parents = parents
+    def __init__(self, facts: Sequence[LocFacts], sink: EventSink) -> None:
+        self._facts = facts
+        self._parents = [loc.parent for loc in facts]
         self._sink = sink
-        self._watched = watched
-        self._inputs = inputs
-        self._statements = statements
         self._calls: dict[int, int] = {}
         self._stack: list[_Node] = []
         self._out_stream: Stream | None = None
         self._out_text = ""
         self._heap = Heap(self._emit)
         self._recent: dict[tuple[int, str], Snapshot] = {}
-        # False once the trace has ended and while `render` runs user
+        # False once the trace has ended and while `paused` runs user
         # formatting code; a plain attribute because it is read on every event.
         self._active = True
         self._exhausted = False
@@ -105,7 +88,7 @@ class Runtime:
         block = self._innermost_block()
         if not self._active or block is None or block.watched is None:
             return
-        for name in self._inputs[loc]:
+        for name in self._facts[loc].inputs:
             taken = block.watched.get(name)
             if taken is not None:
                 self._emit_value("name", name, taken)
@@ -124,9 +107,11 @@ class Runtime:
         block = self._innermost_block()
         if block is not None:
             exc = sys.exception()
-            self._settle(block, interrupted=exc is not None)
-            if exc is not None:
-                self._interrupt(block, exc)
+            statement = self._settle(block, interrupted=exc is not None)
+            if exc is not None and statement is not None:
+                self._stack.pop()
+                summary = self.paused(_exception_summary, exc)
+                self._emit({"op": "exit", "exc": summary})
         self._open_statement(loc)
 
     def _open_statement(self, loc: int) -> None:
@@ -155,10 +140,7 @@ class Runtime:
         else:
             return value
 
-        while len(self._stack) > match:
-            node = self._stack.pop()
-            if not node.pending:
-                self._emit({"op": "exit"})
+        self._close_to(match)
         return value
 
     def value(self, loc: int, value: object) -> None:
@@ -184,7 +166,7 @@ class Runtime:
         self._emit(event | {"literal": True} if literal else event)
         return value
 
-    def render[T, R](self, format_: Callable[[T], R], subject: T) -> R:
+    def paused[T, R](self, format_: Callable[[T], R], subject: T) -> R:
         active = self._active
         self._active = False
         try:
@@ -215,10 +197,7 @@ class Runtime:
         if not self._active:
             return
         self._flush_output()
-        while self._stack:
-            node = self._stack.pop()
-            if not node.pending:
-                self._emit({"op": "exit"})
+        self._close_to(0)
         self._emit({"op": "end", "status": status, **fields})
         self._active = False
 
@@ -242,16 +221,23 @@ class Runtime:
         if not self._active or target is None:
             return
         self._settle(target, interrupted=exc is not None)
-        while self._stack:
-            node = self._stack.pop()
-            if node is target:
-                if exc is None:
-                    self._emit({"op": "exit"})
-                else:
-                    summary = self.render(_exception_summary, exc)
-                    self._emit({"op": "exit", "exc": summary})
-                return
-            if not node.pending:
+        self._close_to(self._index(target) + 1)
+        self._stack.pop()
+        if exc is None:
+            self._emit({"op": "exit"})
+        else:
+            self._emit({"op": "exit", "exc": self.paused(_exception_summary, exc)})
+
+    def _index(self, node: _Node) -> int:
+        index = len(self._stack) - 1
+        while self._stack[index] is not node:
+            index -= 1
+        return index
+
+    def _close_to(self, depth: int) -> None:
+        stack = self._stack
+        while len(stack) > depth:
+            if not stack.pop().pending:
                 self._emit({"op": "exit"})
 
     def _innermost_block(self) -> _Node | None:
@@ -262,15 +248,15 @@ class Runtime:
 
     def _variables(self, block: int, frame: FrameType) -> dict[str, Snapshot]:
         variables: dict[str, Snapshot] = {}
-        for name in self._watched.get(block, ()):
+        for name in self._facts[block].watched:
             found, value = _lookup(frame, name)
-            if found and not isinstance(value, _NOT_STATE):
+            if found and not isinstance(value, DEFINITIONS):
                 variables[name] = self._snapshot((block, name), value)
         return variables
 
     def _snapshot(self, key: tuple[int, str], value: object) -> Snapshot:
         previous = self._recent.get(key)
-        taken = self.render(lambda item: snapshot(item, previous), value)
+        taken = self.paused(lambda item: snapshot(item, previous), value)
         self._recent[key] = taken
         return taken
 
@@ -280,52 +266,32 @@ class Runtime:
         event = {"op": "value", anchor: key, "value": self._heap.define(taken)}
         self._emit(event | {"literal": True} if literal else event)
 
-    def _settle(self, block: _Node, *, interrupted: bool = False) -> None:
-        # Records what the block's open statement assigned or changed, as
-        # values on that statement, before the statement closes.
+    def _settle(self, block: _Node, *, interrupted: bool = False) -> _Node | None:
+        # Closes the block's open statement down to itself, records what it
+        # assigned or changed as values on it, and returns it.
         stack = self._stack
+        index = self._index(block) + 1
+        if index >= len(stack) or stack[index].block:
+            return None
+        self._close_to(index + 1)
+        statement = stack[index]
         watched = block.watched
         if watched is None or block.frame is None:
-            return
-        index = len(stack) - 1
-        while index >= 0 and stack[index] is not block:
-            index -= 1
-        index += 1
-        if index == 0 or index >= len(stack) or stack[index].block:
-            return
-        while len(stack) > index + 1:
-            node = stack.pop()
-            if not node.pending:
-                self._emit({"op": "exit"})
-        names = self._statements.get(stack[index].loc)
-        binds = () if names is None or interrupted else names.binds
-        literal = () if names is None or interrupted else names.literal
-        quiet = () if names is None else names.quiet
-        live = None if names is None else names.live
+            return statement
+        facts = self._facts[statement.loc]
+        binds = () if interrupted else facts.binds
+        literal = () if interrupted else facts.literal
+        live = facts.live
         current = self._variables(block.loc, block.frame)
         for name, taken in current.items():
             if live is not None and name not in live:
                 continue
-            if (name in binds or watched.get(name) != taken) and (
-                name in binds or name not in quiet
+            if name in binds or (
+                name not in facts.quiet and watched.get(name) != taken
             ):
                 self._emit_value("name", name, taken, literal=name in literal)
         block.watched = current
-
-    def _interrupt(self, block: _Node, exc: BaseException) -> None:
-        stack = self._stack
-        index = len(stack) - 1
-        while index >= 0 and stack[index] is not block:
-            index -= 1
-        statement = index + 1
-        if index < 0 or statement >= len(stack) or stack[statement].block:
-            return
-        while len(stack) > statement + 1:
-            node = stack.pop()
-            if not node.pending:
-                self._emit({"op": "exit"})
-        stack.pop()
-        self._emit({"op": "exit", "exc": self.render(_exception_summary, exc)})
+        return statement
 
     def _repair(self, parent: int | None) -> None:
         while self._stack:

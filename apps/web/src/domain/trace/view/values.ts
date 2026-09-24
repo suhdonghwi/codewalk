@@ -66,7 +66,7 @@ function brackets(
   trace: Trace,
   { kind, type }: { kind: "sequence" | "set" | "mapping"; type: string },
 ): Pick<Layout, "opening" | "closing"> {
-  const literal = trace.header.literals[type];
+  const literal = trace.literals[type];
 
   if (literal !== undefined) {
     return {

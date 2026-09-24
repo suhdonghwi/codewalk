@@ -1,38 +1,39 @@
-import { blockSites } from "../views.ts";
+import { requireNode } from "../views.ts";
 
-import type { LocId, NodeId, Trace } from "@codewalk/trace";
+import type { LocId, NodeId, Trace, TraceNode } from "@codewalk/trace";
 
 export type Path = NodeId[];
 
 export interface PathColumn {
-  block: NodeId;
-  blocks: NodeId[];
+  block: TraceNode;
+  blocks: TraceNode[];
   expandedIndex: number;
   openSite: LocId | null;
 }
 
 export function initialPath(trace: Trace): Path {
-  return trace.root === null ? [] : [trace.root];
+  const root = trace.nodes[0];
+
+  return root === undefined ? [] : [root.id];
 }
 
 export function pathColumns(trace: Trace, path: Path): PathColumn[] {
-  let blocks = path.slice(0, 1);
+  const nodes = path.map((id) => requireNode(trace, id));
+  let blocks = nodes.slice(0, 1);
 
-  return path.map((block, column) => {
-    const next = path[column + 1];
+  return nodes.map((block, column) => {
+    const next = nodes[column + 1];
 
     const site =
       next === undefined
         ? undefined
-        : blockSites(trace, block).find((candidate) =>
-            candidate.blocks.includes(next),
-          );
+        : block.sites.find((candidate) => candidate.blocks.includes(next));
 
     const current = {
       block,
       blocks,
       expandedIndex: blocks.indexOf(block),
-      openSite: site?.loc ?? null,
+      openSite: site?.loc.id ?? null,
     };
 
     blocks = site?.blocks ?? [];
@@ -51,13 +52,13 @@ export function toggleSite(
 
   if (block === undefined) return path;
 
-  const selected = blockSites(trace, block).find(
-    (candidate) => candidate.loc === site,
+  const selected = requireNode(trace, block).sites.find(
+    (candidate) => candidate.loc.id === site,
   );
 
   const next = path[column + 1];
 
-  if (next !== undefined && selected?.blocks.includes(next)) {
+  if (next !== undefined && selected?.blocks.some(({ id }) => id === next)) {
     return path.slice(0, column + 1);
   }
 
@@ -65,7 +66,7 @@ export function toggleSite(
 
   return firstBlock === undefined
     ? path
-    : [...path.slice(0, column + 1), firstBlock];
+    : [...path.slice(0, column + 1), firstBlock.id];
 }
 
 export function selectSibling(path: Path, column: number, block: NodeId): Path {

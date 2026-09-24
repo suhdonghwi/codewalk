@@ -1,275 +1,128 @@
-import { match, P } from "ts-pattern";
-
-import type {
-  Loc,
-  LocId,
-  NodeId,
-  Role,
-  Trace,
-  TraceNode,
-} from "@codewalk/trace";
-
-export interface Site {
-  loc: LocId;
-  blocks: NodeId[];
-  outputs: number[];
-}
+import type { NodeId, Trace, TraceLoc, TraceNode } from "@codewalk/trace";
 
 export type StatementState = "lit" | "dimmed" | "inert";
 
-interface BlockContext {
-  node: TraceNode;
-  loc: Extract<Loc, { role: "block" }>;
-  source: string;
+export interface LocatedState {
+  loc: TraceLoc;
+  state: StatementState;
 }
 
-export function requireBlock(trace: Trace, block: NodeId): BlockContext {
-  const node = trace.nodes[block];
-  const loc = node === undefined ? undefined : trace.header.locs[node.loc];
-  const source = loc === undefined ? undefined : trace.header.sources[loc.file];
+export interface RaisedException {
+  stmt: TraceNode;
+  exc: string;
+}
 
-  if (
-    node === undefined ||
-    loc === undefined ||
-    loc.role !== "block" ||
-    source === undefined
-  ) {
-    throw new Error(`Node ${block} is not a block`);
+export function requireNode(trace: Trace, id: NodeId): TraceNode {
+  const node = trace.nodes[id];
+
+  if (node === undefined) throw new Error(`Node ${id} is missing`);
+
+  return node;
+}
+
+export function blockLoc(
+  block: TraceNode,
+): Extract<TraceLoc, { role: "block" }> {
+  if (block.loc.role !== "block") {
+    throw new Error(`Node ${block.id} is not a block`);
   }
 
-  return { node, loc, source: source.text };
+  return block.loc;
 }
 
-function nodeRole(trace: Trace, node: NodeId): Role | undefined {
-  const traceNode = trace.nodes[node];
+export function blockTitle(
+  block: TraceNode,
+  index: number,
+  count: number,
+): string {
+  const { title } = blockLoc(block);
 
-  return traceNode === undefined
-    ? undefined
-    : trace.header.locs[traceNode.loc]?.role;
+  return count > 1 ? `${title} ${index + 1}` : title;
 }
 
-export function blockPath(trace: Trace, node: NodeId): NodeId[] {
+export function blockPath(node: TraceNode): NodeId[] {
   const path: NodeId[] = [];
-  let current: NodeId | null = node;
 
-  while (current !== null) {
-    if (nodeRole(trace, current) === "block") path.push(current);
-    current = trace.nodes[current]?.parent ?? null;
+  for (
+    let current: TraceNode | null = node;
+    current !== null;
+    current = current.parent
+  ) {
+    if (current.loc.role === "block") path.push(current.id);
   }
 
   return path.reverse();
 }
 
-export function blockSites(trace: Trace, block: NodeId): Site[] {
-  const sites: Site[] = [];
-  const sitesByLoc = new Map<LocId, Site>();
-
-  const visit = (nodeId: NodeId): void => {
-    const node = trace.nodes[nodeId];
-
-    if (node === undefined) return;
-    const role = trace.header.locs[node.loc]?.role;
-
-    if (role === undefined) return;
-
-    match(role)
-      .with("block", () => undefined)
-      .with(P.union("stmt", "expr"), () => {
-        const blocks: NodeId[] = [];
-
-        for (const child of node.children) {
-          if (nodeRole(trace, child) === "block") blocks.push(child);
-        }
-
-        if (blocks.length > 0 || node.outputs.length > 0) {
-          let site = sitesByLoc.get(node.loc);
-
-          if (site === undefined) {
-            site = { loc: node.loc, blocks: [], outputs: [] };
-            sitesByLoc.set(node.loc, site);
-            sites.push(site);
-          }
-
-          // Not `push(...blocks)`: a loop statement can hold more iterations
-          // than the engine accepts as call arguments.
-          for (const childBlock of blocks) site.blocks.push(childBlock);
-
-          for (const output of node.outputs) site.outputs.push(output);
-        }
-
-        for (const child of node.children) {
-          if (nodeRole(trace, child) !== "block") visit(child);
-        }
-      })
-      .exhaustive();
-  };
-
-  const blockNode = trace.nodes[block];
-
-  if (blockNode === undefined) return [];
-
-  for (const child of blockNode.children) visit(child);
-
-  return sites;
-}
-
-function nearestBlockLoc(trace: Trace, locId: LocId): LocId | null {
-  let current = trace.header.locs[locId]?.parent ?? null;
-
-  while (current !== null) {
-    const loc = trace.header.locs[current];
-
-    if (loc === undefined) return null;
-
-    if (loc.role === "block") return current;
-    current = loc.parent;
-  }
-
-  return null;
-}
-
 export function statementStates(
   trace: Trace,
-  block: NodeId,
-): { loc: LocId; state: StatementState }[] {
-  const blockNode = trace.nodes[block];
+  block: TraceNode,
+): LocatedState[] {
+  const executed = new Set(block.children.map((child) => child.loc.id));
 
-  if (blockNode === undefined) return [];
-  const blockLoc = trace.header.locs[blockNode.loc];
-
-  if (blockLoc === undefined) return [];
-
-  const executed = new Set<LocId>();
-
-  for (const child of blockNode.children) {
-    if (nodeRole(trace, child) === "stmt") {
-      const childNode = trace.nodes[child];
-
-      if (childNode !== undefined) executed.add(childNode.loc);
+  return trace.locs.flatMap((loc) => {
+    if (
+      loc.role !== "stmt" ||
+      loc.start < block.loc.start ||
+      loc.end > block.loc.end
+    ) {
+      return [];
     }
-  }
 
-  const states: { loc: LocId; state: StatementState }[] = [];
+    const state: StatementState =
+      loc.owner !== block.loc.id
+        ? "inert"
+        : executed.has(loc.id)
+          ? "lit"
+          : "dimmed";
 
-  for (let locId = 0; locId < trace.header.locs.length; locId += 1) {
-    const loc = trace.header.locs[locId];
-
-    if (loc === undefined) continue;
-    match(loc.role)
-      .with("stmt", () => {
-        if (
-          loc.file !== blockLoc.file ||
-          loc.start < blockLoc.start ||
-          loc.end > blockLoc.end
-        ) {
-          return;
-        }
-
-        const owner = nearestBlockLoc(trace, locId);
-
-        const state: StatementState =
-          owner === blockNode.loc
-            ? executed.has(locId)
-              ? "lit"
-              : "dimmed"
-            : "inert";
-
-        states.push({ loc: locId, state });
-      })
-      .with(P.union("block", "expr"), () => undefined)
-      .exhaustive();
-  }
-
-  return states;
+    return [{ loc, state }];
+  });
 }
 
-function lastStatementChild(trace: Trace, block: NodeId): NodeId | null {
-  const children = trace.nodes[block]?.children ?? [];
+function lastInnerBlock(node: TraceNode): TraceNode | null {
+  let last: TraceNode | null = null;
 
-  for (let index = children.length - 1; index >= 0; index -= 1) {
-    const child = children[index];
-
-    if (child !== undefined && nodeRole(trace, child) === "stmt") return child;
+  for (const child of node.children) {
+    last = child.loc.role === "block" ? child : (lastInnerBlock(child) ?? last);
   }
-
-  return null;
-}
-
-function lastFrontierBlock(trace: Trace, statement: NodeId): NodeId | null {
-  let last: NodeId | null = null;
-
-  const visit = (nodeId: NodeId): void => {
-    const node = trace.nodes[nodeId];
-
-    if (node === undefined) return;
-
-    for (const child of node.children) {
-      const role = nodeRole(trace, child);
-
-      if (role === undefined) continue;
-      match(role)
-        .with("block", () => {
-          last = child;
-        })
-        .with(P.union("stmt", "expr"), () => visit(child))
-        .exhaustive();
-    }
-  };
-
-  visit(statement);
 
   return last;
 }
 
-export function exceptionOrigin(
-  trace: Trace,
-): { block: NodeId; stmt: NodeId | null } | null {
-  if (trace.root === null || trace.nodes[trace.root]?.exc === null) return null;
+function raisingBlock(statement: TraceNode): TraceNode | null {
+  const inner = lastInnerBlock(statement);
 
-  let block = trace.root;
+  return inner !== null && inner.exc !== null ? inner : null;
+}
+
+export function exceptionOrigin(trace: Trace): TraceNode | null {
+  let block = trace.nodes[0];
+
+  if (block === undefined || block.exc === null) return null;
 
   while (true) {
-    const stmt = lastStatementChild(trace, block);
+    const statement = block.children.at(-1);
 
-    if (stmt === null) return { block, stmt: null };
-    const childBlock = lastFrontierBlock(trace, stmt);
+    if (statement === undefined) return block;
 
-    if (childBlock !== null && trace.nodes[childBlock]?.exc !== null) {
-      block = childBlock;
-      continue;
-    }
+    const inner = raisingBlock(statement);
 
-    return { block, stmt };
+    if (inner === null) return statement;
+    block = inner;
   }
 }
 
-export interface RaisedException {
-  stmt: NodeId;
-  exc: string;
-}
+export function raisedExceptions(block: TraceNode): RaisedException[] {
+  const raised = block.children.flatMap((stmt) =>
+    stmt.exc === null ? [] : [{ stmt, exc: stmt.exc }],
+  );
 
-export function raisedExceptions(
-  trace: Trace,
-  block: NodeId,
-): RaisedException[] {
-  const node = trace.nodes[block];
+  const last = block.children.at(-1);
 
-  if (node === undefined) return [];
-
-  const caught = node.children.flatMap((child) => {
-    const exc = trace.nodes[child]?.exc ?? null;
-
-    return exc === null ? [] : [{ stmt: child, exc }];
-  });
-
-  const last = lastStatementChild(trace, block);
-
-  if (node.exc === null || last === null) return caught;
-  const childBlock = lastFrontierBlock(trace, last);
-
-  if (childBlock !== null && trace.nodes[childBlock]?.exc !== null) {
-    return caught;
+  if (block.exc === null || last === undefined || raisingBlock(last) !== null) {
+    return raised;
   }
 
-  return [...caught, { stmt: last, exc: node.exc }];
+  return [...raised, { stmt: last, exc: block.exc }];
 }

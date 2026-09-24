@@ -52,14 +52,6 @@ run = "pnpm run knip"
 description = "Regenerate the subset web fonts from the font packages"
 run = "uv run tools/subset-fonts.py"
 
-[tasks.schema]
-description = "Regenerate the trace JSON Schema"
-run = "node packages/trace/scripts/generate-schema.ts"
-
-[tasks."schema:check"]
-description = "Check that the trace JSON Schema is current"
-run = "node packages/trace/scripts/generate-schema.ts --check"
-
 [tasks.test]
 description = "Run JavaScript, TypeScript, and Python tests"
 run = """
@@ -74,16 +66,16 @@ for source in spec/fixtures/*.py; do
   trace="${source%.py}.trace.jsonl"
   input="${source%.py}.stdin"
   if [ -f "$input" ]; then
-    uv run --project apps/tracer-python python -m codewalk run "$source" < "$input" > "$trace"
+    uv run --project apps/tracer-python python -m codewalk "$source" < "$input" > "$trace"
   else
-    uv run --project apps/tracer-python python -m codewalk run "$source" > "$trace"
+    uv run --project apps/tracer-python python -m codewalk "$source" > "$trace"
   fi
 done
 """
 
 [tasks.check]
 description = "Run every repository check"
-depends = ["format", "lint", "typecheck", "knip", "test", "schema:check"]
+depends = ["format", "lint", "typecheck", "knip", "test"]
 
 [tasks.fix]
 description = "Apply automatic formatting and lint fixes"

@@ -1,7 +1,7 @@
 import type { SourceLine } from "./source-lines.ts";
 import type { Token } from "./tokens.ts";
-import type { Site, StatementState } from "../views.ts";
-import type { Loc, LocId, Trace, ValueChunk } from "@codewalk/trace";
+import type { LocatedState, StatementState } from "../views.ts";
+import type { LocId, Site, TraceLoc, ValueChunk } from "@codewalk/trace";
 
 export interface Span {
   text: string;
@@ -11,29 +11,19 @@ export interface Span {
   value: ValueChunk | null;
 }
 
-export interface LocatedState {
-  loc: Loc;
-  state: StatementState;
-}
-
 interface ValueAnchor {
   end: number;
   value: ValueChunk;
 }
 
-interface SiteLoc {
-  id: LocId;
-  loc: Loc;
-}
-
-function covers(loc: Pick<Loc, "start" | "end">, position: number): boolean {
+function covers(loc: TraceLoc, position: number): boolean {
   return loc.start <= position && position < loc.end;
 }
 
 function stateAt(
   position: number,
   states: LocatedState[],
-  nestedBlocks: Loc[],
+  nestedBlocks: TraceLoc[],
 ): StatementState {
   const covering = states.filter(({ loc }) => covers(loc, position));
 
@@ -47,30 +37,22 @@ function stateAt(
   return "lit";
 }
 
-export function siteLocs(trace: Trace, sites: Site[]): SiteLoc[] {
-  const locs: SiteLoc[] = [];
-
-  for (const site of sites) {
-    if (site.blocks.length === 0) continue;
-    const loc = trace.header.locs[site.loc];
-
-    if (loc !== undefined) locs.push({ id: site.loc, loc });
-  }
-
-  return locs.sort((left, right) => {
-    const leftLength = left.loc.end - left.loc.start;
-    const rightLength = right.loc.end - right.loc.start;
-
-    return rightLength - leftLength || left.loc.start - right.loc.start;
-  });
+export function siteLocs(sites: Site[]): TraceLoc[] {
+  return sites
+    .flatMap(({ loc, blocks }) => (blocks.length === 0 ? [] : [loc]))
+    .sort(
+      (left, right) =>
+        right.end - right.start - (left.end - left.start) ||
+        left.start - right.start,
+    );
 }
 
 export interface SpanContext {
   source: string;
   tokens: Token[];
   states: LocatedState[];
-  nestedBlocks: Loc[];
-  sites: SiteLoc[];
+  nestedBlocks: TraceLoc[];
+  sites: TraceLoc[];
   values: ValueAnchor[];
 }
 
@@ -78,7 +60,7 @@ export function spansForLine(context: SpanContext, line: SourceLine): Span[] {
   if (line.from === line.to) return [];
 
   const { source, tokens, states, nestedBlocks, sites, values } = context;
-  const ranges = [...states, ...sites].map(({ loc }) => loc);
+  const ranges = [...states.map(({ loc }) => loc), ...sites];
 
   const inside = (point: number): boolean =>
     point > line.from && point < line.to;
@@ -106,7 +88,7 @@ export function spansForLine(context: SpanContext, line: SourceLine): Span[] {
     const coveredSites: LocId[] = [];
 
     for (const site of sites) {
-      if (covers(site.loc, from)) coveredSites.push(site.id);
+      if (covers(site, from)) coveredSites.push(site.id);
     }
 
     spans.push({

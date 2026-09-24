@@ -53,12 +53,13 @@ The server contains no Python. Instrumenting and running both happen inside the
 sandboxed process, so untrusted source never reaches a parser outside the
 sandbox.
 
-- `spec/` — the [trace format](../spec/trace-format.md), its JSON Schema and
-  fixtures: the contract between tracers and the viewer.
+- `spec/` — the [trace format](../spec/trace-format.md) and its fixtures: the
+  contract between tracers and the viewer.
 - `apps/tracer-python/` — the Python tracer (instrumenter and runtime), stdlib
   only.
-- `packages/trace/` — trace schemas, parser and tree builder, shared by the web
-  client and the server.
+- `packages/trace/` — the trace schema and a parser that validates a trace and
+  builds its linked tree of nodes, locs and sites, shared by the web client and
+  the server.
 - `apps/server/` — `POST /run {source, stdin}` → trace, through a pluggable
   runner.
 - `apps/web/` — the viewer: canvas, editor and trace windows.

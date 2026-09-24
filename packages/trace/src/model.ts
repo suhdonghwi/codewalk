@@ -2,16 +2,29 @@ import type {
   End,
   Header,
   HeapObject,
+  Loc,
   LocId,
   NodeId,
   Value,
 } from "./schema.ts";
 
+export type TraceLoc = Loc & {
+  id: LocId;
+  owner: LocId | null;
+};
+
+export interface Site {
+  loc: TraceLoc;
+  blocks: TraceNode[];
+  outputs: number[];
+}
+
 export interface TraceNode {
   id: NodeId;
-  loc: LocId;
-  parent: NodeId | null;
-  children: NodeId[];
+  loc: TraceLoc;
+  parent: TraceNode | null;
+  children: TraceNode[];
+  sites: Site[];
   outputs: number[];
   values: ValueChunk[];
   returned: RecordedValue | null;
@@ -19,7 +32,7 @@ export interface TraceNode {
 }
 
 export interface OutputChunk {
-  node: NodeId;
+  node: TraceNode;
   stream: "stdout" | "stderr";
   text: string;
 }
@@ -31,7 +44,7 @@ export interface RecordedValue {
 }
 
 export interface ValueChunk extends RecordedValue {
-  loc: LocId | null;
+  loc: TraceLoc | null;
   name: string;
 }
 
@@ -41,19 +54,19 @@ export interface ObjectVersion {
 }
 
 export interface Trace {
-  header: Header;
+  source: Header["source"];
+  literals: Header["literals"];
+  locs: TraceLoc[];
   nodes: TraceNode[];
   outputs: OutputChunk[];
   objects: ObjectVersion[][];
-  root: NodeId | null;
   end: End;
 }
 
-export type TraceParseError = {
-  kind: "empty" | "json" | "schema" | "structure";
+export interface TraceParseError {
   line: number;
   message: string;
-};
+}
 
 export type ParseResult =
   { ok: true; trace: Trace } | { ok: false; error: TraceParseError };

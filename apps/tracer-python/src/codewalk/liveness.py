@@ -31,9 +31,7 @@ def loop_state(loop: ast.For | ast.While) -> list[str]:
     """Names one iteration may read before assigning them, in first-read order."""
     body = _Live(frozenset()).block(loop.body, (), _Exits())
     if isinstance(loop, ast.For):
-        targets: set[str] = set()
-        _bind_names(loop.target, targets)
-        return list(_minus(body, targets))
+        return list(_minus(body, target_names(loop.target)))
     reads, bound = _expression_effect(loop.test)
     return list(_union(reads, _minus(body, bound)))
 
@@ -73,36 +71,36 @@ def function_scope(
 
 def loop_assigns(loop: ast.For | ast.While) -> set[str]:
     """Names the loop's condition or body may assign in the enclosing scope."""
-    assigns = _Assigns()
+    assigned = _Assigned()
     if isinstance(loop, ast.While):
-        assigns.visit(loop.test)
+        assigned.visit(loop.test)
     for statement in loop.body:
-        assigns.visit(statement)
-    return set(assigns.names)
+        assigned.visit(statement)
+    return set(assigned.names)
 
 
 def statement_bindings(node: ast.stmt) -> list[str]:
     """Names a statement binds itself, not through the body it heads."""
-    bindings = _Bindings()
+    assigned = _Assigned()
     if isinstance(node, (ast.If, ast.While)):
-        bindings.visit(node.test)
+        assigned.visit(node.test)
     elif isinstance(node, (ast.For, ast.AsyncFor)):
-        bindings.visit(node.iter)
+        assigned.visit(node.iter)
     elif isinstance(node, (ast.With, ast.AsyncWith)):
         for item in node.items:
-            bindings.visit(item)
+            assigned.visit(item)
     elif isinstance(node, ast.Match):
-        bindings.visit(node.subject)
+        assigned.visit(node.subject)
     elif not isinstance(node, _COMPOUND):
-        bindings.visit(node)
-    return list(bindings.names)
+        assigned.visit(node)
+    return list(assigned.names)
 
 
 def target_names(target: ast.expr) -> list[str]:
-    """Names a `for` target binds."""
-    bindings = _Bindings()
-    bindings.visit(target)
-    return list(bindings.names)
+    """Names an assignment target binds."""
+    assigned = _Assigned()
+    assigned.visit(target)
+    return list(assigned.names)
 
 
 def _escaping(scope: symtable.SymbolTable) -> frozenset[str]:
@@ -214,9 +212,7 @@ class _Live:
     def _loop(self, node: ast.While | ast.For, out: Names, exits: _Exits) -> Names:
         ended = self.block(node.orelse, out, exits)
         self.after[node] = frozenset(ended) | frozenset(out) | self.escaping
-        targets: set[str] = set()
-        if isinstance(node, ast.For):
-            _bind_names(node.target, targets)
+        targets = target_names(node.target) if isinstance(node, ast.For) else []
         head: Names = ()
         while True:
             inner = _Exits(out, head, exits.ret, exits.throw)
@@ -415,7 +411,7 @@ class _Reads:
         inner = set(assigned)
         for generator in node.generators:
             self.expression(generator.iter, inner, definite=False)
-            _bind_names(generator.target, inner)
+            inner.update(target_names(generator.target))
             for condition in generator.ifs:
                 self.expression(condition, inner, definite=False)
         if isinstance(node, ast.DictComp):
@@ -429,22 +425,14 @@ class _Reads:
             self.names.append(node.id)
 
 
-def _bind_names(node: ast.expr, assigned: set[str]) -> None:
-    if isinstance(node, ast.Name):
-        assigned.add(node.id)
-    elif isinstance(node, (ast.Tuple, ast.List)):
-        for item in node.elts:
-            _bind_names(item, assigned)
-    elif isinstance(node, ast.Starred):
-        _bind_names(node.value, assigned)
+class _Assigned(ast.NodeVisitor):
+    """Names a subtree may bind in its own scope."""
 
-
-class _Bindings(ast.NodeVisitor):
     def __init__(self) -> None:
         self.names: dict[str, None] = {}
 
     def visit_Name(self, node: ast.Name) -> None:
-        if isinstance(node.ctx, ast.Store):
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
             self.names[node.id] = None
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
@@ -454,12 +442,6 @@ class _Bindings(ast.NodeVisitor):
         self.visit(node.iter)
         for condition in node.ifs:
             self.visit(condition)
-
-
-class _Assigns(_Bindings):
-    def visit_Name(self, node: ast.Name) -> None:
-        if isinstance(node.ctx, (ast.Store, ast.Del)):
-            self.names[node.id] = None
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
         if node.name is not None:

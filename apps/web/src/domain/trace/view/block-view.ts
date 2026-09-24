@@ -1,9 +1,4 @@
-import {
-  blockSites,
-  raisedExceptions,
-  requireBlock,
-  statementStates,
-} from "../views.ts";
+import { raisedExceptions, statementStates } from "../views.ts";
 
 import {
   lineContaining,
@@ -13,13 +8,11 @@ import {
 import { siteLocs, spansForLine } from "./spans.ts";
 
 import type { SourceLine } from "./source-lines.ts";
-import type { LocatedState, Span, SpanContext } from "./spans.ts";
+import type { Span, SpanContext } from "./spans.ts";
 import type { Token } from "./tokens.ts";
-import type { Site } from "../views.ts";
 import type {
-  LocId,
-  NodeId,
   RecordedValue,
+  Site,
   Trace,
   TraceNode,
   ValueChunk,
@@ -30,25 +23,25 @@ export interface InlineSegment {
   text: string;
 }
 
+interface StateValue {
+  name: string;
+  label: string | null;
+  entry: RecordedValue;
+}
+
+interface StateRow {
+  label: string;
+  values: StateValue[];
+}
+
 export interface Line {
   number: number;
   spans: Span[];
-  start: ValueChunk[];
+  inputs: ValueChunk[];
   changes: ValueChunk[];
   output: InlineSegment[] | null;
   exception: string | null;
-  returned: Returned | null;
-  loopEnd: LoopEnd | null;
-}
-
-interface Returned {
-  indent: string;
-  value: RecordedValue;
-}
-
-interface LoopEnd {
-  indent: string;
-  changes: ValueChunk[];
+  after: StateRow[];
 }
 
 export interface BlockView {
@@ -64,10 +57,7 @@ function outputsByLine(
 
   for (const site of sites) {
     if (site.outputs.length === 0) continue;
-    const loc = trace.header.locs[site.loc];
-
-    if (loc === undefined) continue;
-    const line = lineContaining(lines, loc.end);
+    const line = lineContaining(lines, site.loc.end);
 
     if (line === null) continue;
     const indexes = indexesByLine.get(line) ?? [];
@@ -101,144 +91,83 @@ function outputsByLine(
   return outputs;
 }
 
-interface PlacedChanges {
-  changes: Map<number, ValueChunk[]>;
-  loopEnds: Map<number, LoopEnd>;
-}
-
-function iterationLoc(trace: Trace, statement: TraceNode): LocId | null {
-  for (const child of statement.children) {
-    const loc = trace.nodes[child]?.loc;
-
-    if (loc !== undefined && trace.header.locs[loc]?.role === "block") {
-      return loc;
-    }
-  }
-
-  return null;
-}
-
-function descendsFrom(trace: Trace, locId: LocId, root: LocId): boolean {
-  let current: LocId | null = locId;
-
-  while (current !== null) {
-    if (current === root) return true;
-    current = trace.header.locs[current]?.parent ?? null;
-  }
-
-  return false;
-}
-
-function bodyEnd(trace: Trace, iteration: LocId): number {
-  return trace.header.locs.reduce(
-    (end, loc) =>
-      loc.parent !== null && descendsFrom(trace, loc.parent, iteration)
-        ? Math.max(end, loc.end)
-        : end,
-    0,
-  );
-}
-
-function indentAt(
-  source: string,
-  lines: SourceLine[],
-  start: number,
-): string | null {
+function indentAt(source: string, lines: SourceLine[], start: number): string {
   const line = lines.find(({ from, to }) => from <= start && start <= to);
 
-  return line === undefined ? null : source.slice(line.from, start);
+  return line === undefined ? "" : source.slice(line.from, start);
 }
 
-function placeChanges(
+interface PlacedValues {
+  changes: Map<number, ValueChunk[]>;
+  after: Map<number, StateRow[]>;
+}
+
+function placeValues(
   trace: Trace,
-  node: TraceNode,
-  source: string,
+  block: TraceNode,
   lines: SourceLine[],
-): PlacedChanges {
+): PlacedValues {
+  const source = trace.source.text;
   const changes = new Map<number, ValueChunk[]>();
-  const loopEnds = new Map<number, LoopEnd>();
+  const after = new Map<number, StateRow[]>();
 
-  for (const child of node.children) {
-    const statement = trace.nodes[child];
+  const addAfter = (end: number, row: StateRow): void => {
+    const line = lineContaining(lines, end);
 
-    const loc =
-      statement === undefined ? undefined : trace.header.locs[statement.loc];
+    if (line !== null) after.set(line, [...(after.get(line) ?? []), row]);
+  };
 
-    if (statement === undefined || loc?.role !== "stmt") continue;
+  for (const statement of block.children) {
+    const { loc } = statement;
+    const indent = indentAt(source, lines, loc.start);
+    const returned = statement.returned;
+
+    if (returned !== null && !returned.literal) {
+      addAfter(loc.end, {
+        label: `${indent}(returned)`,
+        values: [{ name: "returned", label: null, entry: returned }],
+      });
+    }
+
     const values = statement.values.filter(({ literal }) => !literal);
 
     if (values.length === 0) continue;
-    const iteration = iterationLoc(trace, statement);
 
-    if (iteration === null) {
+    const iteration = statement.children.find(
+      (child) => child.loc.role === "block" && child.loc.parent === loc.id,
+    );
+
+    if (iteration === undefined) {
       const line = lineContaining(lines, loc.end);
 
-      if (line === null) continue;
-      changes.set(line, [...(changes.get(line) ?? []), ...values]);
+      if (line !== null) {
+        changes.set(line, [...(changes.get(line) ?? []), ...values]);
+      }
+
       continue;
     }
 
-    const indent = indentAt(source, lines, loc.start);
-    const line = lineContaining(lines, bodyEnd(trace, iteration));
-
-    if (indent === null || line === null) continue;
-
-    loopEnds.set(line, {
-      indent,
-      changes: [...(loopEnds.get(line)?.changes ?? []), ...values],
+    addAfter(iteration.loc.end, {
+      label: `${indent}(after)`,
+      values: values.map((entry) => ({
+        name: entry.name,
+        label: `${entry.name} →`,
+        entry,
+      })),
     });
   }
 
-  return { changes, loopEnds };
-}
-
-function returnedByLine(
-  trace: Trace,
-  node: TraceNode,
-  source: string,
-  lines: SourceLine[],
-): Map<number, Returned> {
-  const result = new Map<number, Returned>();
-
-  for (const child of node.children) {
-    const statement = trace.nodes[child];
-
-    if (
-      statement === undefined ||
-      statement.returned === null ||
-      statement.returned.literal
-    ) {
-      continue;
-    }
-
-    const loc = trace.header.locs[statement.loc];
-
-    if (loc === undefined) continue;
-    const indent = indentAt(source, lines, loc.start);
-    const line = lineContaining(lines, loc.end);
-
-    if (indent !== null && line !== null) {
-      result.set(line, { indent, value: statement.returned });
-    }
-  }
-
-  return result;
+  return { changes, after };
 }
 
 function exceptionByLine(
-  trace: Trace,
-  block: NodeId,
+  block: TraceNode,
   lines: SourceLine[],
 ): Map<number, string> {
   const result = new Map<number, string>();
 
-  for (const { stmt, exc } of raisedExceptions(trace, block)) {
-    const statement = trace.nodes[stmt];
-
-    const loc =
-      statement === undefined ? undefined : trace.header.locs[statement.loc];
-
-    const line = loc === undefined ? null : lineContaining(lines, loc.end);
+  for (const { stmt, exc } of raisedExceptions(block)) {
+    const line = lineContaining(lines, stmt.loc.end);
 
     if (line !== null) result.set(line, exc);
   }
@@ -262,8 +191,7 @@ function runs(lines: Line[]): Line[][] {
     if (
       current !== undefined &&
       previous !== undefined &&
-      previous.returned === null &&
-      previous.loopEnd === null &&
+      previous.after.length === 0 &&
       hasChips(previous) === hasChips(line)
     ) {
       current.push(line);
@@ -277,67 +205,52 @@ function runs(lines: Line[]): Line[][] {
 
 export function buildBlockView(
   trace: Trace,
-  block: NodeId,
+  block: TraceNode,
   tokens: Token[],
 ): BlockView {
-  const { node, loc, source } = requireBlock(trace, block);
+  const source = trace.source.text;
+  const { loc } = block;
 
   const lines = trimCommonIndent(
     source,
     sourceLines(source, loc.start, loc.end),
   );
 
-  const sites = blockSites(trace, block);
-
-  const states: LocatedState[] = statementStates(trace, block).flatMap(
-    ({ loc: locId, state }) => {
-      const statementLoc = trace.header.locs[locId];
-
-      return statementLoc === undefined ? [] : [{ loc: statementLoc, state }];
-    },
-  );
-
-  const nestedBlocks = trace.header.locs.filter(
-    (candidate, locId) =>
-      locId !== node.loc &&
+  const nestedBlocks = trace.locs.filter(
+    (candidate) =>
+      candidate.id !== loc.id &&
       candidate.role === "block" &&
-      candidate.file === loc.file &&
       candidate.start >= loc.start &&
       candidate.end <= loc.end,
   );
 
-  const outputs = outputsByLine(trace, sites, lines);
-  const exceptions = exceptionByLine(trace, block, lines);
-  const returned = returnedByLine(trace, node, source, lines);
-  const { changes, loopEnds } = placeChanges(trace, node, source, lines);
+  const outputs = outputsByLine(trace, block.sites, lines);
+  const exceptions = exceptionByLine(block, lines);
+  const { changes, after } = placeValues(trace, block, lines);
 
   const context: SpanContext = {
     source,
     tokens,
-    states,
+    states: statementStates(trace, block),
     nestedBlocks,
-    sites: siteLocs(trace, sites),
-    values: node.values.flatMap((chunk) => {
-      const anchor =
-        chunk.loc === null ? undefined : trace.header.locs[chunk.loc];
-
-      return anchor === undefined ? [] : [{ end: anchor.end, value: chunk }];
-    }),
+    sites: siteLocs(block.sites),
+    values: block.values.flatMap((chunk) =>
+      chunk.loc === null ? [] : [{ end: chunk.loc.end, value: chunk }],
+    ),
   };
 
-  const inputs = node.values.filter(({ loc }) => loc === null);
+  const inputs = block.values.filter((chunk) => chunk.loc === null);
 
   return {
     groups: runs(
       lines.map((line, index) => ({
         number: line.number,
         spans: spansForLine(context, line),
-        start: index === 0 ? inputs : [],
+        inputs: index === 0 ? inputs : [],
         changes: changes.get(line.number) ?? [],
         output: outputs.get(line.number) ?? null,
         exception: exceptions.get(line.number) ?? null,
-        returned: returned.get(line.number) ?? null,
-        loopEnd: loopEnds.get(line.number) ?? null,
+        after: after.get(line.number) ?? [],
       })),
     ),
   };

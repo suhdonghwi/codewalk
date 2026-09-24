@@ -31,13 +31,12 @@ _SHORT_INTEGER = 10**_MAX_TEXT
 
 _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
 
+DEFINITIONS = (type, FunctionType, BuiltinFunctionType, ModuleType)
+
 _OPAQUE = (
-    type,
-    FunctionType,
-    BuiltinFunctionType,
+    *DEFINITIONS,
     BuiltinMethodType,
     MethodType,
-    ModuleType,
     GeneratorType,
     CoroutineType,
     CodeType,

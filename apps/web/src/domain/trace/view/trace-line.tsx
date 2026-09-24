@@ -54,6 +54,7 @@ function siteBackground(span: Span): string | undefined {
 interface OpenValue {
   key: string;
   name: string;
+  label: string | null;
   entry: RecordedValue;
 }
 
@@ -108,13 +109,19 @@ export function TraceLine({
     );
   }
 
-  const startEntries: OpenValue[] = line.start
+  const inputEntries: OpenValue[] = line.inputs
     .filter(({ name }) => varyingNames.includes(name))
-    .map((entry) => ({ key: `start:${entry.name}`, name: entry.name, entry }));
+    .map((entry) => ({
+      key: `input:${entry.name}`,
+      name: entry.name,
+      label: `${entry.name} =`,
+      entry,
+    }));
 
   const changeEntries: OpenValue[] = line.changes.map((entry, index) => ({
     key: `change:${index}`,
     name: entry.name,
+    label: `${entry.name} →`,
     entry,
   }));
 
@@ -126,6 +133,7 @@ export function TraceLine({
             {
               key: `anchor:${index}`,
               name: span.value.name,
+              label: null,
               entry: span.value,
             },
           ],
@@ -133,24 +141,15 @@ export function TraceLine({
     ...changeEntries,
   ];
 
-  const returnedEntries: OpenValue[] =
-    line.returned === null
-      ? []
-      : [{ key: "returned", name: "returned", entry: line.returned.value }];
-
-  const loopEndEntries: OpenValue[] = (line.loopEnd?.changes ?? []).map(
-    (entry, index) => ({ key: `loop-end:${index}`, name: entry.name, entry }),
-  );
-
   const isExpanded = ({ key }: OpenValue) => openKeys.includes(key);
 
-  function valueChip({ key, entry }: OpenValue, label?: string) {
+  function valueChip({ key, entry, label }: OpenValue) {
     return (
       <ValueChip
         entry={entry}
         expanded={openKeys.includes(key)}
         key={key}
-        label={label}
+        label={label ?? undefined}
         onToggle={() => {
           toggleValue(key);
         }}
@@ -159,13 +158,9 @@ export function TraceLine({
     );
   }
 
-  function stateRow(
-    label: string,
-    entries: OpenValue[],
-    chipLabel: (entry: OpenValue) => string | undefined,
-  ) {
+  function stateRow(key: string, label: string, entries: OpenValue[]) {
     return (
-      <>
+      <Fragment key={key}>
         <div className={cn(rowClasses(false), "hover:bg-neutral-50")}>
           <div className="flex items-baseline pr-[1ch]">
             <span
@@ -175,11 +170,11 @@ export function TraceLine({
             <span className="pl-2.5 text-neutral-400">{label}</span>
           </div>
           <div className="flex items-baseline gap-[0.5ch] pr-4">
-            {entries.map((entry) => valueChip(entry, chipLabel(entry)))}
+            {entries.map((entry) => valueChip(entry))}
           </div>
         </div>
         <ValuePanel trace={trace} values={entries.filter(isExpanded)} />
-      </>
+      </Fragment>
     );
   }
 
@@ -188,9 +183,9 @@ export function TraceLine({
 
   return (
     <div className="col-span-full grid grid-cols-subgrid">
-      {startEntries.length === 0
+      {inputEntries.length === 0
         ? null
-        : stateRow("(before)", startEntries, ({ name }) => `${name} =`)}
+        : stateRow("before", "(before)", inputEntries)}
       <div
         className={cn(
           rowClasses(hasChips(line)),
@@ -279,7 +274,7 @@ export function TraceLine({
           </code>
         </div>
         <div className="flex items-baseline gap-[0.5ch] pr-4">
-          {changeEntries.map((entry) => valueChip(entry, `${entry.name} →`))}
+          {changeEntries.map((entry) => valueChip(entry))}
           {outputPreview === null ? null : (
             <InlineChip
               expandable={outputPreview.expandable}
@@ -303,20 +298,16 @@ export function TraceLine({
           <Segments segments={line.output} />
         </pre>
       ) : null}
-      {line.returned === null
-        ? null
-        : stateRow(
-            `${line.returned.indent}(returned)`,
-            returnedEntries,
-            () => undefined,
-          )}
-      {line.loopEnd === null
-        ? null
-        : stateRow(
-            `${line.loopEnd.indent}(after)`,
-            loopEndEntries,
-            ({ name }) => `${name} →`,
-          )}
+      {line.after.map((row, rowIndex) =>
+        stateRow(
+          `after:${rowIndex}`,
+          row.label,
+          row.values.map((value, index) => ({
+            key: `after:${rowIndex}:${index}`,
+            ...value,
+          })),
+        ),
+      )}
     </div>
   );
 }
